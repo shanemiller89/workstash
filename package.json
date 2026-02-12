@@ -1,0 +1,200 @@
+{
+  "name": "mystash",
+  "displayName": "MyStash",
+  "description": "Git Stash Management for VS Code",
+  "version": "0.0.1",
+  "publisher": "mystash",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/mystash"
+  },
+  "engines": {
+    "vscode": "^1.109.0"
+  },
+  "categories": [
+    "SCM Providers",
+    "Other"
+  ],
+  "keywords": [
+    "git",
+    "stash",
+    "version control",
+    "scm"
+  ],
+  "activationEvents": [
+    "workspaceContains:.git"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "mystash-container",
+          "title": "MyStash",
+          "icon": "$(archive)"
+        }
+      ]
+    },
+    "views": {
+      "mystash-container": [
+        {
+          "id": "mystashView",
+          "name": "Git Stashes",
+          "icon": "$(archive)",
+          "contextualTitle": "MyStash"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "mystash.refresh",
+        "title": "Refresh Stash List",
+        "category": "MyStash",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "mystash.stash",
+        "title": "Create New Stash",
+        "category": "MyStash",
+        "icon": "$(add)"
+      },
+      {
+        "command": "mystash.apply",
+        "title": "Apply Stash",
+        "category": "MyStash",
+        "icon": "$(check)"
+      },
+      {
+        "command": "mystash.pop",
+        "title": "Pop Stash",
+        "category": "MyStash",
+        "icon": "$(arrow-up)"
+      },
+      {
+        "command": "mystash.drop",
+        "title": "Drop Stash",
+        "category": "MyStash",
+        "icon": "$(trash)"
+      },
+      {
+        "command": "mystash.show",
+        "title": "Show Stash Contents",
+        "category": "MyStash",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "mystash.clear",
+        "title": "Clear All Stashes",
+        "category": "MyStash",
+        "icon": "$(clear-all)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "mystash.refresh",
+          "when": "view == mystashView",
+          "group": "navigation"
+        },
+        {
+          "command": "mystash.stash",
+          "when": "view == mystashView",
+          "group": "navigation"
+        },
+        {
+          "command": "mystash.clear",
+          "when": "view == mystashView"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "mystash.apply",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "inline@1"
+        },
+        {
+          "command": "mystash.show",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "inline@2"
+        },
+        {
+          "command": "mystash.pop",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "1_stash@1"
+        },
+        {
+          "command": "mystash.apply",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "1_stash@2"
+        },
+        {
+          "command": "mystash.show",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "1_stash@3"
+        },
+        {
+          "command": "mystash.drop",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "2_destructive"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "mystash.refresh",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.stash",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.apply",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.pop",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.drop",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.show",
+          "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.clear",
+          "when": "workspaceFolderCount > 0"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
+    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "check-types": "tsc --noEmit",
+    "lint": "eslint src",
+    "test": "vscode-test"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.109.0",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "22.x",
+    "typescript-eslint": "^8.54.0",
+    "eslint": "^9.39.2",
+    "esbuild": "^0.27.2",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.9.3",
+    "@vscode/test-cli": "^0.0.12",
+    "@vscode/test-electron": "^2.5.2"
+  }
+}
