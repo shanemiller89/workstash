@@ -10,7 +10,7 @@
     "url": "https://github.com/shanemiller89/mystash"
   },
   "engines": {
-    "vscode": "^1.109.0"
+    "vscode": "^1.106.0"
   },
   "categories": [
     "SCM Providers",
@@ -27,6 +27,54 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "configuration": {
+      "title": "MyStash",
+      "properties": {
+        "mystash.autoRefresh": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically refresh the stash list when git changes are detected or the window regains focus."
+        },
+        "mystash.confirmOnDrop": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a confirmation dialog before dropping a stash."
+        },
+        "mystash.confirmOnClear": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show a confirmation dialog before clearing all stashes."
+        },
+        "mystash.showFileStatus": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show M/A/D status indicators on file items in the stash tree."
+        },
+        "mystash.defaultIncludeUntracked": {
+          "type": "boolean",
+          "default": false,
+          "description": "Default to including untracked files when creating a stash."
+        },
+        "mystash.sortOrder": {
+          "type": "string",
+          "default": "newest",
+          "enum": [
+            "newest",
+            "oldest"
+          ],
+          "enumDescriptions": [
+            "Show newest stashes first (default git order)",
+            "Show oldest stashes first"
+          ],
+          "description": "Sort order for the stash list."
+        },
+        "mystash.showBranchInDescription": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the branch name in the stash item description."
+        }
+      }
+    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -46,6 +94,23 @@
         }
       ]
     },
+    "viewsWelcome": [
+      {
+        "view": "mystashView",
+        "contents": "No workspace folder open.\n[Open Folder](command:vscode.openFolder)",
+        "when": "!workspaceFolderCount"
+      },
+      {
+        "view": "mystashView",
+        "contents": "Not a git repository.\nInitialize a repository to start using stashes.\n[Initialize Repository](command:git.init)",
+        "when": "workspaceFolderCount && !mystash.isGitRepo"
+      },
+      {
+        "view": "mystashView",
+        "contents": "No stashes yet.\nStash your changes to save them for later.\n[Create Stash](command:mystash.stash)",
+        "when": "mystash.isGitRepo && !mystash.hasStashes"
+      }
+    ],
     "commands": [
       {
         "command": "mystash.refresh",
@@ -88,6 +153,17 @@
         "title": "Clear All Stashes",
         "category": "MyStash",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "mystash.showFile",
+        "title": "Show File Diff",
+        "category": "MyStash"
+      },
+      {
+        "command": "mystash.openPanel",
+        "title": "Open Stash Panel",
+        "category": "MyStash",
+        "icon": "$(open-preview)"
       }
     ],
     "menus": {
@@ -103,6 +179,11 @@
           "group": "navigation"
         },
         {
+          "command": "mystash.openPanel",
+          "when": "view == mystashView",
+          "group": "navigation"
+        },
+        {
           "command": "mystash.clear",
           "when": "view == mystashView"
         }
@@ -114,17 +195,27 @@
           "group": "inline@1"
         },
         {
-          "command": "mystash.show",
+          "command": "mystash.pop",
           "when": "view == mystashView && viewItem == stashItem",
           "group": "inline@2"
         },
         {
-          "command": "mystash.pop",
+          "command": "mystash.drop",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "inline@3"
+        },
+        {
+          "command": "mystash.show",
+          "when": "view == mystashView && viewItem == stashItem",
+          "group": "inline@4"
+        },
+        {
+          "command": "mystash.apply",
           "when": "view == mystashView && viewItem == stashItem",
           "group": "1_stash@1"
         },
         {
-          "command": "mystash.apply",
+          "command": "mystash.pop",
           "when": "view == mystashView && viewItem == stashItem",
           "group": "1_stash@2"
         },
@@ -167,34 +258,58 @@
         {
           "command": "mystash.clear",
           "when": "workspaceFolderCount > 0"
+        },
+        {
+          "command": "mystash.showFile",
+          "when": "false"
+        },
+        {
+          "command": "mystash.openPanel",
+          "when": "workspaceFolderCount > 0"
         }
       ]
     }
   },
   "scripts": {
     "vscode:prepublish": "npm run package",
-    "compile": "npm run check-types && npm run lint && node esbuild.js",
+    "compile": "npm run check-types && npm run lint && npm run build:webview-css && node esbuild.js",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --project tsconfig.json",
-    "package": "npm run check-types && npm run lint && node esbuild.js --production",
+    "watch:webview-tsc": "tsc --noEmit --watch --project webview-ui/tsconfig.json",
+    "watch:webview-css": "npx @tailwindcss/cli -i webview-ui/src/index.css -o dist/webview.css --watch",
+    "build:webview-css": "npx @tailwindcss/cli -i webview-ui/src/index.css -o dist/webview.css --minify",
+    "package": "npm run check-types && npm run lint && npm run build:webview-css && node esbuild.js --production",
     "compile-tests": "tsc -p . --outDir out",
     "watch-tests": "tsc -p . -w --outDir out",
     "pretest": "npm run compile-tests && npm run compile && npm run lint",
-    "check-types": "tsc --noEmit",
+    "check-types": "tsc --noEmit && tsc --noEmit --project webview-ui/tsconfig.json",
     "lint": "eslint src",
     "test": "vscode-test"
   },
   "devDependencies": {
-    "@types/vscode": "^1.109.0",
+    "@tailwindcss/cli": "^4.1.18",
+    "@tailwindcss/vite": "^4.1.18",
     "@types/mocha": "^10.0.10",
     "@types/node": "22.x",
-    "typescript-eslint": "^8.54.0",
-    "eslint": "^9.39.2",
-    "esbuild": "^0.27.2",
-    "npm-run-all": "^4.1.5",
-    "typescript": "^5.9.3",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@types/vscode": "^1.106.0",
     "@vscode/test-cli": "^0.0.12",
-    "@vscode/test-electron": "^2.5.2"
+    "@vscode/test-electron": "^2.5.2",
+    "autoprefixer": "^10.4.24",
+    "esbuild": "^0.27.2",
+    "eslint": "^9.39.2",
+    "npm-run-all": "^4.1.5",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.18",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.54.0"
+  },
+  "dependencies": {
+    "date-fns": "^4.1.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "zustand": "^5.0.11"
   }
 }

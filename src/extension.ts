@@ -1,8 +1,11 @@
 import * as vscode from 'vscode';
 import { GitService } from './gitService';
 import { StashProvider } from './stashProvider';
-import { StashItem } from './stashItem';
+import { StashItem, StashFileItem } from './stashItem';
+import { StashContentProvider } from './stashContentProvider';
+import { StashPanel } from './stashPanel';
 import { pickStash } from './uiUtils';
+import { getConfig } from './utils';
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('MyStash extension is now active!');
@@ -12,6 +15,13 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(outputChannel);
 
 	const gitService = new GitService(outputChannel);
+
+	// Register mystash: URI scheme for side-by-side diff viewing
+	const contentProvider = new StashContentProvider(gitService);
+	context.subscriptions.push(
+		vscode.workspace.registerTextDocumentContentProvider('mystash', contentProvider)
+	);
+
 	const stashProvider = new StashProvider(gitService, outputChannel);
 
 	// Register the tree view
@@ -20,6 +30,28 @@ export function activate(context: vscode.ExtensionContext) {
 		showCollapseAll: true
 	});
 	context.subscriptions.push(treeView);
+	stashProvider.setTreeView(treeView);
+
+	// 1e-ii: Watch git stash ref files for changes
+	// TODO: multi-root — watch all workspace folder .git directories
+	const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri;
+	if (workspaceRoot) {
+		const stashRefPattern = new vscode.RelativePattern(workspaceRoot, '.git/{refs/stash,logs/refs/stash}');
+		const gitWatcher = vscode.workspace.createFileSystemWatcher(stashRefPattern);
+		gitWatcher.onDidChange(() => stashProvider.refresh('git-stash-changed'));
+		gitWatcher.onDidCreate(() => stashProvider.refresh('git-stash-created'));
+		gitWatcher.onDidDelete(() => stashProvider.refresh('git-stash-deleted'));
+		context.subscriptions.push(gitWatcher);
+	}
+
+	// 1e-iii: Refresh on window focus (e.g. after external git operations)
+	context.subscriptions.push(
+		vscode.window.onDidChangeWindowState((state) => {
+			if (state.focused && getConfig<boolean>('autoRefresh', true)) {
+				stashProvider.refresh('window-focus');
+			}
+		})
+	);
 
 	// Register commands
 	context.subscriptions.push(
@@ -131,6 +163,42 @@ export function activate(context: vscode.ExtensionContext) {
 			} catch (error: any) {
 				vscode.window.showErrorMessage(`Failed to show stash: ${error.message}`);
 			}
+		})
+	);
+
+	// 6c: Per-file diff command — opens side-by-side diff editor
+	context.subscriptions.push(
+		vscode.commands.registerCommand('mystash.showFile', async (fileItem?: StashFileItem) => {
+			if (!fileItem) { return; }
+
+			const index = fileItem.stashIndex;
+			const filePath = fileItem.filePath;
+			const fileName = filePath.split('/').pop() ?? filePath;
+
+			// Build URIs for the parent (before) and stash (after) versions
+			const parentUri = vscode.Uri.parse(
+				`mystash:/${filePath}?ref=parent&index=${index}`
+			);
+			const stashUri = vscode.Uri.parse(
+				`mystash:/${filePath}?ref=stash&index=${index}`
+			);
+
+			const title = `${fileName} (stash@{${index}})`;
+
+			try {
+				await vscode.commands.executeCommand('vscode.diff', parentUri, stashUri, title, {
+					preview: true
+				});
+			} catch (error: unknown) {
+				const message = error instanceof Error ? error.message : 'Unknown error';
+				vscode.window.showErrorMessage(`Failed to show file diff: ${message}`);
+			}
+		})
+	);
+
+	context.subscriptions.push(
+		vscode.commands.registerCommand('mystash.openPanel', () => {
+			StashPanel.createOrShow(context.extensionUri, gitService);
 		})
 	);
 

@@ -1,0 +1,63 @@
+@import "tailwindcss";
+@source "./**/*.{tsx,ts}";
+
+/* VS Code theme integration — map CSS vars to Tailwind-friendly customs */
+:root {
+    --color-vscode-bg: var(--vscode-editor-background);
+    --color-vscode-fg: var(--vscode-foreground);
+    --color-vscode-card: var(--vscode-editorWidget-background, var(--vscode-sideBar-background));
+    --color-vscode-border: var(--vscode-editorWidget-border, var(--vscode-panel-border));
+    --color-vscode-hover: var(--vscode-list-hoverBackground);
+    --color-vscode-accent: var(--vscode-textLink-foreground);
+    --color-vscode-badge-bg: var(--vscode-badge-background);
+    --color-vscode-badge-fg: var(--vscode-badge-foreground);
+    --color-vscode-danger: var(--vscode-errorForeground, #f44747);
+    --color-vscode-success: var(--vscode-terminal-ansiGreen, #89d185);
+    --color-vscode-warning: var(--vscode-editorWarning-foreground, #cca700);
+    --color-vscode-added: var(--vscode-gitDecoration-untrackedResourceForeground, #73c991);
+    --color-vscode-modified: var(--vscode-gitDecoration-modifiedResourceForeground, #e2c08d);
+    --color-vscode-deleted: var(--vscode-gitDecoration-deletedResourceForeground, #c74e39);
+    --color-vscode-input-bg: var(--vscode-input-background);
+    --color-vscode-input-border: var(--vscode-input-border, transparent);
+    --color-vscode-input-fg: var(--vscode-input-foreground);
+    --color-vscode-button-bg: var(--vscode-button-background);
+    --color-vscode-button-fg: var(--vscode-button-foreground);
+    --color-vscode-button-hover: var(--vscode-button-hoverBackground);
+}
+
+@theme {
+    --color-bg: var(--color-vscode-bg);
+    --color-fg: var(--color-vscode-fg);
+    --color-card: var(--color-vscode-card);
+    --color-border: var(--color-vscode-border);
+    --color-hover: var(--color-vscode-hover);
+    --color-accent: var(--color-vscode-accent);
+    --color-badge-bg: var(--color-vscode-badge-bg);
+    --color-badge-fg: var(--color-vscode-badge-fg);
+    --color-danger: var(--color-vscode-danger);
+    --color-success: var(--color-vscode-success);
+    --color-warning: var(--color-vscode-warning);
+    --color-added: var(--color-vscode-added);
+    --color-modified: var(--color-vscode-modified);
+    --color-deleted: var(--color-vscode-deleted);
+    --color-input-bg: var(--color-vscode-input-bg);
+    --color-input-border: var(--color-vscode-input-border);
+    --color-input-fg: var(--color-vscode-input-fg);
+    --color-button-bg: var(--color-vscode-button-bg);
+    --color-button-fg: var(--color-vscode-button-fg);
+    --color-button-hover: var(--color-vscode-button-hover);
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--color-bg);
+    color: var(--color-fg);
+    font-family: var(--vscode-font-family, system-ui, sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    line-height: 1.5;
+}
+
+* {
+    box-sizing: border-box;
+}
