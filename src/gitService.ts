@@ -39,7 +39,10 @@ export interface StashFileEntry {
 }
 
 /** Function signature for the exec implementation — injectable for tests. */
-export type ExecFn = (command: string, options: { cwd: string }) => Promise<{ stdout: string; stderr: string }>;
+export type ExecFn = (
+    command: string,
+    options: { cwd: string },
+) => Promise<{ stdout: string; stderr: string }>;
 
 export class GitService {
     private _workspaceRoot: string | undefined;
@@ -67,12 +70,17 @@ export class GitService {
 
         try {
             const { stdout, stderr } = await this._execFn(`git ${command}`, {
-                cwd: this._workspaceRoot
+                cwd: this._workspaceRoot,
             });
             this._outputChannel?.appendLine(`[GIT] exit 0`);
             return { stdout: stdout.trim(), stderr: stderr.trim(), exitCode: 0 };
         } catch (error: unknown) {
-            const err = error as { stdout?: string; stderr?: string; code?: unknown; message?: string };
+            const err = error as {
+                stdout?: string;
+                stderr?: string;
+                code?: unknown;
+                message?: string;
+            };
             const exitCode = typeof err.code === 'number' ? err.code : 1;
             const stdout = (err.stdout ?? '').trim();
             const stderr = (err.stderr ?? err.message ?? 'Unknown git error').trim();
@@ -124,7 +132,11 @@ export class GitService {
                 const rawMessage = subjectMatch[2].trim();
 
                 // Detect WIP-only messages: starts with a commit hash (7+ hex chars)
-                if (!rawMessage || /^[a-f0-9]{7,}\s/.test(rawMessage) || /^[a-f0-9]{7,}$/.test(rawMessage)) {
+                if (
+                    !rawMessage ||
+                    /^[a-f0-9]{7,}\s/.test(rawMessage) ||
+                    /^[a-f0-9]{7,}$/.test(rawMessage)
+                ) {
                     message = '(no message)';
                 } else {
                     message = rawMessage;
@@ -197,11 +209,13 @@ export class GitService {
     }
 
     async getStashFiles(index: number): Promise<string[]> {
-        const { stdout, stderr, exitCode } = await this.execGit(`stash show --name-only "stash@{${index}}"`);
+        const { stdout, stderr, exitCode } = await this.execGit(
+            `stash show --name-only "stash@{${index}}"`,
+        );
         if (exitCode !== 0) {
             throw new Error(stderr || 'Failed to get stash files');
         }
-        return stdout.split('\n').filter(line => line.trim());
+        return stdout.split('\n').filter((line) => line.trim());
     }
 
     async getStashStats(index: number): Promise<StashEntry['stats']> {
@@ -213,7 +227,8 @@ export class GitService {
         // Last line: " 3 files changed, 12 insertions(+), 5 deletions(-)"
         const lines = stdout.split('\n');
         const lastLine = lines[lines.length - 1];
-        const statsRegex = /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/;
+        const statsRegex =
+            /(\d+) files? changed(?:, (\d+) insertions?\(\+\))?(?:, (\d+) deletions?\(-\))?/;
         const match = lastLine.match(statsRegex);
         if (!match) {
             return undefined;
@@ -222,36 +237,42 @@ export class GitService {
         return {
             filesChanged: parseInt(match[1], 10),
             insertions: parseInt(match[2] ?? '0', 10),
-            deletions: parseInt(match[3] ?? '0', 10)
+            deletions: parseInt(match[3] ?? '0', 10),
         };
     }
 
     async getStashFilesWithStatus(index: number): Promise<StashFileEntry[]> {
-        const { stdout, stderr, exitCode } = await this.execGit(`stash show --name-status stash@{${index}}`);
+        const { stdout, stderr, exitCode } = await this.execGit(
+            `stash show --name-status stash@{${index}}`,
+        );
         if (exitCode !== 0) {
             throw new Error(stderr || 'Failed to get stash files with status');
         }
 
-        return stdout.split('\n')
-            .filter(line => line.trim())
-            .map(line => {
+        return stdout
+            .split('\n')
+            .filter((line) => line.trim())
+            .map((line) => {
                 const [status, ...pathParts] = line.split('\t');
                 return {
                     path: pathParts.join('\t').trim(),
-                    status: (status?.trim() ?? 'M').charAt(0) as FileStatus
+                    status: (status?.trim() ?? 'M').charAt(0) as FileStatus,
                 };
             });
     }
 
-    async getStashFileNumstat(index: number): Promise<{ path: string; insertions: number; deletions: number }[]> {
+    async getStashFileNumstat(
+        index: number,
+    ): Promise<{ path: string; insertions: number; deletions: number }[]> {
         const { stdout, exitCode } = await this.execGit(`stash show --numstat "stash@{${index}}"`);
         if (exitCode !== 0 || !stdout) {
             return [];
         }
 
-        return stdout.split('\n')
-            .filter(line => line.trim())
-            .map(line => {
+        return stdout
+            .split('\n')
+            .filter((line) => line.trim())
+            .map((line) => {
                 // Format: "12\t5\tpath/to/file" (insertions, deletions, path)
                 // Binary files show "-\t-\tpath"
                 const [ins, del, ...pathParts] = line.split('\t');
@@ -264,7 +285,9 @@ export class GitService {
     }
 
     async getStashFileContent(index: number, filePath: string): Promise<string> {
-        const { stdout, stderr, exitCode } = await this.execGit(`show "stash@{${index}}":"${filePath}"`);
+        const { stdout, stderr, exitCode } = await this.execGit(
+            `show "stash@{${index}}":"${filePath}"`,
+        );
         if (exitCode !== 0) {
             throw new Error(stderr || 'Failed to get stash file content');
         }
@@ -273,14 +296,18 @@ export class GitService {
 
     async getStashFileDiff(index: number, filePath: string): Promise<string> {
         // Try per-file diff first
-        const { stdout, exitCode } = await this.execGit(`stash show -p "stash@{${index}}" -- "${filePath}"`);
+        const { stdout, exitCode } = await this.execGit(
+            `stash show -p "stash@{${index}}" -- "${filePath}"`,
+        );
         if (exitCode === 0 && stdout.trim()) {
             return stdout;
         }
 
         // Fallback: diff stash commit against its parent directly
         // This handles added/deleted files that stash show -p may not cover
-        const fallback = await this.execGit(`diff "stash@{${index}}^" "stash@{${index}}" -- "${filePath}"`);
+        const fallback = await this.execGit(
+            `diff "stash@{${index}}^" "stash@{${index}}" -- "${filePath}"`,
+        );
         if (fallback.exitCode === 0 && fallback.stdout.trim()) {
             return fallback.stdout;
         }
@@ -303,7 +330,9 @@ export class GitService {
      */
     async getCurrentBranch(): Promise<string | undefined> {
         const { stdout, exitCode } = await this.execGit('branch --show-current');
-        if (exitCode !== 0) { return undefined; }
+        if (exitCode !== 0) {
+            return undefined;
+        }
         // --show-current returns empty string on detached HEAD
         return stdout || 'HEAD (detached)';
     }

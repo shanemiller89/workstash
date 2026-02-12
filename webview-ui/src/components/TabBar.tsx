@@ -1,9 +1,10 @@
 import React from 'react';
 import { useAppStore } from '../appStore';
+import { Archive, StickyNote } from 'lucide-react';
 
 const tabs = [
-    { key: 'stashes' as const, label: 'Stashes', icon: '📦' },
-    { key: 'notes' as const, label: 'Notes', icon: '📝' },
+    { key: 'stashes' as const, label: 'Stashes', Icon: Archive },
+    { key: 'notes' as const, label: 'Notes', Icon: StickyNote },
 ] as const;
 
 export const TabBar: React.FC = () => {
@@ -26,7 +27,7 @@ export const TabBar: React.FC = () => {
                         role="tab"
                         aria-selected={isActive}
                     >
-                        <span className="text-[14px]">{tab.icon}</span>
+                        <tab.Icon size={14} />
                         {tab.label}
                     </button>
                 );

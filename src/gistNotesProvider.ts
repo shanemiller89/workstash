@@ -9,8 +9,11 @@ import { GistNoteItem } from './gistNoteItem';
  * Follows the same debounce/visibility/search pattern as StashProvider.
  */
 export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> {
-    private _onDidChangeTreeData = new vscode.EventEmitter<GistNoteItem | undefined | null | void>();
-    readonly onDidChangeTreeData: vscode.Event<GistNoteItem | undefined | null | void> = this._onDidChangeTreeData.event;
+    private _onDidChangeTreeData = new vscode.EventEmitter<
+        GistNoteItem | undefined | null | void
+    >();
+    readonly onDidChangeTreeData: vscode.Event<GistNoteItem | undefined | null | void> =
+        this._onDidChangeTreeData.event;
 
     private _treeView?: vscode.TreeView<GistNoteItem>;
     private _refreshTimer?: ReturnType<typeof setTimeout>;
@@ -29,7 +32,7 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
     constructor(
         private readonly _gistService: GistService,
         private readonly _authService: AuthService,
-        private readonly _outputChannel?: vscode.OutputChannel
+        private readonly _outputChannel?: vscode.OutputChannel,
     ) {}
 
     // ─── Tree View Binding ────────────────────────────────────────
@@ -41,7 +44,9 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
         treeView.onDidChangeVisibility((e) => {
             this._isVisible = e.visible;
             if (e.visible && this._pendingRefreshReason) {
-                this._outputChannel?.appendLine(`[NOTES REFRESH] flushing deferred: ${this._pendingRefreshReason}`);
+                this._outputChannel?.appendLine(
+                    `[NOTES REFRESH] flushing deferred: ${this._pendingRefreshReason}`,
+                );
                 const reason = this._pendingRefreshReason;
                 this._pendingRefreshReason = undefined;
                 this.refresh(reason);
@@ -124,15 +129,16 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
             // Filter by search query
             const query = this._searchQuery.trim().toLowerCase();
             const filtered = query
-                ? notes.filter(n =>
-                    n.title.toLowerCase().includes(query) ||
-                    n.content.toLowerCase().includes(query)
-                )
+                ? notes.filter(
+                      (n) =>
+                          n.title.toLowerCase().includes(query) ||
+                          n.content.toLowerCase().includes(query),
+                  )
                 : notes;
 
             this._updateTreeChrome(notes.length, filtered.length, query);
 
-            return filtered.map(note => new GistNoteItem(note, query || undefined));
+            return filtered.map((note) => new GistNoteItem(note, query || undefined));
         } catch (error: unknown) {
             const msg = error instanceof Error ? error.message : 'Unknown error';
             this._outputChannel?.appendLine(`[NOTES] Error fetching notes: ${msg}`);
@@ -149,17 +155,18 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
     }
 
     private _updateTreeChrome(total: number, filteredCount?: number, query?: string): void {
-        if (!this._treeView) { return; }
+        if (!this._treeView) {
+            return;
+        }
 
         // Badge
-        this._treeView.badge = total > 0
-            ? { value: total, tooltip: `${total} note${total !== 1 ? 's' : ''}` }
-            : undefined;
+        this._treeView.badge =
+            total > 0
+                ? { value: total, tooltip: `${total} note${total !== 1 ? 's' : ''}` }
+                : undefined;
 
         // Title
-        this._treeView.title = total > 0
-            ? `Gist Notes (${total})`
-            : 'Gist Notes';
+        this._treeView.title = total > 0 ? `Gist Notes (${total})` : 'Gist Notes';
 
         // Message
         if (query && filteredCount !== undefined) {

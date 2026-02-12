@@ -14,7 +14,11 @@ function mockExec(responses: { stdout: string; stderr?: string }[]): ExecFn {
         calls.push(command);
         const resp = responses[callIndex++];
         if (!resp) {
-            throw Object.assign(new Error('Mock: no more responses'), { stdout: '', stderr: 'mock error', code: 1 });
+            throw Object.assign(new Error('Mock: no more responses'), {
+                stdout: '',
+                stderr: 'mock error',
+                code: 1,
+            });
         }
         return { stdout: resp.stdout, stderr: resp.stderr ?? '' };
     };
@@ -34,14 +38,15 @@ function mockExecError(stderr: string, exitCode = 1): ExecFn {
 }
 
 suite('GitService Unit Tests', () => {
-
     // ─── 10a-i: Stash line parsing ───────────────────────────────
 
     suite('getStashList — stash line parsing', () => {
         test('parses standard stash entry with message', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: fix login bug'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: fix login bug',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -53,9 +58,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('parses WIP stash with no user message', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|WIP on feature: abc1234 commit msg'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|WIP on feature: abc1234 commit msg',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -64,9 +71,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('parses stash with user message containing pipes', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: fix|something|weird'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: fix|something|weird',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -74,13 +83,15 @@ suite('GitService Unit Tests', () => {
         });
 
         test('parses multiple stash entries', async () => {
-            const exec = mockExec([{
-                stdout: [
-                    'stash@{0}|2026-02-10 14:23:05 -0600|On main: newest',
-                    'stash@{1}|2026-02-09 10:00:00 -0600|On dev: middle',
-                    'stash@{2}|2026-02-08 09:00:00 -0600|On main: oldest'
-                ].join('\n')
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: [
+                        'stash@{0}|2026-02-10 14:23:05 -0600|On main: newest',
+                        'stash@{1}|2026-02-09 10:00:00 -0600|On dev: middle',
+                        'stash@{2}|2026-02-08 09:00:00 -0600|On main: oldest',
+                    ].join('\n'),
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -111,9 +122,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('handles stash on branch with slashes', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On feature/auth/login: my stash'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On feature/auth/login: my stash',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -122,9 +135,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('handles WIP stash with only commit hash as message', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|WIP on main: abc1234'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|WIP on main: abc1234',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -136,9 +151,11 @@ suite('GitService Unit Tests', () => {
 
     suite('getStashList — date parsing', () => {
         test('parses ISO date string into Date object', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: test'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|2026-02-10 14:23:05 -0600|On main: test',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const list = await svc.getStashList();
 
@@ -147,9 +164,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('falls back to current date on invalid date string', async () => {
-            const exec = mockExec([{
-                stdout: 'stash@{0}|not-a-date|On main: test'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'stash@{0}|not-a-date|On main: test',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const before = Date.now();
             const list = await svc.getStashList();
@@ -164,13 +183,15 @@ suite('GitService Unit Tests', () => {
 
     suite('getStashStats — stats parsing', () => {
         test('parses standard stat output', async () => {
-            const exec = mockExec([{
-                stdout: [
-                    ' src/file1.ts | 10 +++++-----',
-                    ' src/file2.ts |  3 +++',
-                    ' 2 files changed, 8 insertions(+), 5 deletions(-)'
-                ].join('\n')
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: [
+                        ' src/file1.ts | 10 +++++-----',
+                        ' src/file2.ts |  3 +++',
+                        ' 2 files changed, 8 insertions(+), 5 deletions(-)',
+                    ].join('\n'),
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const stats = await svc.getStashStats(0);
 
@@ -181,9 +202,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('parses stats with only insertions', async () => {
-            const exec = mockExec([{
-                stdout: ' 1 file changed, 5 insertions(+)'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: ' 1 file changed, 5 insertions(+)',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const stats = await svc.getStashStats(0);
 
@@ -194,9 +217,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('parses stats with only deletions', async () => {
-            const exec = mockExec([{
-                stdout: ' 1 file changed, 3 deletions(-)'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: ' 1 file changed, 3 deletions(-)',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const stats = await svc.getStashStats(0);
 
@@ -219,9 +244,11 @@ suite('GitService Unit Tests', () => {
 
     suite('getStashFilesWithStatus — file status parsing', () => {
         test('parses mixed status output', async () => {
-            const exec = mockExec([{
-                stdout: 'M\tsrc/extension.ts\nA\tsrc/newFile.ts\nD\tsrc/oldFile.ts'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'M\tsrc/extension.ts\nA\tsrc/newFile.ts\nD\tsrc/oldFile.ts',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const files = await svc.getStashFilesWithStatus(0);
 
@@ -235,9 +262,11 @@ suite('GitService Unit Tests', () => {
         });
 
         test('handles renamed file status', async () => {
-            const exec = mockExec([{
-                stdout: 'R\told/path.ts\tnew/path.ts'
-            }]);
+            const exec = mockExec([
+                {
+                    stdout: 'R\told/path.ts\tnew/path.ts',
+                },
+            ]);
             const svc = new GitService('/fake/root', undefined, exec);
             const files = await svc.getStashFilesWithStatus(0);
 
@@ -278,7 +307,9 @@ suite('GitService Unit Tests', () => {
             const svc = new GitService('/fake/root', undefined, exec);
             await svc.createStash(undefined, 'untracked');
 
-            assert.ok((exec as ExecFn & { calls: string[] }).calls[0].includes('--include-untracked'));
+            assert.ok(
+                (exec as ExecFn & { calls: string[] }).calls[0].includes('--include-untracked'),
+            );
         });
 
         test('includes --staged for staged mode', async () => {
@@ -314,7 +345,7 @@ suite('GitService Unit Tests', () => {
                 throw Object.assign(new Error('CONFLICT'), {
                     stdout: '',
                     stderr: 'CONFLICT (content): Merge conflict in file.ts',
-                    code: 1
+                    code: 1,
                 });
             };
             const svc = new GitService('/fake/root', undefined, exec);
@@ -339,7 +370,7 @@ suite('GitService Unit Tests', () => {
                 throw Object.assign(new Error('CONFLICT'), {
                     stdout: '',
                     stderr: 'CONFLICT (content): Merge conflict in file.ts',
-                    code: 1
+                    code: 1,
                 });
             };
             const svc = new GitService('/fake/root', undefined, exec);

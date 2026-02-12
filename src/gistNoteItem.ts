@@ -9,15 +9,15 @@ import { formatRelativeTime } from './utils';
 export class GistNoteItem extends vscode.TreeItem {
     constructor(
         public readonly note: GistNote,
-        searchQuery?: string
+        searchQuery?: string,
     ) {
         const label = note.title || 'Untitled';
         const highlights = searchQuery ? computeHighlights(label, searchQuery) : undefined;
         super(
             highlights && highlights.length > 0
-                ? { label, highlights } as vscode.TreeItemLabel
+                ? ({ label, highlights } as vscode.TreeItemLabel)
                 : label,
-            vscode.TreeItemCollapsibleState.None
+            vscode.TreeItemCollapsibleState.None,
         );
 
         // Stable identity — preserves selection across refreshes
@@ -54,23 +54,29 @@ export class GistNoteItem extends vscode.TreeItem {
     private _buildTooltip(): vscode.MarkdownString {
         const md = new vscode.MarkdownString();
         md.supportThemeIcons = true;
-        md.appendMarkdown(`**${this.note.title || 'Untitled'}**\n\n`);
+        md.supportHtml = true;
 
-        if (this.note.isPublic) {
-            md.appendMarkdown(`$(globe) Public\n\n`);
-        } else {
-            md.appendMarkdown(`$(lock) Secret\n\n`);
-        }
+        // Title + visibility badge
+        const badge = this.note.isPublic ? '$(globe) Public' : '$(lock) Secret';
+        md.appendMarkdown(`### ${this.note.title || 'Untitled'}  \n`);
+        md.appendMarkdown(
+            `${badge} · $(calendar) ${this.note.createdAt.toLocaleDateString()} · $(history) ${formatRelativeTime(this.note.updatedAt)}\n\n`,
+        );
 
-        // Preview snippet (first 120 chars of content)
+        md.appendMarkdown(`---\n\n`);
+
+        // Render the actual note content (first 500 chars) as Markdown
         if (this.note.content) {
-            const snippet = this.note.content.slice(0, 120).replace(/\n/g, ' ');
-            md.appendMarkdown(`${snippet}${this.note.content.length > 120 ? '…' : ''}\n\n`);
+            const preview =
+                this.note.content.length > 500
+                    ? this.note.content.slice(0, 500) + '\n\n*… (truncated)*'
+                    : this.note.content;
+            md.appendMarkdown(preview + '\n\n');
+        } else {
+            md.appendMarkdown('*Empty note*\n\n');
         }
 
         md.appendMarkdown(`---\n\n`);
-        md.appendMarkdown(`$(calendar) Created: ${this.note.createdAt.toLocaleDateString()}\n\n`);
-        md.appendMarkdown(`$(history) Updated: ${formatRelativeTime(this.note.updatedAt)}\n\n`);
         md.appendMarkdown(`[Open on GitHub](${this.note.htmlUrl})`);
 
         return md;
@@ -89,7 +95,9 @@ function computeHighlights(label: string, query: string): [number, number][] {
 
     while (true) {
         const idx = lower.indexOf(q, startIndex);
-        if (idx === -1) { break; }
+        if (idx === -1) {
+            break;
+        }
         highlights.push([idx, idx + q.length]);
         startIndex = idx + 1;
     }

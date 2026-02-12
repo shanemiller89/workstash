@@ -21,7 +21,9 @@ export function postMessage(type: string, data?: Record<string, unknown>): void 
     getApi().postMessage({ type, ...data });
 }
 
-export function onMessage(handler: (msg: { type: string; [key: string]: unknown }) => void): () => void {
+export function onMessage(
+    handler: (msg: { type: string; [key: string]: unknown }) => void,
+): () => void {
     const listener = (event: MessageEvent) => {
         handler(event.data);
     };

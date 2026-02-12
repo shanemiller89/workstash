@@ -43,7 +43,12 @@ function parseDiff(raw: string): DiffLine[] {
             result.push({ type: 'del', content: line.slice(1), oldLineNo: oldLine });
             oldLine++;
         } else if (line.startsWith(' ') || line === '') {
-            result.push({ type: 'context', content: line.slice(1) || '', oldLineNo: oldLine, newLineNo: newLine });
+            result.push({
+                type: 'context',
+                content: line.slice(1) || '',
+                oldLineNo: oldLine,
+                newLineNo: newLine,
+            });
             oldLine++;
             newLine++;
         }
@@ -58,9 +63,7 @@ export const DiffView: React.FC<{ diff: string }> = ({ diff }) => {
 
     if (lines.length === 0) {
         return (
-            <div className="text-[11px] opacity-40 px-3 py-2 italic">
-                No diff content available
-            </div>
+            <div className="text-[11px] opacity-40 px-3 py-2 italic">No diff content available</div>
         );
     }
 
@@ -98,30 +101,37 @@ export const DiffView: React.FC<{ diff: string }> = ({ diff }) => {
                           ? 'text-deleted'
                           : 'text-fg';
 
-                const prefix =
-                    line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' ';
+                const prefix = line.type === 'add' ? '+' : line.type === 'del' ? '-' : ' ';
 
-                const oldNo = line.oldLineNo !== undefined
-                    ? String(line.oldLineNo).padStart(gutterWidth)
-                    : ' '.repeat(gutterWidth);
-                const newNo = line.newLineNo !== undefined
-                    ? String(line.newLineNo).padStart(gutterWidth)
-                    : ' '.repeat(gutterWidth);
+                const oldNo =
+                    line.oldLineNo !== undefined
+                        ? String(line.oldLineNo).padStart(gutterWidth)
+                        : ' '.repeat(gutterWidth);
+                const newNo =
+                    line.newLineNo !== undefined
+                        ? String(line.newLineNo).padStart(gutterWidth)
+                        : ' '.repeat(gutterWidth);
 
                 return (
                     <div key={i} className={`flex ${bgClass}`}>
-                        <span className="opacity-30 select-none pr-1 pl-2 text-right shrink-0" style={{ minWidth: `${gutterWidth + 1}ch` }}>
+                        <span
+                            className="opacity-30 select-none pr-1 pl-2 text-right shrink-0"
+                            style={{ minWidth: `${gutterWidth + 1}ch` }}
+                        >
                             {line.type === 'del' ? oldNo : line.type === 'add' ? '' : oldNo}
                         </span>
-                        <span className="opacity-30 select-none pr-2 text-right shrink-0" style={{ minWidth: `${gutterWidth + 1}ch` }}>
+                        <span
+                            className="opacity-30 select-none pr-2 text-right shrink-0"
+                            style={{ minWidth: `${gutterWidth + 1}ch` }}
+                        >
                             {line.type === 'add' ? newNo : line.type === 'del' ? '' : newNo}
                         </span>
-                        <span className={`opacity-50 select-none w-3 shrink-0 text-center ${textClass}`}>
+                        <span
+                            className={`opacity-50 select-none w-3 shrink-0 text-center ${textClass}`}
+                        >
                             {prefix}
                         </span>
-                        <span className={`${textClass} whitespace-pre`}>
-                            {line.content}
-                        </span>
+                        <span className={`${textClass} whitespace-pre`}>{line.content}</span>
                     </div>
                 );
             })}

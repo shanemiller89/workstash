@@ -24,7 +24,8 @@ const esbuildProblemMatcherPlugin = {
 };
 
 async function main() {
-	// Extension build (Node / CJS)
+	// Extension build (Node / CJS) — only the extension host bundle.
+	// The webview is built separately by Vite (see webview-ui/vite.config.ts).
 	const extCtx = await esbuild.context({
 		entryPoints: [
 			'src/extension.ts'
@@ -43,30 +44,11 @@ async function main() {
 		],
 	});
 
-	// Webview build (Browser / ESM)
-	const webviewCtx = await esbuild.context({
-		entryPoints: [
-			'webview-ui/src/main.tsx'
-		],
-		bundle: true,
-		format: 'esm',
-		minify: production,
-		sourcemap: !production,
-		sourcesContent: false,
-		platform: 'browser',
-		outfile: 'dist/webview.js',
-		jsx: 'automatic',
-		logLevel: 'silent',
-		plugins: [
-			esbuildProblemMatcherPlugin,
-		],
-	});
-
 	if (watch) {
-		await Promise.all([extCtx.watch(), webviewCtx.watch()]);
+		await extCtx.watch();
 	} else {
-		await Promise.all([extCtx.rebuild(), webviewCtx.rebuild()]);
-		await Promise.all([extCtx.dispose(), webviewCtx.dispose()]);
+		await extCtx.rebuild();
+		await extCtx.dispose();
 	}
 }
 

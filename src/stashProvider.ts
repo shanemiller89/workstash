@@ -5,8 +5,12 @@ import { StashPanel } from './stashPanel';
 import { getConfig } from './utils';
 
 export class StashProvider implements vscode.TreeDataProvider<StashItem | StashFileItem> {
-    private _onDidChangeTreeData: vscode.EventEmitter<StashItem | StashFileItem | undefined | null | void> = new vscode.EventEmitter<StashItem | StashFileItem | undefined | null | void>();
-    readonly onDidChangeTreeData: vscode.Event<StashItem | StashFileItem | undefined | null | void> = this._onDidChangeTreeData.event;
+    private _onDidChangeTreeData: vscode.EventEmitter<
+        StashItem | StashFileItem | undefined | null | void
+    > = new vscode.EventEmitter<StashItem | StashFileItem | undefined | null | void>();
+    readonly onDidChangeTreeData: vscode.Event<
+        StashItem | StashFileItem | undefined | null | void
+    > = this._onDidChangeTreeData.event;
 
     private _treeView?: vscode.TreeView<StashItem | StashFileItem>;
     private _statusBarItem?: vscode.StatusBarItem;
@@ -33,7 +37,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
 
     constructor(
         private gitService: GitService,
-        private _outputChannel?: vscode.OutputChannel
+        private _outputChannel?: vscode.OutputChannel,
     ) {}
 
     /**
@@ -55,7 +59,9 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
         treeView.onDidChangeVisibility((e) => {
             this._isVisible = e.visible;
             if (e.visible && this._pendingRefreshReason) {
-                this._outputChannel?.appendLine(`[REFRESH] flushing deferred refresh: ${this._pendingRefreshReason}`);
+                this._outputChannel?.appendLine(
+                    `[REFRESH] flushing deferred refresh: ${this._pendingRefreshReason}`,
+                );
                 const reason = this._pendingRefreshReason;
                 this._pendingRefreshReason = undefined;
                 this.refresh(reason);
@@ -148,7 +154,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
     async resolveTreeItem(
         item: vscode.TreeItem,
         element: StashItem | StashFileItem,
-        _token: vscode.CancellationToken
+        _token: vscode.CancellationToken,
     ): Promise<vscode.TreeItem> {
         if (element instanceof StashItem && !element.stashEntry.stats) {
             try {
@@ -186,15 +192,24 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
                 const showStatus = getConfig<boolean>('showFileStatus', true);
                 let fileItems: StashFileItem[];
                 if (showStatus) {
-                    const entries = await this.gitService.getStashFilesWithStatus(element.stashEntry.index);
-                    fileItems = entries.map(entry => new StashFileItem(entry.path, element.stashEntry.index, entry.status));
+                    const entries = await this.gitService.getStashFilesWithStatus(
+                        element.stashEntry.index,
+                    );
+                    fileItems = entries.map(
+                        (entry) =>
+                            new StashFileItem(entry.path, element.stashEntry.index, entry.status),
+                    );
                 } else {
                     const files = await this.gitService.getStashFiles(element.stashEntry.index);
-                    fileItems = files.map(file => new StashFileItem(file, element.stashEntry.index));
+                    fileItems = files.map(
+                        (file) => new StashFileItem(file, element.stashEntry.index),
+                    );
                 }
                 // Cache parent mapping for getParent()
                 for (const fi of fileItems) {
-                    if (fi.id) { this._parentMap.set(fi.id, element); }
+                    if (fi.id) {
+                        this._parentMap.set(fi.id, element);
+                    }
                 }
                 return fileItems;
             } catch {
@@ -222,18 +237,22 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
             // Filter by search query if active
             const query = this._searchQuery.trim().toLowerCase();
             const filtered = query
-                ? stashes.filter(s =>
-                    s.message.toLowerCase().includes(query) ||
-                    s.branch.toLowerCase().includes(query) ||
-                    s.name.toLowerCase().includes(query)
-                )
+                ? stashes.filter(
+                      (s) =>
+                          s.message.toLowerCase().includes(query) ||
+                          s.branch.toLowerCase().includes(query) ||
+                          s.name.toLowerCase().includes(query),
+                  )
                 : stashes;
 
             // Update tree view chrome
             if (this._treeView) {
                 // Badge
                 this._treeView.badge = hasStashes
-                    ? { value: stashes.length, tooltip: `${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}` }
+                    ? {
+                          value: stashes.length,
+                          tooltip: `${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`,
+                      }
                     : undefined;
 
                 // Title
@@ -267,7 +286,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
             }
 
             // Build items with expand persistence and search highlights
-            return filtered.map(stash => {
+            return filtered.map((stash) => {
                 const itemId = `stash-${stash.index}`;
                 const wasExpanded = this._expandedIds.has(itemId);
                 return new StashItem(
@@ -275,7 +294,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
                     wasExpanded
                         ? vscode.TreeItemCollapsibleState.Expanded
                         : vscode.TreeItemCollapsibleState.Collapsed,
-                    query || undefined
+                    query || undefined,
                 );
             });
         } finally {
@@ -291,46 +310,55 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
  * Registered for the `mystash-file` URI scheme.
  */
 export class StashFileDecorationProvider implements vscode.FileDecorationProvider {
-    private _onDidChangeFileDecorations = new vscode.EventEmitter<vscode.Uri | vscode.Uri[] | undefined>();
+    private _onDidChangeFileDecorations = new vscode.EventEmitter<
+        vscode.Uri | vscode.Uri[] | undefined
+    >();
     readonly onDidChangeFileDecorations = this._onDidChangeFileDecorations.event;
 
-    provideFileDecoration(uri: vscode.Uri, _token: vscode.CancellationToken): vscode.FileDecoration | undefined {
-        if (uri.scheme !== 'mystash-file') { return undefined; }
+    provideFileDecoration(
+        uri: vscode.Uri,
+        _token: vscode.CancellationToken,
+    ): vscode.FileDecoration | undefined {
+        if (uri.scheme !== 'mystash-file') {
+            return undefined;
+        }
 
         const params = new URLSearchParams(uri.query);
         const status = params.get('status');
-        if (!status) { return undefined; }
+        if (!status) {
+            return undefined;
+        }
 
         switch (status) {
             case 'M':
                 return new vscode.FileDecoration(
                     'M',
                     'Modified',
-                    new vscode.ThemeColor('gitDecoration.modifiedResourceForeground')
+                    new vscode.ThemeColor('gitDecoration.modifiedResourceForeground'),
                 );
             case 'A':
                 return new vscode.FileDecoration(
                     'A',
                     'Added',
-                    new vscode.ThemeColor('gitDecoration.untrackedResourceForeground')
+                    new vscode.ThemeColor('gitDecoration.untrackedResourceForeground'),
                 );
             case 'D':
                 return new vscode.FileDecoration(
                     'D',
                     'Deleted',
-                    new vscode.ThemeColor('gitDecoration.deletedResourceForeground')
+                    new vscode.ThemeColor('gitDecoration.deletedResourceForeground'),
                 );
             case 'R':
                 return new vscode.FileDecoration(
                     'R',
                     'Renamed',
-                    new vscode.ThemeColor('gitDecoration.renamedResourceForeground')
+                    new vscode.ThemeColor('gitDecoration.renamedResourceForeground'),
                 );
             case 'C':
                 return new vscode.FileDecoration(
                     'C',
                     'Copied',
-                    new vscode.ThemeColor('gitDecoration.addedResourceForeground')
+                    new vscode.ThemeColor('gitDecoration.addedResourceForeground'),
                 );
             default:
                 return undefined;
@@ -344,7 +372,9 @@ export class StashFileDecorationProvider implements vscode.FileDecorationProvide
  * Enables dragging stash files into the editor (opens diff) and
  * visual stash reordering within the tree.
  */
-export class StashDragAndDropController implements vscode.TreeDragAndDropController<StashItem | StashFileItem> {
+export class StashDragAndDropController implements vscode.TreeDragAndDropController<
+    StashItem | StashFileItem
+> {
     // Accept drops from our own tree
     readonly dropMimeTypes = ['application/vnd.code.tree.mystashview'];
     // Provide text/uri-list for dragging into editor, and our own tree mime
@@ -355,12 +385,12 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
     handleDrag(
         source: readonly (StashItem | StashFileItem)[],
         dataTransfer: vscode.DataTransfer,
-        _token: vscode.CancellationToken
+        _token: vscode.CancellationToken,
     ): void {
         // For file items, provide text/uri-list so they can be dragged into the editor
         const fileItems = source.filter((s): s is StashFileItem => s instanceof StashFileItem);
         if (fileItems.length > 0) {
-            const uris = fileItems.map(fi => {
+            const uris = fileItems.map((fi) => {
                 // Build mystash: URI that will open in the diff viewer
                 return `mystash:///${fi.filePath}?ref=stash&index=${fi.stashIndex}`;
             });
@@ -370,10 +400,10 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
         // Serialize source for internal tree reorder
         const stashItems = source.filter((s): s is StashItem => s instanceof StashItem);
         if (stashItems.length > 0) {
-            const indices = stashItems.map(s => s.stashEntry.index);
+            const indices = stashItems.map((s) => s.stashEntry.index);
             dataTransfer.set(
                 'application/vnd.code.tree.mystashview',
-                new vscode.DataTransferItem(JSON.stringify(indices))
+                new vscode.DataTransferItem(JSON.stringify(indices)),
             );
         }
     }
@@ -381,7 +411,7 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
     async handleDrop(
         target: StashItem | StashFileItem | undefined,
         dataTransfer: vscode.DataTransfer,
-        _token: vscode.CancellationToken
+        _token: vscode.CancellationToken,
     ): Promise<void> {
         // Visual reorder feedback — git doesn't support true reorder,
         // but we log the intent for potential future implementation
@@ -389,7 +419,7 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
         if (treeData && target instanceof StashItem) {
             const sourceIndices = JSON.parse(await treeData.asString()) as number[];
             this._outputChannel?.appendLine(
-                `[DND] Stash reorder requested: indices [${sourceIndices}] → before stash@{${target.stashEntry.index}} (visual only, git does not support reorder)`
+                `[DND] Stash reorder requested: indices [${sourceIndices}] → before stash@{${target.stashEntry.index}} (visual only, git does not support reorder)`,
             );
             // Note: True reorder would require pop+push sequence — risky, deferred to Phase 2
         }

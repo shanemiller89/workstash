@@ -15,12 +15,11 @@ function makeEntry(overrides: Partial<StashEntry> = {}): StashEntry {
         branch: 'main',
         message: 'test stash message',
         date: new Date('2026-02-10T14:00:00Z'),
-        ...overrides
+        ...overrides,
     };
 }
 
 suite('StashItem Tests', () => {
-
     test('label is set to stash message', () => {
         const item = new StashItem(makeEntry({ message: 'my changes' }));
         assert.strictEqual(item.label, 'my changes');
@@ -35,7 +34,7 @@ suite('StashItem Tests', () => {
         const item = new StashItem(makeEntry({ name: 'stash@{2}' }));
         assert.ok(
             typeof item.description === 'string' && item.description.includes('stash@{2}'),
-            `Expected description to include stash name, got "${item.description}"`
+            `Expected description to include stash name, got "${item.description}"`,
         );
     });
 
@@ -79,7 +78,11 @@ suite('StashItem Tests', () => {
     });
 
     test('search query produces TreeItemLabel with highlights', () => {
-        const item = new StashItem(makeEntry({ message: 'fix login bug' }), vscode.TreeItemCollapsibleState.Collapsed, 'login');
+        const item = new StashItem(
+            makeEntry({ message: 'fix login bug' }),
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'login',
+        );
         // When highlights are found, label is a TreeItemLabel object
         assert.ok(typeof item.label === 'object' && item.label !== null);
         const treeLabel = item.label as vscode.TreeItemLabel;
@@ -89,7 +92,11 @@ suite('StashItem Tests', () => {
     });
 
     test('search query with no match produces plain string label', () => {
-        const item = new StashItem(makeEntry({ message: 'fix login bug' }), vscode.TreeItemCollapsibleState.Collapsed, 'zzz');
+        const item = new StashItem(
+            makeEntry({ message: 'fix login bug' }),
+            vscode.TreeItemCollapsibleState.Collapsed,
+            'zzz',
+        );
         // No highlights found — label should be a plain string
         assert.strictEqual(item.label, 'fix login bug');
     });
@@ -109,7 +116,6 @@ suite('StashItem Tests', () => {
 });
 
 suite('StashFileItem Tests', () => {
-
     test('label is the filename only', () => {
         const item = new StashFileItem('src/deep/folder/myFile.ts', 0, 'M');
         assert.strictEqual(item.label, 'myFile.ts');
@@ -119,7 +125,7 @@ suite('StashFileItem Tests', () => {
         const item = new StashFileItem('src/deep/folder/myFile.ts', 0, 'M');
         assert.ok(
             typeof item.description === 'string' && item.description.includes('src/deep/folder'),
-            `Expected directory in description, got "${item.description}"`
+            `Expected directory in description, got "${item.description}"`,
         );
     });
 
@@ -167,7 +173,7 @@ suite('StashFileItem Tests', () => {
         const item = new StashFileItem('src/folder/file.ts', 0, 'M');
         assert.ok(
             typeof item.tooltip === 'string' && item.tooltip.includes('src/folder/file.ts'),
-            `Expected filepath in tooltip, got "${item.tooltip}"`
+            `Expected filepath in tooltip, got "${item.tooltip}"`,
         );
     });
 

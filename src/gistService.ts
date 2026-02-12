@@ -4,14 +4,14 @@ import { AuthService } from './authService';
 // ─── Data Model (16b) ────────────────────────────────────────────
 
 export interface GistNote {
-    id: string;           // GitHub gist ID
-    title: string;        // Derived from the .md filename
-    content: string;      // Markdown body
-    isPublic: boolean;    // Secret vs public
+    id: string; // GitHub gist ID
+    title: string; // Derived from the .md filename
+    content: string; // Markdown body
+    isPublic: boolean; // Secret vs public
     createdAt: Date;
     updatedAt: Date;
-    htmlUrl: string;      // Gist URL for sharing
-    description: string;  // Gist description (contains "[Workstash]" marker)
+    htmlUrl: string; // Gist URL for sharing
+    description: string; // Gist description (contains "[Workstash]" marker)
 }
 
 /** Lightweight version sent to webview (dates as ISO strings) */
@@ -76,11 +76,7 @@ export class GistService {
      * @param outputChannel VS Code output channel for diagnostics.
      * @param fetchFn       Custom fetch implementation for unit testing (optional).
      */
-    constructor(
-        authService: AuthService,
-        outputChannel: vscode.OutputChannel,
-        fetchFn?: FetchFn
-    ) {
+    constructor(authService: AuthService, outputChannel: vscode.OutputChannel, fetchFn?: FetchFn) {
         this._authService = authService;
         this._outputChannel = outputChannel;
         this._fetchFn = fetchFn ?? globalThis.fetch.bind(globalThis);
@@ -101,7 +97,7 @@ export class GistService {
     private async _request<T>(
         method: string,
         path: string,
-        body?: unknown
+        body?: unknown,
     ): Promise<{ data: T; headers: Headers }> {
         const token = await this._getToken();
         const url = `${API_BASE}${path}`;
@@ -109,8 +105,8 @@ export class GistService {
         this._outputChannel.appendLine(`[GIST] ${method} ${path}`);
 
         const headers: Record<string, string> = {
-            'Authorization': `Bearer ${token}`,
-            'Accept': 'application/vnd.github+json',
+            Authorization: `Bearer ${token}`,
+            Accept: 'application/vnd.github+json',
             'X-GitHub-Api-Version': '2022-11-28',
         };
         if (body) {
@@ -137,7 +133,7 @@ export class GistService {
             return { data: undefined as T, headers: response.headers };
         }
 
-        const data = await response.json() as T;
+        const data = (await response.json()) as T;
         return { data, headers: response.headers };
     }
 
@@ -147,12 +143,20 @@ export class GistService {
         if (remaining !== null) {
             const count = parseInt(remaining, 10);
             if (count <= 10 && count > 0) {
-                this._outputChannel.appendLine(`[GIST] ⚠ Rate limit low: ${count} requests remaining`);
-                vscode.window.showWarningMessage(`GitHub API rate limit low: ${count} requests remaining.`);
+                this._outputChannel.appendLine(
+                    `[GIST] ⚠ Rate limit low: ${count} requests remaining`,
+                );
+                vscode.window.showWarningMessage(
+                    `GitHub API rate limit low: ${count} requests remaining.`,
+                );
             } else if (count === 0) {
                 const resetHeader = headers.get('X-RateLimit-Reset');
-                const resetTime = resetHeader ? new Date(parseInt(resetHeader, 10) * 1000).toLocaleTimeString() : 'soon';
-                this._outputChannel.appendLine(`[GIST] ⚠ Rate limit exhausted, resets at ${resetTime}`);
+                const resetTime = resetHeader
+                    ? new Date(parseInt(resetHeader, 10) * 1000).toLocaleTimeString()
+                    : 'soon';
+                this._outputChannel.appendLine(
+                    `[GIST] ⚠ Rate limit exhausted, resets at ${resetTime}`,
+                );
             }
         }
     }
@@ -161,9 +165,11 @@ export class GistService {
     private async _handleHttpError(response: Response): Promise<never> {
         let detail = '';
         try {
-            const body = await response.json() as { message?: string };
+            const body = (await response.json()) as { message?: string };
             detail = body.message ?? '';
-        } catch { /* ignore parse failure */ }
+        } catch {
+            /* ignore parse failure */
+        }
 
         switch (response.status) {
             case 401:
@@ -175,7 +181,9 @@ export class GistService {
             case 422:
                 throw new Error(`Invalid note content${detail ? `: ${detail}` : ''}.`);
             default:
-                throw new Error(`GitHub API error ${response.status}${detail ? `: ${detail}` : ''}`);
+                throw new Error(
+                    `GitHub API error ${response.status}${detail ? `: ${detail}` : ''}`,
+                );
         }
     }
 
@@ -196,7 +204,7 @@ export class GistService {
 
         // Find the .md content file
         const mdFile = Object.values(gist.files).find(
-            f => f && f.filename !== MARKER_FILENAME && f.filename.endsWith('.md')
+            (f) => f && f.filename !== MARKER_FILENAME && f.filename.endsWith('.md'),
         );
 
         return {
@@ -232,7 +240,7 @@ export class GistService {
         for (let page = 1; page <= MAX_PAGES; page++) {
             const { data } = await this._request<GitHubGist[]>(
                 'GET',
-                `/gists?per_page=${PER_PAGE}&page=${page}`
+                `/gists?per_page=${PER_PAGE}&page=${page}`,
             );
 
             if (!data || data.length === 0) {
@@ -328,7 +336,7 @@ export class GistService {
         const newVisibility = !current.isPublic;
 
         this._outputChannel.appendLine(
-            `[GIST] Toggling visibility: ${current.isPublic ? 'public→secret' : 'secret→public'} (delete + re-create)`
+            `[GIST] Toggling visibility: ${current.isPublic ? 'public→secret' : 'secret→public'} (delete + re-create)`,
         );
 
         // Delete the old gist

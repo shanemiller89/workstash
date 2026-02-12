@@ -15,7 +15,10 @@ export class StashContentProvider implements vscode.TextDocumentContentProvider 
 
     constructor(private gitService: GitService) {}
 
-    async provideTextDocumentContent(uri: vscode.Uri, _token: vscode.CancellationToken): Promise<string> {
+    async provideTextDocumentContent(
+        uri: vscode.Uri,
+        _token: vscode.CancellationToken,
+    ): Promise<string> {
         const params = new URLSearchParams(uri.query);
         const ref = params.get('ref') ?? 'stash';
         const index = parseInt(params.get('index') ?? '0', 10);
@@ -25,13 +28,13 @@ export class StashContentProvider implements vscode.TextDocumentContentProvider 
             if (ref === 'parent') {
                 // Show the file as it was before the stash (parent of stash commit)
                 const { stdout, exitCode } = await this.gitService.execGitPublic(
-                    `show "stash@{${index}}^":"${filePath}"`
+                    `show "stash@{${index}}^":"${filePath}"`,
                 );
                 return exitCode === 0 ? stdout : '';
             } else {
                 // Show the file as it is in the stash
                 const { stdout, exitCode } = await this.gitService.execGitPublic(
-                    `show "stash@{${index}}":"${filePath}"`
+                    `show "stash@{${index}}":"${filePath}"`,
                 );
                 return exitCode === 0 ? stdout : '';
             }

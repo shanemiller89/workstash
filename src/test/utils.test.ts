@@ -6,7 +6,6 @@ import { formatRelativeTime } from '../utils';
  * 10b-i: formatRelativeTime boundary tests.
  */
 suite('Utils — formatRelativeTime', () => {
-
     /** Helper: create a Date that is `ms` milliseconds in the past */
     function ago(ms: number): Date {
         return new Date(Date.now() - ms);
@@ -61,7 +60,10 @@ suite('Utils — formatRelativeTime', () => {
         const result = formatRelativeTime(ago(7 * DAY));
         // Should be like "Feb 4" — no "ago" suffix
         assert.ok(!result.includes('ago'), `Expected "Mon DD" format, got "${result}"`);
-        assert.ok(/[A-Z][a-z]{2} \d{1,2}/.test(result), `Expected "Mon DD" format, got "${result}"`);
+        assert.ok(
+            /[A-Z][a-z]{2} \d{1,2}/.test(result),
+            `Expected "Mon DD" format, got "${result}"`,
+        );
     });
 
     test('364 days → "Mon DD" format', () => {

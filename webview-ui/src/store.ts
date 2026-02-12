@@ -73,13 +73,19 @@ export const useStashStore = create<StashStore>((set, get) => ({
     setStashes: (stashes) => {
         const { selectedStashIndex } = get();
         // If the selected stash no longer exists after refresh, clear selection
-        const stillExists = selectedStashIndex !== null &&
-            stashes.some((s) => s.index === selectedStashIndex);
+        const stillExists =
+            selectedStashIndex !== null && stashes.some((s) => s.index === selectedStashIndex);
         set({
             stashes,
             loading: false,
             selectedStashIndex: stillExists ? selectedStashIndex : null,
-            ...(stillExists ? {} : { fileDiffs: new Map(), fileDiffLoading: new Set(), expandedDetailFiles: new Set() }),
+            ...(stillExists
+                ? {}
+                : {
+                      fileDiffs: new Map(),
+                      fileDiffLoading: new Set(),
+                      expandedDetailFiles: new Set(),
+                  }),
         });
     },
     setLoading: (loading) => set({ loading }),
@@ -106,7 +112,7 @@ export const useStashStore = create<StashStore>((set, get) => ({
                 s.message.toLowerCase().includes(q) ||
                 s.branch.toLowerCase().includes(q) ||
                 s.name.toLowerCase().includes(q) ||
-                s.files.some((f) => f.path.toLowerCase().includes(q))
+                s.files.some((f) => f.path.toLowerCase().includes(q)),
         );
     },
 
@@ -145,7 +151,11 @@ export const useStashStore = create<StashStore>((set, get) => ({
     setFileDiffLoading: (key, loading) =>
         set((state) => {
             const next = new Set(state.fileDiffLoading);
-            if (loading) { next.add(key); } else { next.delete(key); }
+            if (loading) {
+                next.add(key);
+            } else {
+                next.delete(key);
+            }
             return { fileDiffLoading: next };
         }),
 

@@ -3,23 +3,30 @@ import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
+import { Globe, Lock, Link2, Trash2, X, StickyNote, ToggleLeft, ToggleRight } from 'lucide-react';
 
 // ─── Markdown-it Configuration ────────────────────────────────────
 
 /** Escape HTML entities in a string */
 function escapeHtml(str: string): string {
-    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 }
 
 const md = new MarkdownIt({
-    html: false,         // Disable raw HTML for safety
-    linkify: true,       // Autoconvert URLs to links
-    typographer: true,   // Smart quotes, dashes
+    html: false, // Disable raw HTML for safety
+    linkify: true, // Autoconvert URLs to links
+    typographer: true, // Smart quotes, dashes
     highlight: (str: string, lang: string): string => {
         if (lang && hljs.getLanguage(lang)) {
             try {
                 return `<pre class="hljs"><code>${hljs.highlight(str, { language: lang }).value}</code></pre>`;
-            } catch { /* fallback */ }
+            } catch {
+                /* fallback */
+            }
         }
         return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
     },
@@ -33,24 +40,41 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const editingTitle = useNotesStore((s) => s.editingTitle);
     const isDirty = useNotesStore((s) => s.isDirty);
     const isSaving = useNotesStore((s) => s.isSaving);
+    const isLoading = useNotesStore((s) => s.isLoading);
     const previewMode = useNotesStore((s) => s.previewMode);
     const setEditingContent = useNotesStore((s) => s.setEditingContent);
     const setEditingTitle = useNotesStore((s) => s.setEditingTitle);
     const setPreviewMode = useNotesStore((s) => s.setPreviewMode);
+    const setLoading = useNotesStore((s) => s.setLoading);
 
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const [autosaveCountdown, setAutosaveCountdown] = useState<number | null>(null);
     const countdownIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const contentRequestedRef = useRef<string | null>(null);
 
     // Read editor.tabSize setting (posted from extension, fallback to 4)
     const [tabSize] = useState(4); // Will be updated via message from extension
+
+    // ─── Lazy Content Fetch ───────────────────────────────────────
+    // When a note is selected but has no content (list API doesn't include it),
+    // request the full content from the extension host.
+    useEffect(() => {
+        if (note && !note.content && !isDirty && contentRequestedRef.current !== note.id) {
+            contentRequestedRef.current = note.id;
+            setLoading(true);
+            postMessage('notes.loadNote', { noteId: note.id });
+        } else if (note && note.content && contentRequestedRef.current === note.id) {
+            // Content arrived — clear the request flag
+            contentRequestedRef.current = null;
+        }
+    }, [note, note?.id, note?.content, isDirty, setLoading]);
 
     // ─── Autosave Logic ───────────────────────────────────────────
 
     const triggerSave = useCallback(() => {
         if (!note || !isDirty) return;
-        postMessage('saveNote', {
+        postMessage('notes.save', {
             noteId: note.id,
             title: editingTitle,
             content: editingContent,
@@ -101,24 +125,28 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
     // ─── Tab Key Handling ─────────────────────────────────────────
 
-    const handleTextareaKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-        if (e.key === 'Tab') {
-            e.preventDefault();
-            const textarea = textareaRef.current;
-            if (!textarea) return;
+    const handleTextareaKeyDown = useCallback(
+        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                const textarea = textareaRef.current;
+                if (!textarea) return;
 
-            const start = textarea.selectionStart;
-            const end = textarea.selectionEnd;
-            const spaces = ' '.repeat(tabSize);
-            const newValue = editingContent.slice(0, start) + spaces + editingContent.slice(end);
-            setEditingContent(newValue);
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                const spaces = ' '.repeat(tabSize);
+                const newValue =
+                    editingContent.slice(0, start) + spaces + editingContent.slice(end);
+                setEditingContent(newValue);
 
-            // Restore cursor position after React re-render
-            requestAnimationFrame(() => {
-                textarea.selectionStart = textarea.selectionEnd = start + tabSize;
-            });
-        }
-    }, [editingContent, setEditingContent, tabSize]);
+                // Restore cursor position after React re-render
+                requestAnimationFrame(() => {
+                    textarea.selectionStart = textarea.selectionEnd = start + tabSize;
+                });
+            }
+        },
+        [editingContent, setEditingContent, tabSize],
+    );
 
     // ─── Manual Save ──────────────────────────────────────────────
 
@@ -138,25 +166,43 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
     // ─── Keyboard Shortcut ────────────────────────────────────────
 
-    const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
-        // Cmd/Ctrl+S → save
-        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-            e.preventDefault();
-            handleSave();
-        }
-        // Escape → close
-        if (e.key === 'Escape' && onClose) {
-            e.preventDefault();
-            onClose();
-        }
-    }, [handleSave, onClose]);
+    const handleKeyDown = useCallback(
+        (e: React.KeyboardEvent) => {
+            // Cmd/Ctrl+S → save
+            if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+                e.preventDefault();
+                handleSave();
+            }
+            // Escape → close
+            if (e.key === 'Escape' && onClose) {
+                e.preventDefault();
+                onClose();
+            }
+        },
+        [handleSave, onClose],
+    );
 
     if (!note) {
         return (
             <div className="flex items-center justify-center h-full text-[12px] opacity-40">
                 <div className="text-center space-y-2">
-                    <span className="text-2xl block">📝</span>
+                    <span className="block">
+                        <StickyNote size={24} className="mx-auto opacity-60" />
+                    </span>
                     <span>Select a note to edit</span>
+                </div>
+            </div>
+        );
+    }
+
+    if (isLoading && !editingContent) {
+        return (
+            <div className="flex items-center justify-center h-full text-[12px] opacity-40">
+                <div className="text-center space-y-2">
+                    <span className="block animate-pulse">
+                        <StickyNote size={24} className="mx-auto opacity-60" />
+                    </span>
+                    <span>Loading note…</span>
                 </div>
             </div>
         );
@@ -165,7 +211,11 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
     const lastSavedTime = new Date(note.updatedAt).toLocaleTimeString();
 
     return (
-        <div className="flex flex-col h-full overflow-hidden" onKeyDown={handleKeyDown} tabIndex={-1}>
+        <div
+            className="flex flex-col h-full overflow-hidden"
+            onKeyDown={handleKeyDown}
+            tabIndex={-1}
+        >
             {/* Header */}
             <div className="px-3 py-2 border-b border-border flex-shrink-0 space-y-2">
                 {/* Title row */}
@@ -179,11 +229,11 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                     />
                     {onClose && (
                         <button
-                            className="text-[11px] opacity-40 hover:opacity-100 px-1"
+                            className="opacity-40 hover:opacity-100 px-1"
                             onClick={onClose}
                             title="Close"
                         >
-                            ✕
+                            <X size={14} />
                         </button>
                     )}
                 </div>
@@ -234,27 +284,44 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
 
                     <div className="flex-1" />
 
-                    {/* Visibility badge */}
-                    <span className="opacity-50" title={note.isPublic ? 'Public gist' : 'Secret gist'}>
-                        {note.isPublic ? '🌐 Public' : '🔒 Secret'}
-                    </span>
+                    {/* Visibility toggle */}
+                    <button
+                        className="opacity-50 hover:opacity-100 flex items-center gap-1 transition-colors"
+                        onClick={() => postMessage('notes.toggleVisibility', { noteId: note.id })}
+                        title={
+                            note.isPublic
+                                ? 'Public gist — click to make secret'
+                                : 'Secret gist — click to make public'
+                        }
+                    >
+                        {note.isPublic ? (
+                            <>
+                                <Globe size={12} /> <span>Public</span>{' '}
+                                <ToggleRight size={14} className="text-accent" />
+                            </>
+                        ) : (
+                            <>
+                                <Lock size={12} /> <span>Secret</span> <ToggleLeft size={14} />
+                            </>
+                        )}
+                    </button>
 
                     {/* Copy link */}
                     <button
                         className="opacity-50 hover:opacity-100"
-                        onClick={() => postMessage('copyNoteLink', { noteId: note.id })}
+                        onClick={() => postMessage('notes.copyLink', { noteId: note.id })}
                         title="Copy gist URL"
                     >
-                        🔗
+                        <Link2 size={12} />
                     </button>
 
                     {/* Delete */}
                     <button
                         className="opacity-50 hover:opacity-100 text-danger"
-                        onClick={() => postMessage('deleteNote', { noteId: note.id })}
+                        onClick={() => postMessage('notes.delete', { noteId: note.id })}
                         title="Delete note"
                     >
-                        🗑
+                        <Trash2 size={12} />
                     </button>
                 </div>
             </div>
@@ -285,7 +352,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                 <span className="truncate flex-1 text-right">
                     <a
                         className="hover:underline cursor-pointer"
-                        onClick={() => postMessage('copyNoteLink', { noteId: note.id })}
+                        onClick={() => postMessage('notes.copyLink', { noteId: note.id })}
                     >
                         {note.htmlUrl}
                     </a>

@@ -1,4 +1,4 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @source "./**/*.{tsx,ts}";
 
 /* VS Code theme integration — map CSS vars to Tailwind-friendly customs */
@@ -83,12 +83,29 @@ body {
     color: var(--color-fg);
 }
 
-.markdown-body h1 { font-size: 1.6em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.3em; }
-.markdown-body h2 { font-size: 1.35em; border-bottom: 1px solid var(--color-border); padding-bottom: 0.3em; }
-.markdown-body h3 { font-size: 1.15em; }
-.markdown-body h4 { font-size: 1em; }
-.markdown-body h5 { font-size: 0.9em; }
-.markdown-body h6 { font-size: 0.85em; color: var(--vscode-descriptionForeground, #888); }
+.markdown-body h1 {
+    font-size: 1.6em;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.3em;
+}
+.markdown-body h2 {
+    font-size: 1.35em;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.3em;
+}
+.markdown-body h3 {
+    font-size: 1.15em;
+}
+.markdown-body h4 {
+    font-size: 1em;
+}
+.markdown-body h5 {
+    font-size: 0.9em;
+}
+.markdown-body h6 {
+    font-size: 0.85em;
+    color: var(--vscode-descriptionForeground, #888);
+}
 
 .markdown-body p {
     margin-top: 0;
@@ -103,8 +120,12 @@ body {
     text-decoration: underline;
 }
 
-.markdown-body strong { font-weight: 600; }
-.markdown-body em { font-style: italic; }
+.markdown-body strong {
+    font-weight: 600;
+}
+.markdown-body em {
+    font-style: italic;
+}
 
 .markdown-body ul,
 .markdown-body ol {
@@ -127,8 +148,12 @@ body {
     color: var(--vscode-descriptionForeground, #888);
     background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
 }
-.markdown-body blockquote > :first-child { margin-top: 0; }
-.markdown-body blockquote > :last-child { margin-bottom: 0; }
+.markdown-body blockquote > :first-child {
+    margin-top: 0;
+}
+.markdown-body blockquote > :last-child {
+    margin-bottom: 0;
+}
 
 .markdown-body code {
     font-family: var(--vscode-editor-font-family, 'Menlo', monospace);
@@ -183,21 +208,47 @@ body {
     height: auto;
 }
 
-.markdown-body input[type="checkbox"] {
+.markdown-body input[type='checkbox'] {
     margin-right: 0.4em;
     vertical-align: middle;
 }
 
 /* highlight.js theme overrides — use VS Code token colors */
-.markdown-body .hljs { background: transparent; color: var(--color-fg); }
-.markdown-body .hljs-keyword { color: var(--vscode-debugTokenExpression-name, #569cd6); }
-.markdown-body .hljs-string { color: var(--vscode-debugTokenExpression-string, #ce9178); }
-.markdown-body .hljs-number { color: var(--vscode-debugTokenExpression-number, #b5cea8); }
-.markdown-body .hljs-comment { color: var(--vscode-descriptionForeground, #6a9955); font-style: italic; }
-.markdown-body .hljs-function { color: var(--vscode-symbolIcon-functionForeground, #dcdcaa); }
-.markdown-body .hljs-title { color: var(--vscode-symbolIcon-functionForeground, #dcdcaa); }
-.markdown-body .hljs-built_in { color: var(--vscode-debugTokenExpression-name, #4ec9b0); }
-.markdown-body .hljs-type { color: var(--vscode-symbolIcon-classForeground, #4ec9b0); }
-.markdown-body .hljs-attr { color: var(--vscode-debugTokenExpression-name, #9cdcfe); }
-.markdown-body .hljs-literal { color: var(--vscode-debugTokenExpression-boolean, #569cd6); }
-.markdown-body .hljs-meta { color: var(--vscode-descriptionForeground, #888); }
+.markdown-body .hljs {
+    background: transparent;
+    color: var(--color-fg);
+}
+.markdown-body .hljs-keyword {
+    color: var(--vscode-debugTokenExpression-name, #569cd6);
+}
+.markdown-body .hljs-string {
+    color: var(--vscode-debugTokenExpression-string, #ce9178);
+}
+.markdown-body .hljs-number {
+    color: var(--vscode-debugTokenExpression-number, #b5cea8);
+}
+.markdown-body .hljs-comment {
+    color: var(--vscode-descriptionForeground, #6a9955);
+    font-style: italic;
+}
+.markdown-body .hljs-function {
+    color: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+}
+.markdown-body .hljs-title {
+    color: var(--vscode-symbolIcon-functionForeground, #dcdcaa);
+}
+.markdown-body .hljs-built_in {
+    color: var(--vscode-debugTokenExpression-name, #4ec9b0);
+}
+.markdown-body .hljs-type {
+    color: var(--vscode-symbolIcon-classForeground, #4ec9b0);
+}
+.markdown-body .hljs-attr {
+    color: var(--vscode-debugTokenExpression-name, #9cdcfe);
+}
+.markdown-body .hljs-literal {
+    color: var(--vscode-debugTokenExpression-boolean, #569cd6);
+}
+.markdown-body .hljs-meta {
+    color: var(--vscode-descriptionForeground, #888);
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { App } from './App';
-// CSS is loaded via <link> tag in the webview HTML shell (built separately by Tailwind CLI)
+import './index.css';
 
 const container = document.getElementById('root');
 if (container) {

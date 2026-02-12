@@ -58,17 +58,18 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
 
     setNotes: (notes) => {
         const { selectedNoteId } = get();
-        const stillExists = selectedNoteId !== null &&
-            notes.some(n => n.id === selectedNoteId);
+        const stillExists = selectedNoteId !== null && notes.some((n) => n.id === selectedNoteId);
         set({
             notes,
             isLoading: false,
-            ...(stillExists ? {} : {
-                selectedNoteId: null,
-                editingContent: '',
-                editingTitle: '',
-                isDirty: false,
-            }),
+            ...(stillExists
+                ? {}
+                : {
+                      selectedNoteId: null,
+                      editingContent: '',
+                      editingTitle: '',
+                      isDirty: false,
+                  }),
         });
     },
 
@@ -76,7 +77,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         const { notes, selectedNoteId, isDirty } = get();
         if (id === selectedNoteId) return;
         // If dirty, the caller should handle the save prompt
-        const note = notes.find(n => n.id === id);
+        const note = notes.find((n) => n.id === id);
         if (!note) return;
         set({
             selectedNoteId: id,
@@ -101,7 +102,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     setLoading: (isLoading) => set({ isLoading }),
     setSaving: (isSaving) => set({ isSaving }),
     setDirty: (isDirty) => set({ isDirty }),
-    setAuthenticated: (auth, username) => set({ isAuthenticated: auth, authUsername: username ?? null }),
+    setAuthenticated: (auth, username) =>
+        set({ isAuthenticated: auth, authUsername: username ?? null }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
     setPreviewMode: (previewMode) => set({ previewMode }),
 
@@ -109,36 +111,35 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         const { notes, searchQuery } = get();
         if (!searchQuery.trim()) return notes;
         const q = searchQuery.toLowerCase();
-        return notes.filter(n =>
-            n.title.toLowerCase().includes(q) ||
-            n.content.toLowerCase().includes(q)
+        return notes.filter(
+            (n) => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q),
         );
     },
 
     selectedNote: () => {
         const { notes, selectedNoteId } = get();
         if (!selectedNoteId) return undefined;
-        return notes.find(n => n.id === selectedNoteId);
+        return notes.find((n) => n.id === selectedNoteId);
     },
 
     updateNoteInList: (noteId, updates) =>
         set((state) => ({
-            notes: state.notes.map(n =>
-                n.id === noteId ? { ...n, ...updates } : n
-            ),
+            notes: state.notes.map((n) => (n.id === noteId ? { ...n, ...updates } : n)),
         })),
 
     removeNoteFromList: (noteId) =>
         set((state) => {
             const cleared = state.selectedNoteId === noteId;
             return {
-                notes: state.notes.filter(n => n.id !== noteId),
-                ...(cleared ? {
-                    selectedNoteId: null,
-                    editingContent: '',
-                    editingTitle: '',
-                    isDirty: false,
-                } : {}),
+                notes: state.notes.filter((n) => n.id !== noteId),
+                ...(cleared
+                    ? {
+                          selectedNoteId: null,
+                          editingContent: '',
+                          editingTitle: '',
+                          isDirty: false,
+                      }
+                    : {}),
             };
         }),
 

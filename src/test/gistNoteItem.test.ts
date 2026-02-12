@@ -23,17 +23,22 @@ function makeNote(overrides: Partial<GistNote> = {}): GistNote {
 }
 
 suite('GistNoteItem Tests', () => {
-
     test('label is set to note title', () => {
         const item = new GistNoteItem(makeNote({ title: 'My Note' }));
         // Label can be a string or TreeItemLabel; extract string
-        const label = typeof item.label === 'string' ? item.label : (item.label as vscode.TreeItemLabel).label;
+        const label =
+            typeof item.label === 'string'
+                ? item.label
+                : (item.label as vscode.TreeItemLabel).label;
         assert.strictEqual(label, 'My Note');
     });
 
     test('label shows "Untitled" for empty title', () => {
         const item = new GistNoteItem(makeNote({ title: '' }));
-        const label = typeof item.label === 'string' ? item.label : (item.label as vscode.TreeItemLabel).label;
+        const label =
+            typeof item.label === 'string'
+                ? item.label
+                : (item.label as vscode.TreeItemLabel).label;
         assert.strictEqual(label, 'Untitled');
     });
 
@@ -44,8 +49,10 @@ suite('GistNoteItem Tests', () => {
 
     test('description includes relative time', () => {
         const item = new GistNoteItem(makeNote());
-        assert.ok(typeof item.description === 'string' && item.description.length > 0,
-            'Expected description to contain relative time');
+        assert.ok(
+            typeof item.description === 'string' && item.description.length > 0,
+            'Expected description to contain relative time',
+        );
     });
 
     test('iconPath is "note" for secret notes', () => {
@@ -100,8 +107,10 @@ suite('GistNoteItem Tests', () => {
         if (typeof item.label !== 'string') {
             const treeLabel = item.label as vscode.TreeItemLabel;
             assert.strictEqual(treeLabel.label, 'Important Meeting Notes');
-            assert.ok(treeLabel.highlights && treeLabel.highlights.length > 0,
-                'Expected highlights for matching search query');
+            assert.ok(
+                treeLabel.highlights && treeLabel.highlights.length > 0,
+                'Expected highlights for matching search query',
+            );
         }
         // Even if it's a string, the test passes — the feature is optional
     });
@@ -111,8 +120,10 @@ suite('GistNoteItem Tests', () => {
         // Should fall back to plain string label (no highlights)
         if (typeof item.label !== 'string') {
             const treeLabel = item.label as vscode.TreeItemLabel;
-            assert.ok(!treeLabel.highlights || treeLabel.highlights.length === 0,
-                'Expected no highlights for non-matching query');
+            assert.ok(
+                !treeLabel.highlights || treeLabel.highlights.length === 0,
+                'Expected no highlights for non-matching query',
+            );
         }
     });
 

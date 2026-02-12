@@ -8,6 +8,7 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 ## ✨ Features
 
 ### Sidebar Tree View
+
 - Browse all git stashes in a dedicated **Activity Bar** container with badge count and dynamic title.
 - Expand a stash to see its files with **M/A/D/R/C status icons**.
 - Click any file to open a **side-by-side diff** (parent ↔ stash version).
@@ -15,6 +16,7 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 - **Welcome views** for no-workspace, no-git-repo, and no-stashes states.
 
 ### Webview Panel
+
 - Open a **React + Tailwind CSS** panel in an editor tab (`Workstash: Open Stash Panel`).
 - **Search & filter** stashes by message, branch, or filename.
 - **Inline stash creation form** — message input + mode selector (All / Staged / Untracked).
@@ -22,39 +24,46 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 - **Keyboard navigation** — Arrow keys, Enter to expand, Escape to clear search, `a`/`p`/`d` shortcuts on focused cards.
 
 ### Stash Operations
-| Action | Tree View | Command Palette | Webview |
-|--------|-----------|-----------------|---------|
-| Create | Title bar `+` | `Workstash: Create New Stash` | Inline form |
-| Apply | Inline ✓ | `Workstash: Apply Stash` | Hover button |
-| Pop | Inline ↑ | `Workstash: Pop Stash` | Hover button |
-| Drop | Inline 🗑 | `Workstash: Drop Stash` | Hover button |
-| Show diff | Inline 👁 | `Workstash: Show Stash Contents` | — |
-| Show stats | Context menu | `Workstash: Show Stash Stats` | — |
-| Clear all | Title bar | `Workstash: Clear All Stashes` | Footer link |
-| Refresh | Title bar ↻ | `Workstash: Refresh Stash List` | Button |
+
+| Action     | Tree View     | Command Palette                  | Webview      |
+| ---------- | ------------- | -------------------------------- | ------------ |
+| Create     | Title bar `+` | `Workstash: Create New Stash`    | Inline form  |
+| Apply      | Inline ✓      | `Workstash: Apply Stash`         | Hover button |
+| Pop        | Inline ↑      | `Workstash: Pop Stash`           | Hover button |
+| Drop       | Inline 🗑     | `Workstash: Drop Stash`          | Hover button |
+| Show diff  | Inline 👁     | `Workstash: Show Stash Contents` | —            |
+| Show stats | Context menu  | `Workstash: Show Stash Stats`    | —            |
+| Clear all  | Title bar     | `Workstash: Clear All Stashes`   | Footer link  |
+| Refresh    | Title bar ↻   | `Workstash: Refresh Stash List`  | Button       |
 
 ### Create Stash Modes
+
 - **All Changes** — stash everything (default)
 - **Staged Only** — `git stash push --staged` (git 2.35+)
 - **Include Untracked** — `git stash push --include-untracked`
 
 ### Conflict Detection
+
 - Apply/Pop detect `CONFLICT` in git output → show a **warning** instead of an error.
 - On pop with conflicts, the stash is **not removed** — resolve conflicts, then drop manually.
 
 ### Auto-Refresh
+
 - File system watcher on `.git/refs/stash` triggers refresh.
 - Window focus triggers refresh (configurable).
 - Settings changes trigger refresh.
 
 ### Status Bar
+
 - Shows `$(archive) N` in the status bar — click to focus the tree view.
 - Hidden when there are no stashes.
 
 ### Keyboard Shortcut
+
 - **`Cmd+Shift+S`** (Mac) / **`Ctrl+Shift+S`** (Win/Linux) → Create a new stash.
 
 ### Gist Notes 📝
+
 - **Create, edit, and sync** Markdown notes backed by GitHub Gists.
 - **Sidebar tree view** — browse notes with search/filter, visibility badges (🌐 public / 📝 secret), and relative timestamps.
 - **Webview editor** — full Markdown editor with live preview, syntax-highlighted code blocks (via `highlight.js`), and autosave.
@@ -66,39 +75,39 @@ Workstash gives you a rich sidebar UI and a full webview panel for managing git 
 
 ## ⚙️ Settings
 
-| Setting | Type | Default | Description |
-|---------|------|---------|-------------|
-| `mystash.autoRefresh` | boolean | `true` | Auto-refresh on git changes or window focus |
-| `mystash.confirmOnDrop` | boolean | `true` | Confirm before dropping a stash |
-| `mystash.confirmOnClear` | boolean | `true` | Confirm before clearing all stashes |
-| `mystash.showFileStatus` | boolean | `true` | Show M/A/D status indicators on file items |
-| `mystash.defaultIncludeUntracked` | boolean | `false` | Default to Include Untracked on create |
-| `mystash.sortOrder` | `newest` / `oldest` | `newest` | Sort order for the stash list |
-| `mystash.showBranchInDescription` | boolean | `true` | Show branch name in tree item description |
-| `workstash.notes.autosaveDelay` | number | `30` | Autosave delay in seconds (5–300, 0 to disable) |
-| `workstash.notes.defaultVisibility` | `secret` / `public` | `secret` | Default visibility for new notes |
+| Setting                             | Type                | Default  | Description                                     |
+| ----------------------------------- | ------------------- | -------- | ----------------------------------------------- |
+| `mystash.autoRefresh`               | boolean             | `true`   | Auto-refresh on git changes or window focus     |
+| `mystash.confirmOnDrop`             | boolean             | `true`   | Confirm before dropping a stash                 |
+| `mystash.confirmOnClear`            | boolean             | `true`   | Confirm before clearing all stashes             |
+| `mystash.showFileStatus`            | boolean             | `true`   | Show M/A/D status indicators on file items      |
+| `mystash.defaultIncludeUntracked`   | boolean             | `false`  | Default to Include Untracked on create          |
+| `mystash.sortOrder`                 | `newest` / `oldest` | `newest` | Sort order for the stash list                   |
+| `mystash.showBranchInDescription`   | boolean             | `true`   | Show branch name in tree item description       |
+| `workstash.notes.autosaveDelay`     | number              | `30`     | Autosave delay in seconds (5–300, 0 to disable) |
+| `workstash.notes.defaultVisibility` | `secret` / `public` | `secret` | Default visibility for new notes                |
 
 ## 📋 Commands
 
 All commands are available via the Command Palette (`Cmd+Shift+P` / `Ctrl+Shift+P`):
 
-| Command | Description |
-|---------|-------------|
-| `Workstash: Refresh Stash List` | Refresh the stash list |
-| `Workstash: Create New Stash` | Create a new stash (3-way mode picker) |
-| `Workstash: Apply Stash` | Apply a stash (keep in list) |
-| `Workstash: Pop Stash` | Apply and remove a stash |
-| `Workstash: Drop Stash` | Drop a stash permanently |
-| `Workstash: Show Stash Contents` | View full stash diff |
-| `Workstash: Show Stash Stats` | View stash stat summary |
-| `Workstash: Open Stash Panel` | Open the rich webview panel |
-| `Workstash: Clear All Stashes` | Remove all stashes |
-| `Workstash: Sign In to GitHub` | Authenticate for Gist Notes |
-| `Workstash: Sign Out of GitHub` | Sign out of GitHub |
-| `Workstash: Create Note` | Create a new Gist Note |
-| `Workstash: Refresh Notes` | Refresh the notes list |
-| `Workstash: Search Notes` | Search notes by title or content |
-| `Workstash: Clear Notes Search` | Clear notes search filter |
+| Command                          | Description                            |
+| -------------------------------- | -------------------------------------- |
+| `Workstash: Refresh Stash List`  | Refresh the stash list                 |
+| `Workstash: Create New Stash`    | Create a new stash (3-way mode picker) |
+| `Workstash: Apply Stash`         | Apply a stash (keep in list)           |
+| `Workstash: Pop Stash`           | Apply and remove a stash               |
+| `Workstash: Drop Stash`          | Drop a stash permanently               |
+| `Workstash: Show Stash Contents` | View full stash diff                   |
+| `Workstash: Show Stash Stats`    | View stash stat summary                |
+| `Workstash: Open Stash Panel`    | Open the rich webview panel            |
+| `Workstash: Clear All Stashes`   | Remove all stashes                     |
+| `Workstash: Sign In to GitHub`   | Authenticate for Gist Notes            |
+| `Workstash: Sign Out of GitHub`  | Sign out of GitHub                     |
+| `Workstash: Create Note`         | Create a new Gist Note                 |
+| `Workstash: Refresh Notes`       | Refresh the notes list                 |
+| `Workstash: Search Notes`        | Search notes by title or content       |
+| `Workstash: Clear Notes Search`  | Clear notes search filter              |
 
 ## 📦 Requirements
 

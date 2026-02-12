@@ -11,7 +11,7 @@ import { GitService, StashEntry } from './gitService';
  */
 export async function pickStash(
     gitService: GitService,
-    prompt: string
+    prompt: string,
 ): Promise<StashEntry | undefined> {
     const stashes = await gitService.getStashList();
 
@@ -21,12 +21,12 @@ export async function pickStash(
     }
 
     const selected = await vscode.window.showQuickPick(
-        stashes.map(s => ({
+        stashes.map((s) => ({
             label: s.message,
             description: s.name,
-            stash: s
+            stash: s,
         })),
-        { placeHolder: prompt }
+        { placeHolder: prompt },
     );
 
     return selected?.stash;

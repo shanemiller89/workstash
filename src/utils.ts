@@ -26,8 +26,20 @@ export function formatRelativeTime(date: Date): string {
         return diffDay === 1 ? '1 day ago' : `${diffDay} days ago`;
     }
 
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const months = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+    ];
     const month = months[date.getMonth()];
     const day = date.getDate();
 

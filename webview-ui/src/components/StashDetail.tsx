@@ -2,6 +2,16 @@ import React, { useCallback } from 'react';
 import { useStashStore, type StashData, type StashFileData } from '../store';
 import { postMessage } from '../vscode';
 import { DiffView } from './DiffView';
+import {
+    Check,
+    ArrowUp,
+    X,
+    ChevronRight,
+    GitBranch,
+    Clock,
+    ExternalLink,
+    Archive,
+} from 'lucide-react';
 
 const statusConfig: Record<string, { label: string; color: string; fullLabel: string }> = {
     M: { label: 'M', color: 'text-modified', fullLabel: 'Modified' },
@@ -31,7 +41,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 postMessage('getFileDiff', { index: stash.index, filePath: file.path });
             }
         },
-        [stash, fileDiffs, fileDiffLoading, toggleDetailFile, setFileDiffLoading]
+        [stash, fileDiffs, fileDiffLoading, toggleDetailFile, setFileDiffLoading],
     );
 
     const handleOpenNativeDiff = useCallback(
@@ -39,7 +49,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             if (!stash) return;
             postMessage('showFile', { index: stash.index, filePath: file.path });
         },
-        [stash]
+        [stash],
     );
 
     const handleKeyDown = useCallback(
@@ -49,14 +59,16 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 onClose();
             }
         },
-        [onClose]
+        [onClose],
     );
 
     if (!stash) {
         return (
             <div className="flex items-center justify-center h-full text-[12px] opacity-40">
                 <div className="text-center space-y-2">
-                    <span className="text-2xl block">📋</span>
+                    <span className="block">
+                        <Archive size={24} className="mx-auto opacity-60" />
+                    </span>
                     <span>Select a stash to view details</span>
                 </div>
             </div>
@@ -67,9 +79,7 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
     const isWip = stash.message.toLowerCase().startsWith('wip');
 
     // Build a lookup of numstat by path
-    const numstatMap = new Map(
-        (stash.numstat ?? []).map((n) => [n.path, n])
-    );
+    const numstatMap = new Map((stash.numstat ?? []).map((n) => [n.path, n]));
 
     return (
         <div
@@ -94,17 +104,19 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         <div className="flex flex-wrap items-center gap-2 ml-3.5 text-[11px] opacity-70">
                             <span className="opacity-60">{stash.name}</span>
                             <span className="inline-flex items-center gap-1 bg-badge-bg text-badge-fg px-1.5 py-0.5 rounded text-[10px] font-medium">
-                                ⎇ {stash.branch}
+                                <GitBranch size={10} /> {stash.branch}
                             </span>
-                            <span title={fullDate}>⏱ {stash.relativeDate}</span>
+                            <span className="inline-flex items-center gap-0.5" title={fullDate}>
+                                <Clock size={10} /> {stash.relativeDate}
+                            </span>
                         </div>
                     </div>
                     <button
-                        className="text-fg opacity-40 hover:opacity-100 text-[14px] p-1 shrink-0"
+                        className="text-fg opacity-40 hover:opacity-100 p-1 shrink-0"
                         onClick={onClose}
                         title="Close detail pane"
                     >
-                        ✕
+                        <X size={14} />
                     </button>
                 </div>
             </div>
@@ -113,7 +125,8 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             {stash.stats && (
                 <div className="px-4 py-2 border-b border-border flex items-center gap-4 text-[11px] flex-shrink-0">
                     <span className="opacity-60">
-                        {stash.stats.filesChanged} file{stash.stats.filesChanged !== 1 ? 's' : ''} changed
+                        {stash.stats.filesChanged} file{stash.stats.filesChanged !== 1 ? 's' : ''}{' '}
+                        changed
                     </span>
                     {stash.stats.insertions > 0 && (
                         <span className="text-added font-medium">+{stash.stats.insertions}</span>
@@ -128,18 +141,18 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
             <div className="px-4 py-2 border-b border-border flex items-center gap-1.5 flex-shrink-0">
                 <ActionButton
                     label="Apply"
-                    icon="✓"
+                    icon={<Check size={12} />}
                     className="hover:text-success"
                     onClick={() => postMessage('apply', { index: stash.index })}
                 />
                 <ActionButton
                     label="Pop"
-                    icon="↑"
+                    icon={<ArrowUp size={12} />}
                     onClick={() => postMessage('pop', { index: stash.index })}
                 />
                 <ActionButton
                     label="Drop"
-                    icon="✕"
+                    icon={<X size={12} />}
                     className="hover:text-danger"
                     onClick={() => postMessage('drop', { index: stash.index })}
                 />
@@ -155,7 +168,11 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                     const isExpanded = expandedDetailFiles.has(key);
                     const isLoading = fileDiffLoading.has(key);
                     const diff = fileDiffs.get(key);
-                    const cfg = statusConfig[file.status] ?? { label: '?', color: 'opacity-50', fullLabel: 'Unknown' };
+                    const cfg = statusConfig[file.status] ?? {
+                        label: '?',
+                        color: 'opacity-50',
+                        fullLabel: 'Unknown',
+                    };
                     const parts = file.path.split('/');
                     const name = parts.pop() ?? file.path;
                     const dir = parts.join('/');
@@ -169,11 +186,11 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 onClick={() => handleToggleFile(file)}
                             >
                                 <span
-                                    className={`text-[10px] transition-transform ${
+                                    className={`transition-transform ${
                                         isExpanded ? 'rotate-90' : ''
                                     } opacity-40`}
                                 >
-                                    ▶
+                                    <ChevronRight size={12} />
                                 </span>
                                 <span
                                     className={`w-4 text-center text-[10px] font-bold flex-shrink-0 ${cfg.color}`}
@@ -181,8 +198,12 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                                 >
                                     {cfg.label}
                                 </span>
-                                <span className="font-medium text-fg font-mono text-[12px]">{name}</span>
-                                {dir && <span className="opacity-30 text-[11px] font-mono">{dir}</span>}
+                                <span className="font-medium text-fg font-mono text-[12px]">
+                                    {name}
+                                </span>
+                                {dir && (
+                                    <span className="opacity-30 text-[11px] font-mono">{dir}</span>
+                                )}
 
                                 {/* Per-file numstat */}
                                 {ns && (
@@ -198,14 +219,14 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
                                 {/* Open in native diff button */}
                                 <button
-                                    className="ml-2 opacity-0 group-hover:opacity-60 hover:!opacity-100 text-[10px] text-accent shrink-0"
+                                    className="ml-2 opacity-0 group-hover:opacity-60 hover:!opacity-100 text-accent shrink-0"
                                     title="Open in VS Code diff editor"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         handleOpenNativeDiff(file);
                                     }}
                                 >
-                                    ⧉
+                                    <ExternalLink size={12} />
                                 </button>
                             </div>
 
@@ -242,12 +263,12 @@ export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 const ActionButton: React.FC<{
     label: string;
-    icon: string;
+    icon: React.ReactNode;
     className?: string;
     onClick: () => void;
 }> = ({ label, icon, className = '', onClick }) => (
     <button
-        className={`bg-transparent border border-border rounded px-2.5 py-1 text-[11px] text-fg cursor-pointer hover:bg-hover hover:border-accent whitespace-nowrap transition-colors ${className}`}
+        className={`bg-transparent border border-border rounded px-2.5 py-1 text-[11px] text-fg cursor-pointer hover:bg-hover hover:border-accent whitespace-nowrap transition-colors flex items-center gap-1 ${className}`}
         onClick={onClick}
     >
         {icon} {label}

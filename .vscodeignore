@@ -7,12 +7,16 @@ src/**
 webview-ui/**
 .gitignore
 .yarnrc
+.prettierrc
+.prettierignore
 esbuild.js
 vsc-extension-quickstart.md
 PUNCHLIST.md
 **/tsconfig.json
 **/eslint.config.mjs
+**/vite.config.ts
 **/*.map
 **/*.ts
 **/.vscode-test.*
+package-lock.json
 !dist/**

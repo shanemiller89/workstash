@@ -27,7 +27,9 @@ function mockAuthService(token = 'ghp_testtoken123') {
 function mockOutputChannel() {
     const lines: string[] = [];
     return {
-        appendLine: (line: string) => { lines.push(line); },
+        appendLine: (line: string) => {
+            lines.push(line);
+        },
         lines,
         // Satisfy the interface enough for tests
         append: () => {},
@@ -41,14 +43,16 @@ function mockOutputChannel() {
 }
 
 /** Build a GitHub Gist API response for a Workstash note */
-function makeGist(overrides: {
-    id?: string;
-    title?: string;
-    content?: string;
-    isPublic?: boolean;
-    createdAt?: string;
-    updatedAt?: string;
-} = {}) {
+function makeGist(
+    overrides: {
+        id?: string;
+        title?: string;
+        content?: string;
+        isPublic?: boolean;
+        createdAt?: string;
+        updatedAt?: string;
+    } = {},
+) {
     const title = overrides.title ?? 'Test Note';
     const content = overrides.content ?? '# Test Note\n\nHello world.';
     return {
@@ -66,28 +70,28 @@ function makeGist(overrides: {
 }
 
 /** Create a mock fetch that returns a sequence of responses */
-function mockFetch(responses: { status: number; body?: unknown; headers?: Record<string, string> }[]): FetchFn & { calls: { url: string; init: RequestInit }[] } {
+function mockFetch(
+    responses: { status: number; body?: unknown; headers?: Record<string, string> }[],
+): FetchFn & { calls: { url: string; init: RequestInit }[] } {
     let callIndex = 0;
     const calls: { url: string; init: RequestInit }[] = [];
 
     const fn = async (input: string | URL | Request, init?: RequestInit) => {
-        const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+        const url =
+            typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
         calls.push({ url, init: init ?? {} });
         const resp = responses[callIndex++];
         if (!resp) {
             throw new Error('mockFetch: no more responses');
         }
-        return new Response(
-            resp.body !== undefined ? JSON.stringify(resp.body) : null,
-            {
-                status: resp.status,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-RateLimit-Remaining': '100',
-                    ...resp.headers,
-                },
-            }
-        );
+        return new Response(resp.body !== undefined ? JSON.stringify(resp.body) : null, {
+            status: resp.status,
+            headers: {
+                'Content-Type': 'application/json',
+                'X-RateLimit-Remaining': '100',
+                ...resp.headers,
+            },
+        });
     };
 
     const result = fn as FetchFn & { calls: { url: string; init: RequestInit }[] };
@@ -107,14 +111,11 @@ function createService(fetchFn: FetchFn, token = 'ghp_testtoken123'): GistServic
 // ─── Tests ────────────────────────────────────────────────────────
 
 suite('GistService Unit Tests', () => {
-
     // ─── listNotes ────────────────────────────────────────────────
 
     suite('listNotes', () => {
         test('returns empty array when no gists match marker', async () => {
-            const fetch = mockFetch([
-                { status: 200, body: [] },
-            ]);
+            const fetch = mockFetch([{ status: 200, body: [] }]);
             const svc = createService(fetch);
             const notes = await svc.listNotes();
             assert.strictEqual(notes.length, 0);
@@ -124,11 +125,17 @@ suite('GistService Unit Tests', () => {
             const gist1 = makeGist({ id: 'a1', title: 'First Note' });
             const gist2 = makeGist({ id: 'a2', title: 'Second Note', isPublic: true });
             // Non-workstash gist (no marker file)
-            const regularGist = { id: 'other', description: 'Random', public: true, html_url: 'https://gist.github.com/other', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', files: { 'readme.md': { filename: 'readme.md', content: 'hi' } } };
+            const regularGist = {
+                id: 'other',
+                description: 'Random',
+                public: true,
+                html_url: 'https://gist.github.com/other',
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T00:00:00Z',
+                files: { 'readme.md': { filename: 'readme.md', content: 'hi' } },
+            };
 
-            const fetch = mockFetch([
-                { status: 200, body: [gist1, regularGist, gist2] },
-            ]);
+            const fetch = mockFetch([{ status: 200, body: [gist1, regularGist, gist2] }]);
             const svc = createService(fetch);
             const notes = await svc.listNotes();
 
@@ -141,7 +148,7 @@ suite('GistService Unit Tests', () => {
 
         test('stops pagination when fewer than PER_PAGE results', async () => {
             const gists = Array.from({ length: 50 }, (_, i) =>
-                makeGist({ id: `g${i}`, title: `Note ${i}` })
+                makeGist({ id: `g${i}`, title: `Note ${i}` }),
             );
             const fetch = mockFetch([
                 { status: 200, body: gists }, // < 100, so no second page
@@ -154,13 +161,13 @@ suite('GistService Unit Tests', () => {
         });
 
         test('sends auth header', async () => {
-            const fetch = mockFetch([
-                { status: 200, body: [] },
-            ]);
+            const fetch = mockFetch([{ status: 200, body: [] }]);
             const svc = createService(fetch, 'ghp_mytoken');
             await svc.listNotes();
 
-            const authHeader = (fetch.calls[0].init.headers as Record<string, string>)['Authorization'];
+            const authHeader = (fetch.calls[0].init.headers as Record<string, string>)[
+                'Authorization'
+            ];
             assert.strictEqual(authHeader, 'Bearer ghp_mytoken');
         });
     });
@@ -170,9 +177,7 @@ suite('GistService Unit Tests', () => {
     suite('getNote', () => {
         test('fetches a single note by ID', async () => {
             const gist = makeGist({ id: 'abc', title: 'My Note', content: '# Hello' });
-            const fetch = mockFetch([
-                { status: 200, body: gist },
-            ]);
+            const fetch = mockFetch([{ status: 200, body: gist }]);
             const svc = createService(fetch);
             const note = await svc.getNote('abc');
 
@@ -184,13 +189,15 @@ suite('GistService Unit Tests', () => {
 
         test('throws if gist is not a Workstash note', async () => {
             const regularGist = {
-                id: 'xyz', description: 'Not Workstash', public: true, html_url: 'https://gist.github.com/xyz',
-                created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+                id: 'xyz',
+                description: 'Not Workstash',
+                public: true,
+                html_url: 'https://gist.github.com/xyz',
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-01T00:00:00Z',
                 files: { 'readme.md': { filename: 'readme.md', content: 'hi' } },
             };
-            const fetch = mockFetch([
-                { status: 200, body: regularGist },
-            ]);
+            const fetch = mockFetch([{ status: 200, body: regularGist }]);
             const svc = createService(fetch);
 
             await assert.rejects(() => svc.getNote('xyz'), /not a Workstash note/i);
@@ -202,9 +209,7 @@ suite('GistService Unit Tests', () => {
     suite('createNote', () => {
         test('sends correct payload', async () => {
             const createdGist = makeGist({ id: 'new1', title: 'Brand New' });
-            const fetch = mockFetch([
-                { status: 201, body: createdGist },
-            ]);
+            const fetch = mockFetch([{ status: 201, body: createdGist }]);
             const svc = createService(fetch);
             const note = await svc.createNote('Brand New', '## Content', false);
 
@@ -221,9 +226,7 @@ suite('GistService Unit Tests', () => {
 
         test('creates public gist when isPublic=true', async () => {
             const createdGist = makeGist({ id: 'pub1', title: 'Public Note', isPublic: true });
-            const fetch = mockFetch([
-                { status: 201, body: createdGist },
-            ]);
+            const fetch = mockFetch([{ status: 201, body: createdGist }]);
             const svc = createService(fetch);
             await svc.createNote('Public Note', '', true);
 
@@ -233,9 +236,7 @@ suite('GistService Unit Tests', () => {
 
         test('uses default content with heading when content is empty', async () => {
             const createdGist = makeGist({ id: 'def1', title: 'Empty' });
-            const fetch = mockFetch([
-                { status: 201, body: createdGist },
-            ]);
+            const fetch = mockFetch([{ status: 201, body: createdGist }]);
             const svc = createService(fetch);
             await svc.createNote('Empty', '', false);
 
@@ -292,9 +293,7 @@ suite('GistService Unit Tests', () => {
 
     suite('deleteNote', () => {
         test('sends DELETE request', async () => {
-            const fetch = mockFetch([
-                { status: 204 },
-            ]);
+            const fetch = mockFetch([{ status: 204 }]);
             const svc = createService(fetch);
             await svc.deleteNote('del1');
 
@@ -314,8 +313,8 @@ suite('GistService Unit Tests', () => {
             const recreated = makeGist({ id: 'tv1-new', title: 'Toggle Me', isPublic: true });
 
             const fetch = mockFetch([
-                { status: 200, body: current },  // getNote
-                { status: 204 },                  // deleteNote
+                { status: 200, body: current }, // getNote
+                { status: 204 }, // deleteNote
                 { status: 201, body: recreated }, // createNote
             ]);
             const svc = createService(fetch);
@@ -355,27 +354,21 @@ suite('GistService Unit Tests', () => {
 
     suite('error handling', () => {
         test('throws user-friendly error on 401', async () => {
-            const fetch = mockFetch([
-                { status: 401, body: { message: 'Bad credentials' } },
-            ]);
+            const fetch = mockFetch([{ status: 401, body: { message: 'Bad credentials' } }]);
             const svc = createService(fetch);
 
             await assert.rejects(() => svc.listNotes(), /sign in/i);
         });
 
         test('throws user-friendly error on 403 (rate limit)', async () => {
-            const fetch = mockFetch([
-                { status: 403, body: { message: 'rate limit exceeded' } },
-            ]);
+            const fetch = mockFetch([{ status: 403, body: { message: 'rate limit exceeded' } }]);
             const svc = createService(fetch);
 
             await assert.rejects(() => svc.listNotes(), /rate limit/i);
         });
 
         test('throws user-friendly error on 404', async () => {
-            const fetch = mockFetch([
-                { status: 404, body: { message: 'Not Found' } },
-            ]);
+            const fetch = mockFetch([{ status: 404, body: { message: 'Not Found' } }]);
             const svc = createService(fetch);
 
             await assert.rejects(() => svc.getNote('missing'), /not found/i);

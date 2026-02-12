@@ -108,20 +108,39 @@ export const App: React.FC = () => {
                 case 'notesLoading':
                     notesStore.setLoading(true);
                     break;
+                case 'notesSaving':
+                    notesStore.setSaving(true);
+                    break;
                 case 'noteContent': {
-                    const noteId = msg.noteId as string;
-                    const existingNote = notesStore.selectedNote();
-                    if (existingNote && existingNote.id === noteId) {
-                        // Content loaded for the selected note
+                    const ncNoteId = msg.noteId as string;
+                    const ncContent = msg.content as string;
+                    const ncTitle = msg.title as string | undefined;
+                    // Update content in the notes list
+                    notesStore.updateNoteInList(ncNoteId, {
+                        content: ncContent,
+                        ...(ncTitle !== undefined ? { title: ncTitle } : {}),
+                    });
+                    // If this note is currently selected, populate the editor
+                    if (notesStore.selectedNoteId === ncNoteId) {
+                        notesStore.setEditingContent(ncContent);
+                        notesStore.setLoading(false);
+                        notesStore.setDirty(false);
+                        if (ncTitle !== undefined) {
+                            notesStore.setEditingTitle(ncTitle);
+                        }
                     }
                     break;
                 }
                 case 'noteSaved':
                     notesStore.setSaving(false);
                     notesStore.setDirty(false);
-                    if (msg.noteId && msg.updatedAt) {
+                    if (msg.noteId) {
                         notesStore.updateNoteInList(msg.noteId as string, {
-                            updatedAt: msg.updatedAt as string,
+                            ...(msg.title !== undefined ? { title: msg.title as string } : {}),
+                            ...(msg.content !== undefined
+                                ? { content: msg.content as string }
+                                : {}),
+                            ...(msg.updatedAt ? { updatedAt: msg.updatedAt as string } : {}),
                         });
                     }
                     break;
@@ -134,10 +153,20 @@ export const App: React.FC = () => {
                 case 'noteDeleted':
                     notesStore.removeNoteFromList(msg.noteId as string);
                     break;
+                case 'noteVisibilityChanged': {
+                    // Visibility toggle deletes + re-creates the gist, so the ID changes
+                    const oldId = msg.oldNoteId as string;
+                    const newNote = msg.note as GistNoteData;
+                    notesStore.removeNoteFromList(oldId);
+                    notesStore.addNoteToList(newNote);
+                    notesStore.selectNote(newNote.id);
+                    notesStore.setLoading(false);
+                    break;
+                }
                 case 'authStatus':
                     notesStore.setAuthenticated(
                         msg.authenticated as boolean,
-                        (msg.username as string) ?? null
+                        (msg.username as string) ?? null,
                     );
                     break;
                 case 'notesError':

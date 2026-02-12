@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useState } from 'react';
 import { useNotesStore, type GistNoteData } from '../notesStore';
 import { postMessage } from '../vscode';
+import { Lock, Globe, StickyNote, Plus, X, ShieldCheck } from 'lucide-react';
 
 /** Skeleton card shown while notes are loading */
 const SkeletonCard: React.FC = () => (
@@ -25,29 +26,34 @@ export const NotesList: React.FC = () => {
     const searchRef = useRef<HTMLInputElement>(null);
     const [creatingNote, setCreatingNote] = useState(false);
     const [newNoteTitle, setNewNoteTitle] = useState('');
+    const [newNotePublic, setNewNotePublic] = useState(false);
     const newNoteTitleRef = useRef<HTMLInputElement>(null);
 
-    const handleSelectNote = useCallback((note: GistNoteData) => {
-        if (isDirty) {
-            // Post to extension for VS Code-style confirmation
-            postMessage('confirmDirtySwitch', { targetNoteId: note.id });
-        } else {
-            selectNote(note.id);
-        }
-    }, [isDirty, selectNote]);
+    const handleSelectNote = useCallback(
+        (note: GistNoteData) => {
+            if (isDirty) {
+                // Post to extension for VS Code-style confirmation
+                postMessage('notes.confirmDirtySwitch', { targetNoteId: note.id });
+            } else {
+                selectNote(note.id);
+            }
+        },
+        [isDirty, selectNote],
+    );
 
     const handleCreateNote = useCallback(() => {
         setCreatingNote(true);
         setNewNoteTitle('');
+        setNewNotePublic(false);
         setTimeout(() => newNoteTitleRef.current?.focus(), 50);
     }, []);
 
     const handleSubmitCreate = useCallback(() => {
         const title = newNoteTitle.trim() || 'Untitled Note';
-        postMessage('createNote', { title, content: '' });
+        postMessage('notes.create', { title, content: '', isPublic: newNotePublic });
         setCreatingNote(false);
         setNewNoteTitle('');
-    }, [newNoteTitle]);
+    }, [newNoteTitle, newNotePublic]);
 
     const handleSearchKeyDown = (e: React.KeyboardEvent) => {
         if (e.key === 'Escape') {
@@ -60,17 +66,17 @@ export const NotesList: React.FC = () => {
     if (!isAuthenticated) {
         return (
             <div className="flex flex-col items-center justify-center h-full px-6 text-center gap-4">
-                <span className="text-3xl">🔐</span>
+                <ShieldCheck size={32} className="opacity-60" />
                 <div className="space-y-2">
                     <div className="text-[13px] font-medium">Sign in to GitHub</div>
                     <div className="text-[11px] opacity-60 leading-relaxed">
-                        Gist Notes uses GitHub Gists to store your Markdown notes.
-                        Sign in to sync across devices.
+                        Gist Notes uses GitHub Gists to store your Markdown notes. Sign in to sync
+                        across devices.
                     </div>
                 </div>
                 <button
                     className="bg-button-bg text-button-fg rounded px-4 py-1.5 text-[12px] font-medium hover:bg-button-hover"
-                    onClick={() => postMessage('signIn')}
+                    onClick={() => postMessage('notes.signIn')}
                 >
                     Sign In to GitHub
                 </button>
@@ -93,41 +99,67 @@ export const NotesList: React.FC = () => {
                         className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
                     />
                     <button
-                        className="bg-button-bg text-button-fg rounded px-2.5 py-1 text-[11px] font-medium hover:bg-button-hover flex-shrink-0"
+                        className="bg-button-bg text-button-fg rounded px-2.5 py-1 text-[11px] font-medium hover:bg-button-hover flex-shrink-0 flex items-center gap-1"
                         onClick={handleCreateNote}
                         title="Create new note"
                     >
-                        + New
+                        <Plus size={12} /> New
                     </button>
                 </div>
 
                 {/* Inline create form */}
                 {creatingNote && (
-                    <div className="flex items-center gap-1.5">
-                        <input
-                            ref={newNoteTitleRef}
-                            type="text"
-                            placeholder="Note title…"
-                            value={newNoteTitle}
-                            onChange={(e) => setNewNoteTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter') handleSubmitCreate();
-                                if (e.key === 'Escape') setCreatingNote(false);
-                            }}
-                            className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
-                        />
-                        <button
-                            className="bg-button-bg text-button-fg rounded px-2 py-1 text-[11px] font-medium hover:bg-button-hover"
-                            onClick={handleSubmitCreate}
-                        >
-                            Create
-                        </button>
-                        <button
-                            className="text-[11px] opacity-60 hover:opacity-100 px-1.5 py-1"
-                            onClick={() => setCreatingNote(false)}
-                        >
-                            ✕
-                        </button>
+                    <div className="space-y-1.5">
+                        <div className="flex items-center gap-1.5">
+                            <input
+                                ref={newNoteTitleRef}
+                                type="text"
+                                placeholder="Note title…"
+                                value={newNoteTitle}
+                                onChange={(e) => setNewNoteTitle(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleSubmitCreate();
+                                    if (e.key === 'Escape') setCreatingNote(false);
+                                }}
+                                className="flex-1 bg-input-bg border border-input-border text-input-fg rounded px-2 py-1 text-[12px] outline-none focus:border-accent placeholder:opacity-40"
+                            />
+                            <button
+                                className="bg-button-bg text-button-fg rounded px-2 py-1 text-[11px] font-medium hover:bg-button-hover"
+                                onClick={handleSubmitCreate}
+                            >
+                                Create
+                            </button>
+                            <button
+                                className="opacity-60 hover:opacity-100 px-1.5 py-1"
+                                onClick={() => setCreatingNote(false)}
+                            >
+                                <X size={12} />
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1">
+                            <button
+                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                                    !newNotePublic
+                                        ? 'bg-button-bg text-button-fg'
+                                        : 'opacity-50 hover:opacity-80'
+                                }`}
+                                onClick={() => setNewNotePublic(false)}
+                            >
+                                <Lock size={11} />
+                                Secret
+                            </button>
+                            <button
+                                className={`flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium transition-colors ${
+                                    newNotePublic
+                                        ? 'bg-button-bg text-button-fg'
+                                        : 'opacity-50 hover:opacity-80'
+                                }`}
+                                onClick={() => setNewNotePublic(true)}
+                            >
+                                <Globe size={11} />
+                                Public
+                            </button>
+                        </div>
                     </div>
                 )}
             </div>
@@ -142,9 +174,11 @@ export const NotesList: React.FC = () => {
                     </>
                 ) : notes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-center opacity-50 gap-2 py-8">
-                        <span className="text-2xl">📝</span>
+                        <StickyNote size={24} className="opacity-60" />
                         <span className="text-[12px]">
-                            {searchQuery ? 'No notes match your search' : 'No notes yet — create one to get started'}
+                            {searchQuery
+                                ? 'No notes match your search'
+                                : 'No notes yet — create one to get started'}
                         </span>
                     </div>
                 ) : (
@@ -177,8 +211,15 @@ export const NotesList: React.FC = () => {
                                     </div>
                                     <div className="flex flex-col items-end gap-0.5 flex-shrink-0">
                                         <span className="text-[10px] opacity-40">{timeAgo}</span>
-                                        <span className="text-[10px]" title={note.isPublic ? 'Public' : 'Secret'}>
-                                            {note.isPublic ? '🌐' : '🔒'}
+                                        <span
+                                            className="text-[10px]"
+                                            title={note.isPublic ? 'Public' : 'Secret'}
+                                        >
+                                            {note.isPublic ? (
+                                                <Globe size={12} />
+                                            ) : (
+                                                <Lock size={12} />
+                                            )}
                                         </span>
                                     </div>
                                 </div>

@@ -2,6 +2,7 @@ import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { useStashStore } from '../store';
 import { StashCard } from './StashCard';
 import { postMessage } from '../vscode';
+import { Archive, Plus, RefreshCw } from 'lucide-react';
 
 /** Animated skeleton card shown while stashes are loading */
 const SkeletonCard: React.FC = () => (
@@ -65,7 +66,11 @@ const CreateStashForm: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                         }`}
                         onClick={() => setMode(m)}
                     >
-                        {m === 'all' ? 'All Changes' : m === 'staged' ? 'Staged Only' : 'Include Untracked'}
+                        {m === 'all'
+                            ? 'All Changes'
+                            : m === 'staged'
+                              ? 'Staged Only'
+                              : 'Include Untracked'}
                     </button>
                 ))}
             </div>
@@ -138,7 +143,7 @@ export const StashList: React.FC = () => {
                     break;
             }
         },
-        [stashes.length, searchQuery, setSearchQuery]
+        [stashes.length, searchQuery, setSearchQuery],
     );
 
     // Move focus to the card element when focusedIndex changes
@@ -180,14 +185,14 @@ export const StashList: React.FC = () => {
                         onClick={() => setShowCreateForm(!showCreateForm)}
                         title="Create Stash"
                     >
-                        +
+                        <Plus size={14} />
                     </button>
                     <button
                         className="bg-button-bg text-button-fg text-[11px] rounded px-2 py-1 font-medium hover:bg-button-hover flex-shrink-0"
                         onClick={() => postMessage('refresh')}
                         title="Refresh"
                     >
-                        ↻
+                        <RefreshCw size={14} />
                     </button>
                 </div>
             </div>
@@ -217,7 +222,7 @@ export const StashList: React.FC = () => {
 
                 {!loading && stashes.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-32 gap-2 opacity-50 text-[12px]">
-                        <span className="text-xl">📦</span>
+                        <Archive size={24} className="opacity-60" />
                         {searchQuery ? (
                             <span>No stashes match &quot;{searchQuery}&quot;</span>
                         ) : (
