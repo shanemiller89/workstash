@@ -671,13 +671,14 @@ export class PrService {
         reviewers: string[],
     ): Promise<{ login: string; avatarUrl: string }[]> {
         const { data } = await this._request<{
-            users: { login: string; avatar_url: string }[];
+            requested_reviewers?: { login: string; avatar_url: string }[];
         }>(
             'POST',
             `/repos/${owner}/${repo}/pulls/${prNumber}/requested_reviewers`,
             { reviewers },
         );
-        return data.users.map((u) => ({ login: u.login, avatarUrl: u.avatar_url }));
+        const users = data.requested_reviewers ?? [];
+        return users.map((u) => ({ login: u.login, avatarUrl: u.avatar_url }));
     }
 
     /**

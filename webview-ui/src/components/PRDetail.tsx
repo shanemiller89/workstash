@@ -24,6 +24,7 @@ import {
     Filter,
     UserPlus,
     Loader2,
+    Bot,
 } from 'lucide-react';
 import { MarkdownBody } from './MarkdownBody';
 
@@ -99,11 +100,12 @@ const DiffHunk: React.FC<{ hunk: string }> = ({ hunk }) => {
     );
 };
 
-/** Single comment card with reply + resolve support */
+/** Single comment card with reply + resolve + collapse support */
 const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ comment, prNumber }) => {
     const [copied, setCopied] = useState(false);
     const [showReply, setShowReply] = useState(false);
     const [replyText, setReplyText] = useState('');
+    const [collapsed, setCollapsed] = useState(false);
     const isCommentSaving = usePRStore((s) => s.isCommentSaving);
     const replyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -226,42 +228,54 @@ const CommentCard: React.FC<{ comment: PRCommentData; prNumber: number }> = ({ c
                 >
                     {copied ? <CopyCheck size={11} /> : <Copy size={11} />}
                 </button>
+                <button
+                    className="p-0.5 text-fg/30 hover:text-fg transition-colors"
+                    onClick={() => setCollapsed(!collapsed)}
+                    title={collapsed ? 'Expand comment' : 'Collapse comment'}
+                >
+                    {collapsed ? <ChevronRight size={11} /> : <ChevronDown size={11} />}
+                </button>
             </div>
-            {/* Comment body — rendered as markdown */}
-            <div className="px-3 py-2">
-                <MarkdownBody content={comment.body} />
-            </div>
-            {/* Inline reply area */}
-            {showReply && (
-                <div className="border-t border-border px-3 py-2 bg-card">
-                    <textarea
-                        ref={replyRef}
-                        value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
-                        onKeyDown={handleReplyKeyDown}
-                        placeholder="Write a reply… (⌘+Enter to submit, Esc to cancel)"
-                        rows={2}
-                        className="w-full px-2 py-1.5 text-[11px] bg-input border border-border rounded resize-none focus:border-accent focus:outline-none"
-                    />
-                    <div className="flex items-center gap-2 mt-1.5">
-                        <button
-                            className="px-2 py-1 text-[10px] bg-accent text-white rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
-                            onClick={handleSubmitReply}
-                            disabled={!replyText.trim() || isCommentSaving}
-                        >
-                            Reply
-                        </button>
-                        <button
-                            className="px-2 py-1 text-[10px] text-fg/50 hover:text-fg transition-colors"
-                            onClick={() => { setShowReply(false); setReplyText(''); }}
-                        >
-                            Cancel
-                        </button>
-                        {isCommentSaving && (
-                            <span className="text-[10px] text-fg/40">Posting…</span>
-                        )}
+            {/* Collapsible content */}
+            {!collapsed && (
+                <>
+                    {/* Comment body — rendered as markdown */}
+                    <div className="px-3 py-2">
+                        <MarkdownBody content={comment.body} />
                     </div>
-                </div>
+                    {/* Inline reply area */}
+                    {showReply && (
+                        <div className="border-t border-border px-3 py-2 bg-card">
+                            <textarea
+                                ref={replyRef}
+                                value={replyText}
+                                onChange={(e) => setReplyText(e.target.value)}
+                                onKeyDown={handleReplyKeyDown}
+                                placeholder="Write a reply… (⌘+Enter to submit, Esc to cancel)"
+                                rows={2}
+                                className="w-full px-2 py-1.5 text-[11px] bg-input border border-border rounded resize-none focus:border-accent focus:outline-none"
+                            />
+                            <div className="flex items-center gap-2 mt-1.5">
+                                <button
+                                    className="px-2 py-1 text-[10px] bg-accent text-white rounded hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    onClick={handleSubmitReply}
+                                    disabled={!replyText.trim() || isCommentSaving}
+                                >
+                                    Reply
+                                </button>
+                                <button
+                                    className="px-2 py-1 text-[10px] text-fg/50 hover:text-fg transition-colors"
+                                    onClick={() => { setShowReply(false); setReplyText(''); }}
+                                >
+                                    Cancel
+                                </button>
+                                {isCommentSaving && (
+                                    <span className="text-[10px] text-fg/40">Posting…</span>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
@@ -555,6 +569,19 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                     </div>
                 )}
             </div>
+
+            {/* Copilot review button — only if not already requested */}
+            {!requestedLogins.has('copilot') && (
+                <button
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-purple-400/70 hover:text-purple-400 border border-purple-400/20 hover:border-purple-400/40 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                    onClick={() => handleRequestReview('copilot')}
+                    title="Request Copilot code review"
+                    disabled={isRequestingReview}
+                >
+                    <Bot size={10} />
+                    Copilot
+                </button>
+            )}
         </div>
     );
 };
