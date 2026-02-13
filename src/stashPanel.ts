@@ -3,6 +3,7 @@ import { GitService, StashEntry, StashFileEntry } from './gitService';
 import { AuthService } from './authService';
 import { GistService } from './gistService';
 import { PrService } from './prService';
+import { IssueService } from './issueService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
@@ -18,6 +19,7 @@ export class StashPanel {
     private readonly _authService: AuthService | undefined;
     private readonly _gistService: GistService | undefined;
     private readonly _prService: PrService | undefined;
+    private readonly _issueService: IssueService | undefined;
     private readonly _extensionUri: vscode.Uri;
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
@@ -43,6 +45,7 @@ export class StashPanel {
         authService?: AuthService,
         gistService?: GistService,
         prService?: PrService,
+        issueService?: IssueService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -65,6 +68,7 @@ export class StashPanel {
             authService,
             gistService,
             prService,
+            issueService,
         );
         return StashPanel._instance;
     }
@@ -76,6 +80,7 @@ export class StashPanel {
         authService?: AuthService,
         gistService?: GistService,
         prService?: PrService,
+        issueService?: IssueService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -83,6 +88,7 @@ export class StashPanel {
         this._authService = authService;
         this._gistService = gistService;
         this._prService = prService;
+        this._issueService = issueService;
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -108,6 +114,13 @@ export class StashPanel {
     public openPR(prNumber: number): void {
         if (this._isReady) {
             this._panel.webview.postMessage({ type: 'openPR', prNumber });
+        }
+    }
+
+    /** Deep-link: switch to Issues tab and select a specific issue. */
+    public openIssue(issueNumber: number): void {
+        if (this._isReady) {
+            this._panel.webview.postMessage({ type: 'openIssue', issueNumber });
         }
     }
 
@@ -199,6 +212,9 @@ export class StashPanel {
         // PR reviewer properties
         reviewers?: string[];
         reviewer?: string;
+        // Issue message properties
+        issueNumber?: number;
+        stateReason?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -207,6 +223,7 @@ export class StashPanel {
                 await this._sendAuthStatus();
                 await this._refreshNotes();
                 await this._refreshPRs();
+                await this._refreshIssues();
                 break;
 
             case 'refresh':
@@ -728,6 +745,121 @@ export class StashPanel {
                     }
                 }
                 break;
+
+            // ─── Issue messages from webview ───
+
+            case 'issues.refresh':
+                await this._refreshIssues(msg.state as 'open' | 'closed' | 'all' | undefined);
+                break;
+
+            case 'issues.signIn':
+                await vscode.commands.executeCommand('workstash.issues.signIn');
+                await this._sendAuthStatus();
+                await this._refreshIssues();
+                break;
+
+            case 'issues.filter':
+                if (msg.state) {
+                    await this._refreshIssues(msg.state as 'open' | 'closed' | 'all');
+                }
+                break;
+
+            case 'issues.getComments':
+                if (msg.issueNumber !== undefined) {
+                    await this._sendIssueComments(msg.issueNumber);
+                }
+                break;
+
+            case 'issues.createComment':
+                if (msg.issueNumber !== undefined && msg.body && this._issueService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'issueCommentSaving' });
+                        const comment = await this._issueService.createComment(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.issueNumber,
+                            msg.body,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'issueCommentCreated',
+                            comment: IssueService.toCommentData(comment),
+                        });
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to post comment: ${m}`);
+                        this._panel.webview.postMessage({ type: 'issueError', message: m });
+                    }
+                }
+                break;
+
+            case 'issues.close':
+                if (msg.issueNumber !== undefined && this._issueService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        const reason = (msg.stateReason === 'not_planned' ? 'not_planned' : 'completed') as 'completed' | 'not_planned';
+                        const updated = await this._issueService.closeIssue(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.issueNumber,
+                            reason,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'issueStateChanged',
+                            issueNumber: msg.issueNumber,
+                            state: updated.state,
+                        });
+                        vscode.window.showInformationMessage(`Closed issue #${msg.issueNumber}`);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to close issue: ${m}`);
+                        this._panel.webview.postMessage({ type: 'issueError', message: m });
+                    }
+                }
+                break;
+
+            case 'issues.reopen':
+                if (msg.issueNumber !== undefined && this._issueService) {
+                    try {
+                        const repoInfo = await this._gitService.getGitHubRepo();
+                        if (!repoInfo) { break; }
+                        const updated = await this._issueService.reopenIssue(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.issueNumber,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'issueStateChanged',
+                            issueNumber: msg.issueNumber,
+                            state: updated.state,
+                        });
+                        vscode.window.showInformationMessage(`Reopened issue #${msg.issueNumber}`);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to reopen issue: ${m}`);
+                        this._panel.webview.postMessage({ type: 'issueError', message: m });
+                    }
+                }
+                break;
+
+            case 'issues.openInBrowser':
+                if (msg.issueNumber !== undefined) {
+                    const repoInfo = await this._gitService.getGitHubRepo();
+                    if (repoInfo) {
+                        const url = `https://github.com/${repoInfo.owner}/${repoInfo.repo}/issues/${msg.issueNumber}`;
+                        await vscode.env.openExternal(vscode.Uri.parse(url));
+                    }
+                }
+                break;
+
+            case 'issues.copyComment':
+                if (msg.body) {
+                    await vscode.env.clipboard.writeText(msg.body);
+                    vscode.window.showInformationMessage('Comment copied to clipboard');
+                }
+                break;
         }
     }
 
@@ -842,6 +974,68 @@ export class StashPanel {
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
             this._panel.webview.postMessage({ type: 'prError', message: m });
+        }
+    }
+
+    /** Fetch issues from IssueService and send to webview. */
+    private async _refreshIssues(state?: 'open' | 'closed' | 'all'): Promise<void> {
+        if (!this._issueService || !this._authService) {
+            return;
+        }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) {
+                return;
+            }
+
+            const repoInfo = await this._gitService.getGitHubRepo();
+            if (!repoInfo) {
+                this._panel.webview.postMessage({ type: 'issueRepoNotFound' });
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'issuesLoading' });
+
+            const issues = await this._issueService.listIssues(
+                repoInfo.owner,
+                repoInfo.repo,
+                state ?? 'open',
+            );
+            const payload = issues.map((i) => IssueService.toData(i));
+            this._panel.webview.postMessage({ type: 'issuesData', payload });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'issueError', message: m });
+        }
+    }
+
+    /** Fetch comments for a specific issue and send to webview. */
+    private async _sendIssueComments(issueNumber: number): Promise<void> {
+        if (!this._issueService) {
+            return;
+        }
+        try {
+            const repoInfo = await this._gitService.getGitHubRepo();
+            if (!repoInfo) {
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'issueCommentsLoading', issueNumber });
+
+            const [issue, comments] = await Promise.all([
+                this._issueService.getIssue(repoInfo.owner, repoInfo.repo, issueNumber),
+                this._issueService.getComments(repoInfo.owner, repoInfo.repo, issueNumber),
+            ]);
+
+            this._panel.webview.postMessage({
+                type: 'issueComments',
+                issueNumber,
+                issueDetail: IssueService.toData(issue),
+                comments: comments.map((c) => IssueService.toCommentData(c)),
+            });
+        } catch (e: unknown) {
+            const m = e instanceof Error ? e.message : 'Unknown error';
+            this._panel.webview.postMessage({ type: 'issueError', message: m });
         }
     }
 

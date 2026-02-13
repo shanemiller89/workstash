@@ -137,6 +137,13 @@
                     "icon": "$(git-pull-request)",
                     "contextualTitle": "Workstash",
                     "visibility": "visible"
+                },
+                {
+                    "id": "issuesView",
+                    "name": "Issues",
+                    "icon": "$(issues)",
+                    "contextualTitle": "Workstash",
+                    "visibility": "visible"
                 }
             ]
         },
@@ -180,6 +187,21 @@
                 "view": "pullRequestsView",
                 "contents": "No pull requests found.\n[Refresh](command:workstash.prs.refresh)",
                 "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasPRs"
+            },
+            {
+                "view": "issuesView",
+                "contents": "Sign in to GitHub to see issues.\n[Sign In to GitHub](command:workstash.issues.signIn)",
+                "when": "!workstash.isAuthenticated"
+            },
+            {
+                "view": "issuesView",
+                "contents": "Not a GitHub repository.\nIssues require a GitHub remote.",
+                "when": "workstash.isAuthenticated && !workstash.isGitHubRepo"
+            },
+            {
+                "view": "issuesView",
+                "contents": "No issues found.\n[Refresh](command:workstash.issues.refresh)",
+                "when": "workstash.isAuthenticated && workstash.isGitHubRepo && !workstash.hasIssues"
             }
         ],
         "commands": [
@@ -367,6 +389,48 @@
                 "title": "Clear PR Search",
                 "category": "Workstash",
                 "icon": "$(close)"
+            },
+            {
+                "command": "workstash.issues.refresh",
+                "title": "Refresh Issues",
+                "category": "Workstash",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "workstash.issues.open",
+                "title": "Open Issue",
+                "category": "Workstash",
+                "icon": "$(go-to-file)"
+            },
+            {
+                "command": "workstash.issues.openInBrowser",
+                "title": "Open Issue in Browser",
+                "category": "Workstash",
+                "icon": "$(link-external)"
+            },
+            {
+                "command": "workstash.issues.signIn",
+                "title": "Sign In for Issues",
+                "category": "Workstash",
+                "icon": "$(sign-in)"
+            },
+            {
+                "command": "workstash.issues.filter",
+                "title": "Filter Issues",
+                "category": "Workstash",
+                "icon": "$(filter)"
+            },
+            {
+                "command": "workstash.issues.search",
+                "title": "Search Issues",
+                "category": "Workstash",
+                "icon": "$(search)"
+            },
+            {
+                "command": "workstash.issues.clearSearch",
+                "title": "Clear Issue Search",
+                "category": "Workstash",
+                "icon": "$(close)"
             }
         ],
         "menus": {
@@ -452,6 +516,31 @@
                 {
                     "command": "workstash.prs.signIn",
                     "when": "view == pullRequestsView && !workstash.isAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.issues.refresh",
+                    "when": "view == issuesView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.issues.filter",
+                    "when": "view == issuesView && workstash.isAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.issues.search",
+                    "when": "view == issuesView && !workstash.issues.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.issues.clearSearch",
+                    "when": "view == issuesView && workstash.issues.isSearching",
+                    "group": "navigation"
+                },
+                {
+                    "command": "workstash.issues.signIn",
+                    "when": "view == issuesView && !workstash.isAuthenticated",
                     "group": "navigation"
                 }
             ],
@@ -565,6 +654,26 @@
                     "command": "workstash.prs.openInBrowser",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "1_pr@2"
+                },
+                {
+                    "command": "workstash.issues.open",
+                    "when": "view == issuesView && viewItem =~ /^issueItem/",
+                    "group": "inline@1"
+                },
+                {
+                    "command": "workstash.issues.openInBrowser",
+                    "when": "view == issuesView && viewItem =~ /^issueItem/",
+                    "group": "inline@2"
+                },
+                {
+                    "command": "workstash.issues.open",
+                    "when": "view == issuesView && viewItem =~ /^issueItem/",
+                    "group": "1_issue@1"
+                },
+                {
+                    "command": "workstash.issues.openInBrowser",
+                    "when": "view == issuesView && viewItem =~ /^issueItem/",
+                    "group": "1_issue@2"
                 }
             ],
             "commandPalette": [
@@ -691,6 +800,34 @@
                 {
                     "command": "workstash.prs.clearSearch",
                     "when": "workspaceFolderCount > 0 && workstash.prs.isSearching"
+                },
+                {
+                    "command": "workstash.issues.refresh",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.issues.open",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.issues.openInBrowser",
+                    "when": "false"
+                },
+                {
+                    "command": "workstash.issues.signIn",
+                    "when": "workspaceFolderCount > 0 && !workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.issues.filter",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.issues.search",
+                    "when": "workspaceFolderCount > 0 && workstash.isAuthenticated"
+                },
+                {
+                    "command": "workstash.issues.clearSearch",
+                    "when": "workspaceFolderCount > 0 && workstash.issues.isSearching"
                 }
             ]
         },

@@ -15,6 +15,9 @@ import { GistNoteItem } from './gistNoteItem';
 import { PrService } from './prService';
 import { PrProvider } from './prProvider';
 import { PrItem } from './prItem';
+import { IssueService } from './issueService';
+import { IssueProvider } from './issueProvider';
+import { IssueItem } from './issueItem';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -99,6 +102,31 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
+    // ─── Issues Feature ───────────────────────────────────────────
+
+    // IssueService — GitHub Issues API
+    const issueService = new IssueService(authService, outputChannel);
+
+    // IssueProvider — tree data provider for Issues sidebar
+    const issueProvider = new IssueProvider(issueService, gitService, authService, outputChannel);
+    context.subscriptions.push(issueProvider);
+
+    // Register the issues tree view
+    const issuesTreeView = vscode.window.createTreeView('issuesView', {
+        treeDataProvider: issueProvider,
+        showCollapseAll: false,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(issuesTreeView);
+    issueProvider.setTreeView(issuesTreeView);
+
+    // Refresh issues when auth state changes
+    context.subscriptions.push(
+        authService.onDidChangeAuthentication(() => {
+            issueProvider.refresh('auth-changed');
+        }),
+    );
+
     // Register mystash: URI scheme for side-by-side diff viewing
     const contentProvider = new StashContentProvider(gitService);
     context.subscriptions.push(
@@ -154,6 +182,7 @@ export function activate(context: vscode.ExtensionContext) {
             if (state.focused && getConfig<boolean>('autoRefresh', true)) {
                 stashProvider.refresh('window-focus');
                 prProvider.refresh('window-focus');
+                issueProvider.refresh('window-focus');
             }
         }),
     );
@@ -463,7 +492,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
         }),
     );
 
@@ -695,7 +724,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -894,7 +923,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService);
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -967,6 +996,94 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('workstash.prs.clearSearch', () => {
             prProvider.setSearchQuery('');
             vscode.commands.executeCommand('setContext', 'workstash.prs.isSearching', false);
+        }),
+    );
+
+    // ─── Issue commands ───
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.refresh', () => {
+            issueProvider.refresh('manual');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.open', async (item?: IssueItem) => {
+            if (!item) {
+                return;
+            }
+            // Open the issue in the webview panel
+            StashPanel.createOrShow(context.extensionUri, gitService, authService, gistService, prService, issueService);
+            StashPanel.currentPanel?.openIssue(item.issue.number);
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.openInBrowser', async (item?: IssueItem) => {
+            if (!item) {
+                return;
+            }
+            await vscode.env.openExternal(vscode.Uri.parse(item.issue.htmlUrl));
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.signIn', async () => {
+            const session = await authService.signIn();
+            if (session) {
+                vscode.window.showInformationMessage(
+                    `Signed in to GitHub as ${session.account.label}`,
+                );
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.filter', async () => {
+            const current = issueProvider.stateFilter;
+            const items: vscode.QuickPickItem[] = [
+                { label: 'Open', description: current === 'open' ? '(current)' : '' },
+                { label: 'Closed', description: current === 'closed' ? '(current)' : '' },
+                { label: 'All', description: current === 'all' ? '(current)' : '' },
+            ];
+            const choice = await vscode.window.showQuickPick(items, {
+                placeHolder: 'Filter issues by state',
+            });
+            if (!choice) {
+                return;
+            }
+            const stateMap: Record<string, 'open' | 'closed' | 'all'> = {
+                Open: 'open',
+                Closed: 'closed',
+                All: 'all',
+            };
+            issueProvider.setStateFilter(stateMap[choice.label] ?? 'open');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.search', async () => {
+            const query = await vscode.window.showInputBox({
+                prompt: 'Search issues by title, number, or label',
+                placeHolder: 'e.g. bug, #15, enhancement',
+                value: issueProvider.searchQuery,
+            });
+            if (query === undefined) {
+                return;
+            }
+            issueProvider.setSearchQuery(query);
+            await vscode.commands.executeCommand(
+                'setContext',
+                'workstash.issues.isSearching',
+                query.length > 0,
+            );
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('workstash.issues.clearSearch', () => {
+            issueProvider.setSearchQuery('');
+            vscode.commands.executeCommand('setContext', 'workstash.issues.isSearching', false);
         }),
     );
 }

@@ -1,11 +1,12 @@
 import React from 'react';
 import { useAppStore } from '../appStore';
-import { Archive, StickyNote, GitPullRequest } from 'lucide-react';
+import { Archive, StickyNote, GitPullRequest, CircleDot } from 'lucide-react';
 
 const tabs = [
     { key: 'stashes' as const, label: 'Stashes', Icon: Archive },
     { key: 'notes' as const, label: 'Notes', Icon: StickyNote },
     { key: 'prs' as const, label: 'PRs', Icon: GitPullRequest },
+    { key: 'issues' as const, label: 'Issues', Icon: CircleDot },
 ] as const;
 
 export const TabBar: React.FC = () => {

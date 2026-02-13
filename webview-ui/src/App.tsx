@@ -2,6 +2,7 @@ import React, { useEffect, useCallback } from 'react';
 import { useStashStore, type StashData } from './store';
 import { useNotesStore, type GistNoteData } from './notesStore';
 import { usePRStore, type PullRequestData, type PRCommentData } from './prStore';
+import { useIssueStore, type IssueData, type IssueCommentData } from './issueStore';
 import { useAppStore } from './appStore';
 import { onMessage, postMessage } from './vscode';
 import { StashList } from './components/StashList';
@@ -9,6 +10,7 @@ import { StashDetail } from './components/StashDetail';
 import { TabBar } from './components/TabBar';
 import { NotesTab } from './components/NotesTab';
 import { PRsTab } from './components/PRsTab';
+import { IssuesTab } from './components/IssuesTab';
 import { ResizableLayout } from './components/ResizableLayout';
 
 /** Stash master-detail pane (extracted from old App root) */
@@ -244,6 +246,71 @@ export const App: React.FC = () => {
                         postMessage('prs.getComments', { prNumber: msg.prNumber });
                     }
                     break;
+
+                // ─── Issue messages ───
+                case 'issuesData': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setIssues(msg.payload as IssueData[]);
+                    break;
+                }
+                case 'issuesLoading': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setLoading(true);
+                    break;
+                }
+                case 'issueRepoNotFound': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setRepoNotFound(true);
+                    break;
+                }
+                case 'issueComments': {
+                    const issueStore = useIssueStore.getState();
+                    if (msg.issueDetail) {
+                        issueStore.setIssueDetail(msg.issueDetail as IssueData);
+                    }
+                    issueStore.setComments(msg.comments as IssueCommentData[]);
+                    break;
+                }
+                case 'issueCommentsLoading': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setCommentsLoading(true);
+                    break;
+                }
+                case 'issueCommentSaving': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setCommentSaving(true);
+                    break;
+                }
+                case 'issueCommentCreated': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.addComment(msg.comment as IssueCommentData);
+                    break;
+                }
+                case 'issueStateChanged': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.updateIssueState(
+                        msg.issueNumber as number,
+                        msg.state as 'open' | 'closed',
+                    );
+                    break;
+                }
+                case 'issueError': {
+                    const issueStore = useIssueStore.getState();
+                    issueStore.setLoading(false);
+                    issueStore.setCommentsLoading(false);
+                    issueStore.setCommentSaving(false);
+                    break;
+                }
+
+                // ─── Deep-link: open a specific issue ───
+                case 'openIssue':
+                    appStore.setActiveTab('issues');
+                    if (msg.issueNumber) {
+                        const issueStore = useIssueStore.getState();
+                        issueStore.selectIssue(msg.issueNumber as number);
+                        postMessage('issues.getComments', { issueNumber: msg.issueNumber });
+                    }
+                    break;
             }
         });
 
@@ -261,8 +328,10 @@ export const App: React.FC = () => {
                     <StashesTab />
                 ) : activeTab === 'notes' ? (
                     <NotesTab />
-                ) : (
+                ) : activeTab === 'prs' ? (
                     <PRsTab />
+                ) : (
+                    <IssuesTab />
                 )}
             </div>
         </div>
