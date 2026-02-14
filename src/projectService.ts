@@ -96,6 +96,10 @@ export interface ProjectView {
     name: string;
     layout: 'TABLE' | 'BOARD' | 'ROADMAP';
     filter?: string;
+    /** Field IDs used for column grouping (Board view) */
+    groupByFieldIds?: string[];
+    /** Field IDs used for vertical grouping / swimlanes */
+    verticalGroupByFieldIds?: string[];
 }
 
 export interface Project {
@@ -314,6 +318,20 @@ export class ProjectService {
                         name
                         layout
                         filter
+                        groupByFields(first: 5) {
+                            nodes {
+                                ... on ProjectV2Field { id }
+                                ... on ProjectV2SingleSelectField { id }
+                                ... on ProjectV2IterationField { id }
+                            }
+                        }
+                        verticalGroupByFields(first: 5) {
+                            nodes {
+                                ... on ProjectV2Field { id }
+                                ... on ProjectV2SingleSelectField { id }
+                                ... on ProjectV2IterationField { id }
+                            }
+                        }
                     }
                 }
             }
@@ -426,6 +444,20 @@ export class ProjectService {
                                 name
                                 layout
                                 filter
+                                groupByFields(first: 5) {
+                                    nodes {
+                                        ... on ProjectV2Field { id }
+                                        ... on ProjectV2SingleSelectField { id }
+                                        ... on ProjectV2IterationField { id }
+                                    }
+                                }
+                                verticalGroupByFields(first: 5) {
+                                    nodes {
+                                        ... on ProjectV2Field { id }
+                                        ... on ProjectV2SingleSelectField { id }
+                                        ... on ProjectV2IterationField { id }
+                                    }
+                                }
                             }
                         }
                     }
@@ -496,6 +528,20 @@ export class ProjectService {
                                 name
                                 layout
                                 filter
+                                groupByFields(first: 5) {
+                                    nodes {
+                                        ... on ProjectV2Field { id }
+                                        ... on ProjectV2SingleSelectField { id }
+                                        ... on ProjectV2IterationField { id }
+                                    }
+                                }
+                                verticalGroupByFields(first: 5) {
+                                    nodes {
+                                        ... on ProjectV2Field { id }
+                                        ... on ProjectV2SingleSelectField { id }
+                                        ... on ProjectV2IterationField { id }
+                                    }
+                                }
                             }
                         }
                     }
@@ -812,13 +858,26 @@ export class ProjectService {
 
         const views: ProjectView[] = (raw.views?.nodes ?? []).map(
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (v: any) => ({
-                id: v.id,
-                number: v.number,
-                name: v.name,
-                layout: v.layout as ProjectView['layout'],
-                filter: v.filter ?? undefined,
-            }),
+            (v: any) => {
+                const view: ProjectView = {
+                    id: v.id,
+                    number: v.number,
+                    name: v.name,
+                    layout: v.layout as ProjectView['layout'],
+                    filter: v.filter ?? undefined,
+                };
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const gbIds = (v.groupByFields?.nodes ?? []).map((n: any) => n.id).filter(Boolean);
+                if (gbIds.length > 0) {
+                    view.groupByFieldIds = gbIds;
+                }
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const vgbIds = (v.verticalGroupByFields?.nodes ?? []).map((n: any) => n.id).filter(Boolean);
+                if (vgbIds.length > 0) {
+                    view.verticalGroupByFieldIds = vgbIds;
+                }
+                return view;
+            },
         );
 
         return {

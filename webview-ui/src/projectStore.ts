@@ -71,6 +71,10 @@ export interface ProjectViewData {
     name: string;
     layout: 'TABLE' | 'BOARD' | 'ROADMAP';
     filter?: string;
+    /** Field IDs used for column grouping (Board view) */
+    groupByFieldIds?: string[];
+    /** Field IDs used for vertical grouping / swimlanes */
+    verticalGroupByFieldIds?: string[];
 }
 
 export interface ProjectSummary {
@@ -94,6 +98,15 @@ export interface ProjectData {
     totalItemCount: number;
 }
 
+// ─── Board Column Type ────────────────────────────────────────────
+
+export interface BoardColumn {
+    id: string;       // option id or '__none__'
+    name: string;
+    color?: string;
+    items: ProjectItemData[];
+}
+
 // ─── Store ────────────────────────────────────────────────────────
 
 interface ProjectStore {
@@ -108,6 +121,9 @@ interface ProjectStore {
 
     // Selected item
     selectedItemId: string | null;
+
+    // View selection
+    selectedViewId: string | null;
 
     // Filters
     statusFilter: string; // 'all' or option name
@@ -128,6 +144,7 @@ interface ProjectStore {
     clearSelection: () => void;
     setStatusFilter: (filter: string) => void;
     setSearchQuery: (query: string) => void;
+    setSelectedViewId: (viewId: string | null) => void;
     setLoading: (loading: boolean) => void;
     setItemsLoading: (loading: boolean) => void;
     setFieldUpdating: (updating: boolean) => void;
@@ -140,6 +157,8 @@ interface ProjectStore {
     filteredItems: () => ProjectItemData[];
     selectedItem: () => ProjectItemData | undefined;
     statusOptions: () => ProjectFieldOption[];
+    activeView: () => ProjectViewData | undefined;
+    boardColumns: () => BoardColumn[];
 }
 
 export const useProjectStore = create<ProjectStore>((set, get) => ({
@@ -149,6 +168,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     items: [],
     fields: [],
     selectedItemId: null,
+    selectedViewId: '__simple__',
     statusFilter: 'all',
     searchQuery: '',
     isLoading: false,
@@ -164,6 +184,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             selectedProjectId: project.id,
             fields: project.fields,
             selectedItemId: null,
+            selectedViewId: '__simple__',
             statusFilter: 'all',
             searchQuery: '',
         }),
@@ -195,6 +216,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({ statusFilter }),
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+    setSelectedViewId: (viewId) => set({ selectedViewId: viewId }),
 
     setLoading: (loading) => set({ isLoading: loading }),
     setItemsLoading: (loading) => set({ isItemsLoading: loading }),
@@ -276,5 +299,77 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             (f) => f.name === 'Status' && f.dataType === 'SINGLE_SELECT',
         );
         return statusField?.options ?? [];
+    },
+
+    activeView: () => {
+        const { selectedProject, selectedViewId } = get();
+        if (!selectedProject?.views?.length) {
+            return undefined;
+        }
+        if (selectedViewId) {
+            const found = selectedProject.views.find((v) => v.id === selectedViewId);
+            if (found) {
+                return found;
+            }
+        }
+        return selectedProject.views[0];
+    },
+
+    boardColumns: () => {
+        const { fields, selectedProject, selectedViewId } = get();
+        const filteredItems = get().filteredItems();
+
+        // Determine the groupBy field
+        let groupByFieldId: string | undefined;
+        if (selectedProject?.views) {
+            const view = selectedViewId
+                ? selectedProject.views.find((v) => v.id === selectedViewId)
+                : selectedProject.views.find((v) => v.layout === 'BOARD');
+            groupByFieldId = view?.groupByFieldIds?.[0];
+        }
+
+        // Find the field definition
+        let groupField = groupByFieldId ? fields.find((f) => f.id === groupByFieldId) : undefined;
+
+        // Default to Status field if no groupBy is configured
+        if (!groupField) {
+            groupField = fields.find(
+                (f) => f.name === 'Status' && f.dataType === 'SINGLE_SELECT',
+            );
+        }
+
+        if (!groupField?.options) {
+            // Can't group — return a single column with all items
+            return [{ id: '__all__', name: 'All Items', items: filteredItems }];
+        }
+
+        const columns: BoardColumn[] = [];
+        const assignedItemIds = new Set<string>();
+
+        for (const opt of groupField.options) {
+            const colItems = filteredItems.filter((item) => {
+                const fv = item.fieldValues.find((v) => v.fieldId === groupField!.id);
+                return fv?.singleSelectOptionId === opt.id;
+            });
+            colItems.forEach((i) => assignedItemIds.add(i.id));
+            columns.push({
+                id: opt.id,
+                name: opt.name,
+                color: opt.color,
+                items: colItems,
+            });
+        }
+
+        // Add "No status" column for items without a value
+        const unassigned = filteredItems.filter((i) => !assignedItemIds.has(i.id));
+        if (unassigned.length > 0) {
+            columns.unshift({
+                id: '__none__',
+                name: 'No ' + groupField.name,
+                items: unassigned,
+            });
+        }
+
+        return columns;
     },
 }));
