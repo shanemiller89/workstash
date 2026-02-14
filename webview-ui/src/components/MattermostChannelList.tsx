@@ -30,6 +30,7 @@ import {
     X,
     Circle,
     CheckCheck,
+    Star,
 } from 'lucide-react';
 
 function ChannelIcon({ type, size = 14 }: { type: string; size?: number }) {
@@ -209,8 +210,12 @@ export const MattermostChannelList: React.FC = () => {
     const setSearchQuery = useMattermostStore((s) => s.setSearchQuery);
     const unreads = useMattermostStore((s) => s.unreads);
     const userStatuses = useMattermostStore((s) => s.userStatuses);
+    const favoriteChannelIds = useMattermostStore((s) => s.favoriteChannelIds);
+    const toggleFavoriteChannel = useMattermostStore((s) => s.toggleFavoriteChannel);
 
-    const [channelsOpen, setChannelsOpen] = useState(true);
+    const [favoritesOpen, setFavoritesOpen] = useState(true);
+    const [publicOpen, setPublicOpen] = useState(true);
+    const [privateOpen, setPrivateOpen] = useState(true);
     const [dmsOpen, setDmsOpen] = useState(true);
     const [showNewDm, setShowNewDm] = useState(false);
 
@@ -224,15 +229,33 @@ export const MattermostChannelList: React.FC = () => {
         );
     }, [allChannels, searchQuery]);
 
+    // Split channels into favorites, public, and private
+    const favoriteChannels = useMemo(() => {
+        return [...channels, ...allDmChannels].filter(
+            (c) => favoriteChannelIds.has(c.id),
+        );
+    }, [channels, allDmChannels, favoriteChannelIds]);
+
+    const publicChannels = useMemo(() => {
+        return channels.filter((c) => c.type === 'O' && !favoriteChannelIds.has(c.id));
+    }, [channels, favoriteChannelIds]);
+
+    const privateChannels = useMemo(() => {
+        return channels.filter((c) => c.type === 'P' && !favoriteChannelIds.has(c.id));
+    }, [channels, favoriteChannelIds]);
+
     const dmChannels = useMemo(() => {
         const q = searchQuery.trim().toLowerCase();
-        if (!q) { return allDmChannels; }
-        return allDmChannels.filter(
-            (c) =>
-                c.displayName.toLowerCase().includes(q) ||
-                c.name.toLowerCase().includes(q),
-        );
-    }, [allDmChannels, searchQuery]);
+        let dms = allDmChannels;
+        if (q) {
+            dms = dms.filter(
+                (c) =>
+                    c.displayName.toLowerCase().includes(q) ||
+                    c.name.toLowerCase().includes(q),
+            );
+        }
+        return dms.filter((c) => !favoriteChannelIds.has(c.id));
+    }, [allDmChannels, searchQuery, favoriteChannelIds]);
 
     const selectedTeam = useMemo(
         () => teams.find((t) => t.id === selectedTeamId),
@@ -290,6 +313,7 @@ export const MattermostChannelList: React.FC = () => {
         const hasUnread = unread && (unread.msgCount > 0 || unread.mentionCount > 0);
         const isDm = channel.type === 'D';
         const dmStatus = isDm && channel.otherUserId ? userStatuses[channel.otherUserId] : undefined;
+        const isFav = favoriteChannelIds.has(channel.id);
         return (
             <div key={channel.id} className="group/ch flex items-center">
                 <Button
@@ -313,17 +337,26 @@ export const MattermostChannelList: React.FC = () => {
                         <UnreadBadge count={unread.msgCount} mentions={unread.mentionCount} />
                     )}
                 </Button>
-                {hasUnread && (
+                <div className="flex items-center opacity-0 group-hover/ch:opacity-100 transition-opacity mr-1 shrink-0">
                     <Button
                         variant="ghost"
                         size="icon-xs"
-                        className="opacity-0 group-hover/ch:opacity-100 transition-opacity mr-1 shrink-0"
-                        onClick={(e) => { e.stopPropagation(); handleMarkChannelRead(channel.id); }}
-                        title="Mark as read"
+                        onClick={(e) => { e.stopPropagation(); toggleFavoriteChannel(channel.id); }}
+                        title={isFav ? 'Remove from favorites' : 'Add to favorites'}
                     >
-                        <CheckCheck size={12} />
+                        <Star size={12} className={isFav ? 'text-yellow-400 fill-yellow-400' : ''} />
                     </Button>
-                )}
+                    {hasUnread && (
+                        <Button
+                            variant="ghost"
+                            size="icon-xs"
+                            onClick={(e) => { e.stopPropagation(); handleMarkChannelRead(channel.id); }}
+                            title="Mark as read"
+                        >
+                            <CheckCheck size={12} />
+                        </Button>
+                    )}
+                </div>
             </div>
         );
     };
@@ -454,23 +487,51 @@ export const MattermostChannelList: React.FC = () => {
                     </div>
                 ) : (
                     <>
-                        {/* Channels section */}
-                        <Collapsible open={channelsOpen} onOpenChange={setChannelsOpen}>
+                        {/* Favorites section */}
+                        {favoriteChannels.length > 0 && (
+                            <Collapsible open={favoritesOpen} onOpenChange={setFavoritesOpen}>
+                                <SectionHeader
+                                    title="Favorites"
+                                    isOpen={favoritesOpen}
+                                    onToggle={() => setFavoritesOpen((v) => !v)}
+                                />
+                                <CollapsibleContent>
+                                    {favoriteChannels.map(renderChannel)}
+                                </CollapsibleContent>
+                            </Collapsible>
+                        )}
+
+                        {/* Public Channels section */}
+                        <Collapsible open={publicOpen} onOpenChange={setPublicOpen}>
                             <SectionHeader
-                                title="Channels"
-                                isOpen={channelsOpen}
-                                onToggle={() => setChannelsOpen((v) => !v)}
+                                title="Public Channels"
+                                isOpen={publicOpen}
+                                onToggle={() => setPublicOpen((v) => !v)}
                             />
                             <CollapsibleContent>
-                                {channels.length === 0 ? (
+                                {publicChannels.length === 0 ? (
                                     <div className="px-3 py-2 text-xs text-fg/40">
-                                        {searchQuery ? 'No matching channels' : 'No channels'}
+                                        {searchQuery ? 'No matching channels' : 'No public channels'}
                                     </div>
                                 ) : (
-                                    channels.map(renderChannel)
+                                    publicChannels.map(renderChannel)
                                 )}
                             </CollapsibleContent>
                         </Collapsible>
+
+                        {/* Private Channels section */}
+                        {privateChannels.length > 0 && (
+                            <Collapsible open={privateOpen} onOpenChange={setPrivateOpen}>
+                                <SectionHeader
+                                    title="Private Channels"
+                                    isOpen={privateOpen}
+                                    onToggle={() => setPrivateOpen((v) => !v)}
+                                />
+                                <CollapsibleContent>
+                                    {privateChannels.map(renderChannel)}
+                                </CollapsibleContent>
+                            </Collapsible>
+                        )}
 
                         {/* Direct Messages section */}
                         <Collapsible open={dmsOpen} onOpenChange={setDmsOpen}>

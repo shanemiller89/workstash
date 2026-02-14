@@ -33,6 +33,14 @@ export interface MattermostFileInfoData {
     url: string;
 }
 
+export interface MattermostLinkPreviewData {
+    url: string;
+    title?: string;
+    description?: string;
+    siteName?: string;
+    imageUrl?: string;
+}
+
 export interface MattermostPostData {
     id: string;
     channelId: string;
@@ -45,6 +53,7 @@ export interface MattermostPostData {
     type: string;
     isPinned: boolean;
     files?: MattermostFileInfoData[];
+    linkPreviews?: MattermostLinkPreviewData[];
 }
 
 export interface MattermostUserData {
@@ -84,6 +93,7 @@ export interface MattermostEmojiData {
 /** Typing indicator entry — auto-cleared after timeout */
 interface TypingEntry {
     userId: string;
+    username: string;
     channelId: string;
     /** Timestamp when the typing event was received */
     timestamp: number;
@@ -165,6 +175,15 @@ interface MattermostStore {
     // Channel info panel
     showChannelInfo: boolean;
 
+    // User avatars: userId → data URI
+    userAvatars: Record<string, string>;
+
+    // Last read post ID per channel (for unread separator)
+    lastReadPostIds: Record<string, string>;
+
+    // Favorite channel IDs
+    favoriteChannelIds: Set<string>;
+
     // Pending file uploads (waiting to be sent with a message)
     pendingFileIds: string[];
     pendingFiles: MattermostFileInfoData[];
@@ -213,7 +232,7 @@ interface MattermostStore {
     removeReaction: (userId: string, postId: string, emojiName: string) => void;
 
     // Actions — typing
-    addTyping: (userId: string, channelId: string) => void;
+    addTyping: (userId: string, username: string, channelId: string) => void;
     clearStaleTyping: () => void;
 
     // Actions — unreads
@@ -256,6 +275,17 @@ interface MattermostStore {
 
     // Actions — pin toggle in post list
     togglePostPin: (postId: string, isPinned: boolean) => void;
+
+    // Actions — user avatars
+    setUserAvatars: (avatars: Record<string, string>) => void;
+    mergeUserAvatars: (avatars: Record<string, string>) => void;
+
+    // Actions — last read post
+    setLastReadPostId: (channelId: string, postId: string) => void;
+
+    // Actions — favorites
+    setFavoriteChannelIds: (ids: string[]) => void;
+    toggleFavoriteChannel: (channelId: string) => void;
 
     // Actions — file upload
     setIsUploadingFiles: (uploading: boolean) => void;
@@ -308,6 +338,9 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     messageSearchQuery: '',
     flaggedPostIds: new Set<string>(),
     showChannelInfo: false,
+    userAvatars: {},
+    lastReadPostIds: {},
+    favoriteChannelIds: new Set<string>(),
     pendingFileIds: EMPTY_FILE_IDS,
     pendingFiles: EMPTY_FILE_INFOS,
     isUploadingFiles: false,
@@ -451,14 +484,14 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
         }),
 
     // ─── Typing ───────────────────────────────────────────────────
-    addTyping: (userId, channelId) =>
+    addTyping: (userId, username, channelId) =>
         set((state) => {
             const now = Date.now();
             // Remove existing entry for same user+channel, then add fresh one
             const filtered = state.typingEntries.filter(
                 (e) => !(e.userId === userId && e.channelId === channelId),
             );
-            return { typingEntries: [...filtered, { userId, channelId, timestamp: now }] };
+            return { typingEntries: [...filtered, { userId, username, channelId, timestamp: now }] };
         }),
     clearStaleTyping: () =>
         set((state) => {
@@ -550,6 +583,30 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
             posts: state.posts.map((p) => (p.id === postId ? { ...p, isPinned } : p)),
             threadPosts: state.threadPosts.map((p) => (p.id === postId ? { ...p, isPinned } : p)),
         })),
+
+    // ─── User Avatars ──────────────────────────────────────────────
+    setUserAvatars: (avatars) => set({ userAvatars: avatars }),
+    mergeUserAvatars: (avatars) =>
+        set((state) => ({ userAvatars: { ...state.userAvatars, ...avatars } })),
+
+    // ─── Last Read Post ─────────────────────────────────────────────
+    setLastReadPostId: (channelId, postId) =>
+        set((state) => ({
+            lastReadPostIds: { ...state.lastReadPostIds, [channelId]: postId },
+        })),
+
+    // ─── Favorites ──────────────────────────────────────────────────
+    setFavoriteChannelIds: (ids) => set({ favoriteChannelIds: new Set(ids) }),
+    toggleFavoriteChannel: (channelId) =>
+        set((state) => {
+            const next = new Set(state.favoriteChannelIds);
+            if (next.has(channelId)) {
+                next.delete(channelId);
+            } else {
+                next.add(channelId);
+            }
+            return { favoriteChannelIds: next };
+        }),
 
     // ─── File Upload ──────────────────────────────────────────────
     setIsUploadingFiles: (isUploadingFiles) => set({ isUploadingFiles }),

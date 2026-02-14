@@ -22,6 +22,14 @@ export interface MattermostChannel {
     lastPostAt: number; // epoch ms
 }
 
+export interface MattermostLinkPreview {
+    url: string;
+    title?: string;
+    description?: string;
+    siteName?: string;
+    imageUrl?: string;
+}
+
 export interface MattermostPost {
     id: string;
     channelId: string;
@@ -35,6 +43,7 @@ export interface MattermostPost {
     props: Record<string, unknown>;
     isPinned: boolean;
     fileIds: string[];
+    linkPreviews: MattermostLinkPreview[];
 }
 
 export interface MattermostFileInfo {
@@ -119,6 +128,14 @@ export interface MattermostFileInfoData {
     url: string;
 }
 
+export interface MattermostLinkPreviewData {
+    url: string;
+    title?: string;
+    description?: string;
+    siteName?: string;
+    imageUrl?: string;
+}
+
 export interface MattermostPostData {
     id: string;
     channelId: string;
@@ -131,6 +148,7 @@ export interface MattermostPostData {
     type: string;
     isPinned: boolean;
     files?: MattermostFileInfoData[];
+    linkPreviews?: MattermostLinkPreviewData[];
 }
 
 export interface MattermostUserData {
@@ -204,6 +222,25 @@ interface MmApiPost {
     file_ids?: string[];
     metadata?: {
         files?: MmApiFileInfo[];
+        embeds?: MmApiEmbed[];
+    };
+}
+
+interface MmApiEmbed {
+    type: string; // 'opengraph' | 'link' | 'image' | 'message_attachment'
+    url: string;
+    data?: {
+        type?: string;
+        url?: string;
+        title?: string;
+        description?: string;
+        site_name?: string;
+        images?: Array<{
+            url?: string;
+            secure_url?: string;
+            width?: number;
+            height?: number;
+        }>;
     };
 }
 
@@ -1024,6 +1061,28 @@ export class MattermostService {
         return this._fetchAsDataUri(`/users/${userId}/image`);
     }
 
+    /** Batch-fetch profile images for a list of user IDs. Returns userId → data URI map. */
+    async getUserProfileImages(userIds: string[]): Promise<Record<string, string>> {
+        const result: Record<string, string> = {};
+        // Fetch concurrently with a concurrency limit of 5
+        const batchSize = 5;
+        for (let i = 0; i < userIds.length; i += batchSize) {
+            const batch = userIds.slice(i, i + batchSize);
+            const settled = await Promise.allSettled(
+                batch.map(async (uid) => {
+                    const dataUri = await this.getUserProfileImage(uid);
+                    return { uid, dataUri };
+                }),
+            );
+            for (const r of settled) {
+                if (r.status === 'fulfilled') {
+                    result[r.value.uid] = r.value.dataUri;
+                }
+            }
+        }
+        return result;
+    }
+
     // ─── Threads ──────────────────────────────────────────────────
 
     /** Get all posts in a thread (root post + replies) */
@@ -1323,6 +1382,21 @@ export class MattermostService {
     }
 
     private _parsePost(p: MmApiPost): MattermostPost {
+        const linkPreviews: MattermostLinkPreview[] = [];
+        if (p.metadata?.embeds) {
+            for (const embed of p.metadata.embeds) {
+                if (embed.type === 'opengraph' && embed.data) {
+                    const img = embed.data.images?.[0];
+                    linkPreviews.push({
+                        url: embed.url,
+                        title: embed.data.title,
+                        description: embed.data.description,
+                        siteName: embed.data.site_name,
+                        imageUrl: img?.secure_url || img?.url,
+                    });
+                }
+            }
+        }
         return {
             id: p.id,
             channelId: p.channel_id,
@@ -1336,6 +1410,7 @@ export class MattermostService {
             props: p.props,
             isPinned: p.is_pinned ?? false,
             fileIds: p.file_ids ?? [],
+            linkPreviews,
         };
     }
 
@@ -1417,6 +1492,7 @@ export class MattermostService {
             type: post.type,
             isPinned: post.isPinned,
             files: files && files.length > 0 ? files : undefined,
+            linkPreviews: post.linkPreviews.length > 0 ? post.linkPreviews : undefined,
         };
     }
 

@@ -251,6 +251,8 @@ export class StashPanel {
         status?: string;
         dndEndTime?: number;
         fileIds?: string[];
+        // Link preview properties
+        url?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -1032,6 +1034,13 @@ export class StashPanel {
                             const statusPayload = statuses.map((s) => MattermostService.toUserStatusData(s));
                             this._panel.webview.postMessage({ type: 'mattermostUserStatuses', payload: statusPayload });
                         }).catch(() => { /* ignore status fetch errors */ });
+
+                        // Fetch user avatars in background
+                        this._mattermostService.getUserProfileImages(uniqueUserIds).then((avatars) => {
+                            if (Object.keys(avatars).length > 0) {
+                                this._panel.webview.postMessage({ type: 'mattermostUserAvatars', payload: avatars });
+                            }
+                        }).catch(() => { /* ignore avatar fetch errors */ });
                     }
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
@@ -1068,6 +1077,13 @@ export class StashPanel {
                     // Mattermost channel URLs follow pattern: /teamname/channels/channelname
                     // For simplicity, open the server root
                     await vscode.env.openExternal(vscode.Uri.parse(serverUrl));
+                }
+                break;
+            }
+
+            case 'mattermostOpenExternal': {
+                if (msg.url && typeof msg.url === 'string') {
+                    await vscode.env.openExternal(vscode.Uri.parse(msg.url));
                 }
                 break;
             }
@@ -2016,11 +2032,18 @@ export class StashPanel {
         });
 
         // Typing indicator
-        ws.onTyping((evt) => {
+        ws.onTyping(async (evt) => {
             const data = evt.data as unknown as MmWsTypingData;
+            let username = data.user_id;
+            try {
+                if (this._mattermostService) {
+                    username = await this._mattermostService.resolveUsername(data.user_id);
+                }
+            } catch { /* fallback to userId */ }
             this._panel.webview.postMessage({
                 type: 'mattermostTyping',
                 userId: data.user_id,
+                username,
                 channelId: evt.broadcast.channel_id,
                 parentId: data.parent_id,
             });

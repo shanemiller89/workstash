@@ -6,6 +6,7 @@ import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutoc
 import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
+import { LinkPreview } from './LinkPreview';
 import {
     InputGroup,
     InputGroupTextarea,
@@ -47,6 +48,13 @@ import {
     Info,
     Paperclip,
     Loader2,
+    Eye,
+    LogIn,
+    LogOut,
+    UserPlus,
+    UserMinus,
+    Settings,
+    ArrowRightLeft,
 } from 'lucide-react';
 
 function formatTime(iso: string): string {
@@ -105,6 +113,71 @@ function groupPostsByDate(posts: MattermostPostData[]): { date: string; posts: M
 
     return groups;
 }
+
+// ─── User Avatar ──────────────────────────────────────────────────
+
+/** Renders a real profile image or a letter-initial fallback */
+const UserAvatar: React.FC<{
+    userId: string;
+    username: string;
+    isOwn?: boolean;
+    size?: number;
+    onClick?: () => void;
+}> = ({ userId, username, isOwn, size = 8, onClick }) => {
+    const avatarUrl = useMattermostStore((s) => s.userAvatars[userId]);
+    const sizeClass = `w-${size} h-${size}`;
+
+    if (avatarUrl) {
+        return (
+            <img
+                src={avatarUrl}
+                alt={username}
+                className={`${sizeClass} rounded-full object-cover cursor-pointer`}
+                onClick={onClick}
+                title={`View profile: ${username}`}
+            />
+        );
+    }
+    return (
+        <div
+            className={`${sizeClass} rounded-full flex items-center justify-center text-xs font-bold cursor-pointer ${
+                isOwn
+                    ? 'bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]'
+                    : 'bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]'
+            }`}
+            onClick={onClick}
+            title={`View profile: ${username}`}
+        >
+            {username.charAt(0).toUpperCase()}
+        </div>
+    );
+};
+
+// ─── System Message ───────────────────────────────────────────────
+
+/** System messages (join, leave, header change, etc.) with icon + italic styling */
+const SystemMessage: React.FC<{ post: MattermostPostData }> = ({ post }) => {
+    const iconMap: Record<string, React.ReactNode> = {
+        'system_join_channel': <LogIn size={12} className="text-green-400" />,
+        'system_add_to_channel': <UserPlus size={12} className="text-green-400" />,
+        'system_leave_channel': <LogOut size={12} className="text-red-400" />,
+        'system_remove_from_channel': <UserMinus size={12} className="text-red-400" />,
+        'system_header_change': <Settings size={12} className="text-fg/40" />,
+        'system_purpose_change': <Settings size={12} className="text-fg/40" />,
+        'system_displayname_change': <ArrowRightLeft size={12} className="text-fg/40" />,
+    };
+
+    const icon = iconMap[post.type] ?? <Info size={12} className="text-fg/30" />;
+
+    return (
+        <div className="flex items-center justify-center gap-2 py-1.5 px-4">
+            <div className="flex items-center gap-1.5 text-xs text-fg/40 italic">
+                {icon}
+                <span>{post.message}</span>
+            </div>
+        </div>
+    );
+};
 
 // ─── Inline Edit Form ─────────────────────────────────────────────
 
@@ -432,13 +505,9 @@ const MessageBubble: React.FC<{
         if (onClickUsername) { onClickUsername(post.userId); }
     }, [post.userId, onClickUsername]);
 
-    // Skip system messages
+    // Skip system messages — render with special styling
     if (post.type && post.type !== '') {
-        return (
-            <div className="text-center text-xs text-fg/40 py-1 px-4">
-                {post.message}
-            </div>
-        );
+        return <SystemMessage post={post} />;
     }
 
     // Reply detection (used for styling inline thread replies)
@@ -448,17 +517,7 @@ const MessageBubble: React.FC<{
         <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isThreadReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''}`}>
             {/* Avatar with status dot */}
             <div className="relative shrink-0 w-8 h-8">
-                <div
-                    className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold cursor-pointer ${
-                        isOwn
-                            ? 'bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]'
-                            : 'bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]'
-                    }`}
-                    onClick={handleUsernameClick}
-                    title={`View profile: ${post.username}`}
-                >
-                    {post.username.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar userId={post.userId} username={post.username} isOwn={isOwn} onClick={handleUsernameClick} />
                 <StatusDot userId={post.userId} />
             </div>
 
@@ -554,6 +613,9 @@ const MessageBubble: React.FC<{
                 {/* File attachments */}
                 <FileAttachments files={post.files} />
 
+                {/* Link previews */}
+                <LinkPreview previews={post.linkPreviews} />
+
                 {/* Reaction bar */}
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
 
@@ -578,10 +640,16 @@ const TypingIndicator: React.FC<{ channelId: string }> = ({ channelId }) => {
     const typingUsers = useMemo(() => {
         return typingEntries
             .filter((e) => e.channelId === channelId && e.userId !== currentUser?.id)
-            .map((e) => e.userId);
+            .map((e) => e.username || e.userId);
     }, [typingEntries, channelId, currentUser]);
 
     if (typingUsers.length === 0) { return null; }
+
+    const typingLabel = (() => {
+        if (typingUsers.length === 1) { return `${typingUsers[0]} is typing…`; }
+        if (typingUsers.length === 2) { return `${typingUsers[0]} and ${typingUsers[1]} are typing…`; }
+        return `${typingUsers[0]} and ${typingUsers.length - 1} others are typing…`;
+    })();
 
     return (
         <div className="px-3 py-1 text-xs text-fg/50 flex items-center gap-1.5">
@@ -590,9 +658,7 @@ const TypingIndicator: React.FC<{ channelId: string }> = ({ channelId }) => {
                 <span className="w-1.5 h-1.5 bg-fg/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
                 <span className="w-1.5 h-1.5 bg-fg/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </span>
-            {typingUsers.length === 1
-                ? 'Someone is typing…'
-                : `${typingUsers.length} people are typing…`}
+            {typingLabel}
         </div>
     );
 };
@@ -631,9 +697,12 @@ export const MattermostChat: React.FC<{
     const pendingFiles = useMattermostStore((s) => s.pendingFiles);
     const isUploadingFiles = useMattermostStore((s) => s.isUploadingFiles);
     const clearPendingFiles = useMattermostStore((s) => s.clearPendingFiles);
+    const lastReadPostIds = useMattermostStore((s) => s.lastReadPostIds);
+    const setLastReadPostId = useMattermostStore((s) => s.setLastReadPostId);
 
     const [messageText, setMessageText] = useState('');
     const [showSearch, setShowSearch] = useState(false);
+    const [showPreview, setShowPreview] = useState(false);
     const [profileUserId, setProfileUserId] = useState<string | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -712,6 +781,22 @@ export const MattermostChat: React.FC<{
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }, [posts]);
 
+    // Track last read post for unread separator
+    const lastReadPostId = selectedChannelId ? lastReadPostIds[selectedChannelId] : undefined;
+
+    // When posts arrive, snapshot the oldest NEW post as the read marker (before it gets updated)
+    useEffect(() => {
+        if (!selectedChannelId || posts.length === 0) { return; }
+        // Set the last read post to the newest post when the user views the channel
+        // (the first item in the array is newest since posts come newest-first)
+        const newestPostId = posts[0].id;
+        // Use a timeout to let the separator render before updating the read marker
+        const timer = setTimeout(() => {
+            setLastReadPostId(selectedChannelId, newestPostId);
+        }, 2000);
+        return () => clearTimeout(timer);
+    }, [selectedChannelId]); // Only on channel switch, not on every new post
+
     // Auto mark channel as read + fetch flagged posts on channel enter
     useEffect(() => {
         if (selectedChannelId) {
@@ -770,6 +855,9 @@ export const MattermostChat: React.FC<{
         setMessageText('');
         clearReplyTo();
         clearPendingFiles();
+        setShowPreview(false);
+        // Reset textarea height
+        if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
     }, [messageText, selectedChannelId, replyToPostId, clearReplyTo, pendingFileIds, clearPendingFiles]);
 
     const handleUploadClick = useCallback(() => {
@@ -797,6 +885,12 @@ export const MattermostChat: React.FC<{
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
             emojiHandleChange(e);
             sendTypingIndicator();
+
+            // Auto-resize textarea up to ~6 rows
+            const ta = e.target;
+            ta.style.height = 'auto';
+            const maxHeight = 6 * 20; // ~6 rows at ~20px line-height
+            ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`;
         },
         [sendTypingIndicator],
     );
@@ -930,6 +1024,26 @@ export const MattermostChat: React.FC<{
                             </div>
                             {group.threads.map(({ root, replies }) => (
                                 <div key={root.id}>
+                                    {/* Unread separator — shown after the last-read post */}
+                                    {lastReadPostId && root.id !== lastReadPostId && (() => {
+                                        // Check if this post is newer than lastReadPostId
+                                        // We render the separator before the first post that comes AFTER lastReadPostId in chronological order
+                                        const allGroupPostIds = group.threads.map((t) => t.root.id);
+                                        const readIdx = allGroupPostIds.indexOf(lastReadPostId);
+                                        const curIdx = allGroupPostIds.indexOf(root.id);
+                                        if (readIdx >= 0 && curIdx === readIdx + 1) {
+                                            return (
+                                                <div className="unread-separator flex items-center gap-2 px-3 py-1 my-1">
+                                                    <div className="flex-1 h-px bg-[var(--vscode-notificationsErrorIcon-foreground,#f14c4c)]" />
+                                                    <span className="text-[10px] font-semibold text-[var(--vscode-notificationsErrorIcon-foreground,#f14c4c)] uppercase tracking-wider whitespace-nowrap">
+                                                        New Messages
+                                                    </span>
+                                                    <div className="flex-1 h-px bg-[var(--vscode-notificationsErrorIcon-foreground,#f14c4c)]" />
+                                                </div>
+                                            );
+                                        }
+                                        return null;
+                                    })()}
                                     {/* Root post */}
                                     <MessageBubble
                                         post={root}
@@ -1048,6 +1162,15 @@ export const MattermostChat: React.FC<{
                 )}
 
                 <div className="relative">
+                    {/* Markdown preview panel */}
+                    {showPreview && messageText.trim() && (
+                        <div className="mb-2 rounded border border-[var(--vscode-panel-border)] bg-[var(--vscode-editor-background)] p-2 max-h-40 overflow-y-auto">
+                            <div className="text-[10px] text-fg/40 mb-1 uppercase tracking-wider font-semibold">Preview</div>
+                            <div className="text-sm">
+                                <MarkdownBody content={messageText} currentUsername={currentUsername} />
+                            </div>
+                        </div>
+                    )}
                     {/* Emoji autocomplete dropdown */}
                     <EmojiAutocompleteDropdown
                         suggestions={emojiSuggestions}
@@ -1061,7 +1184,8 @@ export const MattermostChat: React.FC<{
                             onChange={handleInputChange}
                             onKeyDown={handleKeyDown}
                             placeholder={replyToPostId ? "Reply… (Shift+Enter for new line)" : "Type a message… (Shift+Enter for new line)"}
-                            rows={2}
+                            rows={1}
+                            style={{ overflow: 'hidden' }}
                         />
                         <InputGroupAddon align="block-end">
                             <Button
@@ -1073,6 +1197,15 @@ export const MattermostChat: React.FC<{
                             >
                                 <Paperclip size={14} />
                                 <span className="sr-only">Attach</span>
+                            </Button>
+                            <Button
+                                variant={showPreview ? 'default' : 'ghost'}
+                                size="icon-sm"
+                                onClick={() => setShowPreview((v) => !v)}
+                                title={showPreview ? 'Hide preview' : 'Preview message'}
+                            >
+                                <Eye size={14} />
+                                <span className="sr-only">Preview</span>
                             </Button>
                             <ComposeEmojiPickerButton onInsert={handleInsertEmoji} />
                             <Button

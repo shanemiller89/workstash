@@ -4,6 +4,7 @@ import { postMessage } from '../vscode';
 import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
+import { LinkPreview } from './LinkPreview';
 import {
     InputGroup,
     InputGroupTextarea,
@@ -70,6 +71,35 @@ function StatusDot({ userId }: { userId: string }) {
         />
     );
 }
+
+/** User avatar with real profile image or letter fallback */
+const ThreadUserAvatar: React.FC<{
+    userId: string;
+    username: string;
+    isOwn?: boolean;
+}> = ({ userId, username, isOwn }) => {
+    const avatarUrl = useMattermostStore((s) => s.userAvatars[userId]);
+
+    if (avatarUrl) {
+        return (
+            <img
+                src={avatarUrl}
+                alt={username}
+                className="w-7 h-7 rounded-full object-cover"
+                title={username}
+            />
+        );
+    }
+    return (
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold ${
+            isOwn
+                ? 'bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]'
+                : 'bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]'
+        }`}>
+            {username.charAt(0).toUpperCase()}
+        </div>
+    );
+};
 
 /** Inline edit form for thread messages */
 const ThreadInlineEditForm: React.FC<{
@@ -171,9 +201,7 @@ const ThreadMessage: React.FC<{
     return (
         <div className={`group flex gap-2 px-3 py-2 hover:bg-[var(--vscode-list-hoverBackground)] ${isRoot ? 'border-b border-[var(--vscode-panel-border)] pb-3' : ''}`}>
             <div className="relative shrink-0">
-                <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold bg-[var(--vscode-badge-background)] text-[var(--vscode-badge-foreground)]">
-                    {post.username.charAt(0).toUpperCase()}
-                </div>
+                <ThreadUserAvatar userId={post.userId} username={post.username} isOwn={isOwn} />
                 <StatusDot userId={post.userId} />
             </div>
 
@@ -249,6 +277,7 @@ const ThreadMessage: React.FC<{
                     </div>
                 )}
                 <FileAttachments files={post.files} />
+                <LinkPreview previews={post.linkPreviews} />
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
             </div>
         </div>
@@ -321,6 +350,8 @@ export const MattermostThreadPanel: React.FC = () => {
         });
         setReplyText('');
         clearPendingFiles();
+        // Reset textarea height
+        if (replyTextareaRef.current) { replyTextareaRef.current.style.height = 'auto'; }
     }, [replyText, selectedChannelId, activeThreadRootId, pendingFileIds, clearPendingFiles]);
 
     const handleUploadClick = useCallback(() => {
@@ -428,10 +459,18 @@ export const MattermostThreadPanel: React.FC = () => {
                         <InputGroupTextarea
                             ref={replyTextareaRef}
                             value={replyText}
-                            onChange={emojiHandleChange}
+                            onChange={(e) => {
+                                emojiHandleChange(e);
+                                // Auto-resize up to ~6 rows
+                                const ta = e.target;
+                                ta.style.height = 'auto';
+                                const maxHeight = 6 * 20;
+                                ta.style.height = `${Math.min(ta.scrollHeight, maxHeight)}px`;
+                            }}
                             onKeyDown={handleKeyDown}
                             placeholder="Reply… (Shift+Enter for new line)"
-                            rows={2}
+                            rows={1}
+                            style={{ overflow: 'hidden' }}
                         />
                         <InputGroupAddon align="block-end">
                             <Button

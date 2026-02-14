@@ -473,7 +473,7 @@ export const App: React.FC = () => {
 
                 case 'mattermostTyping': {
                     const mmStore = useMattermostStore.getState();
-                    mmStore.addTyping(msg.userId as string, msg.channelId as string);
+                    mmStore.addTyping(msg.userId as string, msg.username as string ?? msg.userId as string, msg.channelId as string);
                     break;
                 }
 
@@ -483,6 +483,13 @@ export const App: React.FC = () => {
                         msg.userId as string,
                         msg.status as 'online' | 'away' | 'offline' | 'dnd',
                     );
+                    break;
+                }
+
+                // ─── Mattermost User Avatars ───
+                case 'mattermostUserAvatars': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.mergeUserAvatars(msg.payload as Record<string, string>);
                     break;
                 }
 
