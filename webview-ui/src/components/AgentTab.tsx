@@ -399,6 +399,7 @@ const ModelSettings: React.FC = () => {
 // ─── Agent Tab ────────────────────────────────────────────────────
 
 export const AgentTab: React.FC = () => {
+    const aiProvider = useAIStore((s) => s.aiProvider);
     const agentTemplate = useAIStore((s) => s.agentTemplate);
     const agentPrompt = useAIStore((s) => s.agentPrompt);
     const agentSystemPrompts = useAIStore((s) => s.agentSystemPrompts);
@@ -494,7 +495,14 @@ export const AgentTab: React.FC = () => {
                                 <Wand2 size={16} className="text-accent" />
                             </div>
                             <div>
-                                <h2 className="text-[14px] font-semibold text-fg">AI Agent</h2>
+                                <div className="flex items-center gap-1.5">
+                                    <h2 className="text-[14px] font-semibold text-fg">AI Agent</h2>
+                                    {aiProvider !== 'none' && (
+                                        <Badge variant="outline" className="text-[9px] px-1.5 py-0 h-4 font-normal capitalize">
+                                            {aiProvider}
+                                        </Badge>
+                                    )}
+                                </div>
                                 <p className="text-[11px] text-fg/40">
                                     Deep analysis of your workspace data using AI templates
                                 </p>

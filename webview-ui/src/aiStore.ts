@@ -28,6 +28,11 @@ export interface AIModelInfo {
 // ─── Store ────────────────────────────────────────────────────────
 
 interface AIStore {
+    // Whether the VS Code LM API is available (false in Cursor/Windsurf/etc)
+    aiAvailable: boolean;
+    // Which AI provider is active: 'copilot', 'gemini', or 'none'
+    aiProvider: 'copilot' | 'gemini' | 'none';
+
     // Floating chat panel
     chatPanelOpen: boolean;
 
@@ -63,6 +68,7 @@ interface AIStore {
     modelAssignments: Record<string, string>; // purpose → model id
 
     // Actions
+    setAiAvailable: (available: boolean, provider?: 'copilot' | 'gemini' | 'none') => void;
     toggleChatPanel: () => void;
     setChatPanelOpen: (open: boolean) => void;
     toggleSummaryPane: (tabKey: string) => void;
@@ -107,6 +113,8 @@ function genId(): string {
 }
 
 export const useAIStore = create<AIStore>((set, get) => ({
+    aiAvailable: false,
+    aiProvider: 'none' as const,
     chatPanelOpen: false,
     summaryPaneTabKey: null,
     summaries: {},
@@ -126,6 +134,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
     availableModels: [],
     modelAssignments: {},
 
+    setAiAvailable: (aiAvailable, provider) => set({ aiAvailable, aiProvider: provider ?? (aiAvailable ? 'copilot' : 'none') }),
     toggleChatPanel: () => set((s) => ({ chatPanelOpen: !s.chatPanelOpen })),
     setChatPanelOpen: (chatPanelOpen) => set({ chatPanelOpen }),
     toggleSummaryPane: (tabKey) =>

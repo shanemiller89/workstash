@@ -31,6 +31,7 @@ interface TabWithSummaryProps {
  */
 export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children, label }) => {
     const summaryPaneTabKey = useAIStore((s) => s.summaryPaneTabKey);
+    const aiAvailable = useAIStore((s) => s.aiAvailable);
     const isOpen = summaryPaneTabKey === tabKey;
     const displayLabel = label ?? TAB_LABELS[tabKey] ?? tabKey;
 
@@ -39,10 +40,12 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
             {/* Main tab content */}
             <div className="flex-1 min-w-0 overflow-hidden relative">
                 {children}
-                {/* Floating toggle button — top-right of content area */}
-                <div className="absolute top-1 right-1 z-10">
-                    <TabSummaryButton tabKey={tabKey} />
-                </div>
+                {/* Floating toggle button — top-right of content area (only when AI available) */}
+                {aiAvailable && (
+                    <div className="absolute top-1 right-1 z-10">
+                        <TabSummaryButton tabKey={tabKey} />
+                    </div>
+                )}
             </div>
 
             {/* Right pane */}

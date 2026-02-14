@@ -823,7 +823,14 @@ export const App: React.FC = () => {
                     }
                     break;
 
-                // ─── AI Summary & Chat ────────────────────────────────
+                // ─── AI Availability & Summary & Chat ─────────────────
+                case 'aiAvailable': {
+                    useAIStore.getState().setAiAvailable(
+                        msg.available as boolean,
+                        (msg.provider as 'copilot' | 'gemini' | 'none') ?? 'none',
+                    );
+                    break;
+                }
                 case 'aiSummaryResult': {
                     const ai = useAIStore.getState();
                     ai.setSummaryContent(

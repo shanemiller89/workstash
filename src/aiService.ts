@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { GeminiService } from './geminiService';
 
 /** Lightweight model descriptor safe for serialization to the webview. */
 export interface AiModelInfo {
@@ -8,41 +9,91 @@ export interface AiModelInfo {
     family: string;
 }
 
+/** Which AI provider is active. */
+export type AiProvider = 'copilot' | 'gemini' | 'none';
+
 /** Which purpose a model is assigned to. */
 export type AiModelPurpose = 'summary' | 'chat' | 'agent';
 
 /**
- * AiService — uses the VS Code Language Model API (Copilot) to generate
- * summaries and answer questions about workspace data.
+ * AiService — uses the VS Code Language Model API (Copilot) or the Gemini REST
+ * API to generate summaries and answer questions about workspace data.
+ *
+ * Provider priority:
+ *   1. `vscode.lm` (GitHub Copilot) — preferred, zero-config
+ *   2. Gemini API key — fallback for Cursor / Windsurf / Antigravity
  */
 export class AiService {
     private readonly _outputChannel: vscode.OutputChannel;
+    private readonly _geminiService: GeminiService;
 
     /** Per-purpose model overrides. Key = purpose, value = model id. */
     private _modelOverrides: Record<string, string> = {};
 
     constructor(outputChannel: vscode.OutputChannel) {
         this._outputChannel = outputChannel;
+        this._geminiService = new GeminiService(outputChannel);
+    }
+
+    // ─── Provider detection ───────────────────────────────────────
+
+    /**
+     * Check whether the VS Code Language Model API is available.
+     * This is false in editors like Cursor / Windsurf that don't implement `vscode.lm`.
+     */
+    static isCopilotAvailable(): boolean {
+        try {
+            return typeof vscode.lm !== 'undefined' && typeof vscode.lm.selectChatModels === 'function';
+        } catch {
+            return false;
+        }
+    }
+
+    /** Legacy alias for isCopilotAvailable(). */
+    static isAvailable(): boolean {
+        return AiService.isCopilotAvailable() || GeminiService.isConfigured();
+    }
+
+    /** Determine which provider is active. */
+    static activeProvider(): AiProvider {
+        if (AiService.isCopilotAvailable()) { return 'copilot'; }
+        if (GeminiService.isConfigured()) { return 'gemini'; }
+        return 'none';
     }
 
     // ─── Model management ─────────────────────────────────────────
 
     /** List all available chat models. */
     async listModels(): Promise<AiModelInfo[]> {
-        try {
-            const models = await vscode.lm.selectChatModels();
-            return models.map((m) => ({
+        const provider = AiService.activeProvider();
+
+        if (provider === 'copilot') {
+            try {
+                const models = await vscode.lm.selectChatModels();
+                return models.map((m) => ({
+                    id: m.id,
+                    name: m.name,
+                    vendor: m.vendor,
+                    family: m.family,
+                }));
+            } catch (e: unknown) {
+                this._outputChannel.appendLine(
+                    `[AI] Failed to list Copilot models: ${e instanceof Error ? e.message : e}`,
+                );
+                return [];
+            }
+        }
+
+        if (provider === 'gemini') {
+            return this._geminiService.listModels().map((m) => ({
                 id: m.id,
                 name: m.name,
-                vendor: m.vendor,
-                family: m.family,
+                vendor: 'google',
+                family: 'gemini',
             }));
-        } catch (e: unknown) {
-            this._outputChannel.appendLine(
-                `[AI] Failed to list models: ${e instanceof Error ? e.message : e}`,
-            );
-            return [];
         }
+
+        return [];
     }
 
     /** Set a model override for a specific purpose. Pass empty string to clear. */
@@ -61,11 +112,21 @@ export class AiService {
         return { ...this._modelOverrides };
     }
 
+    /** Get the currently selected Gemini model id for a purpose. */
+    private _getGeminiModel(purpose?: AiModelPurpose): string {
+        const overrideId = purpose ? this._modelOverrides[purpose] : undefined;
+        if (overrideId && this._geminiService.listModels().some((m) => m.id === overrideId)) {
+            return overrideId;
+        }
+        // Fall back to the user's configured default, then 'gemini-2.5-flash'
+        return vscode.workspace.getConfiguration('workstash.ai').get<string>('geminiModel', 'gemini-2.5-flash');
+    }
+
     /**
-     * Select a chat model for a specific purpose.
+     * Select a Copilot chat model for a specific purpose.
      * Uses the per-purpose override if set, otherwise falls back to gpt-4o → any copilot.
      */
-    private async _selectModel(purpose?: AiModelPurpose): Promise<vscode.LanguageModelChat | undefined> {
+    private async _selectCopilotModel(purpose?: AiModelPurpose): Promise<vscode.LanguageModelChat | undefined> {
         try {
             // Check for per-purpose override
             const overrideId = purpose ? this._modelOverrides[purpose] : undefined;
@@ -93,11 +154,11 @@ export class AiService {
                 return fallback[0];
             }
 
-            this._outputChannel.appendLine('[AI] No language models available');
+            this._outputChannel.appendLine('[AI] No Copilot language models available');
             return undefined;
         } catch (e: unknown) {
             this._outputChannel.appendLine(
-                `[AI] Failed to select model: ${e instanceof Error ? e.message : e}`,
+                `[AI] Failed to select Copilot model: ${e instanceof Error ? e.message : e}`,
             );
             return undefined;
         }
@@ -135,9 +196,9 @@ export class AiService {
         customSystemPrompt?: string,
         token?: vscode.CancellationToken,
     ): Promise<string> {
-        const model = await this._selectModel('summary');
-        if (!model) {
-            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        const provider = AiService.activeProvider();
+        if (provider === 'none') {
+            throw new Error('No AI provider available. Install GitHub Copilot or configure a Gemini API key.');
         }
 
         const systemPrompt = customSystemPrompt?.trim() ||
@@ -149,6 +210,23 @@ You may use **bold** for emphasis and bullet lists. Keep it under 150 words.
 Do NOT use markdown headers (##) in brief summaries.`;
 
         const userPrompt = this._buildSummaryPrompt(tabKey, contextData);
+
+        if (provider === 'gemini') {
+            return this._geminiService.generateContent(
+                this._getGeminiModel('summary'),
+                [
+                    { role: 'user', content: systemPrompt },
+                    { role: 'user', content: userPrompt },
+                ],
+                token,
+            );
+        }
+
+        // Copilot path
+        const model = await this._selectCopilotModel('summary');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
 
         const messages = [
             vscode.LanguageModelChatMessage.User(systemPrompt),
@@ -174,7 +252,7 @@ Do NOT use markdown headers (##) in brief summaries.`;
     /**
      * Chat: answer a user question using all available workspace context.
      * Streams the response back via a callback.
-     * When `webSearch` is true, the web search tool is offered to the model.
+     * When `webSearch` is true, the web search tool is offered to the model (Copilot only).
      */
     async chat(
         question: string,
@@ -184,16 +262,44 @@ Do NOT use markdown headers (##) in brief summaries.`;
         token?: vscode.CancellationToken,
         webSearch?: boolean,
     ): Promise<string> {
-        const model = await this._selectModel('chat');
-        if (!model) {
-            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        const provider = AiService.activeProvider();
+        if (provider === 'none') {
+            throw new Error('No AI provider available. Install GitHub Copilot or configure a Gemini API key.');
         }
 
         const systemPrompt = `You are a helpful development assistant embedded in a VS Code extension called WorkStash.
 You have access to the user's workspace data: git stashes, GitHub PRs, Issues, Projects, Gist notes, and Mattermost chat.
 Answer questions about this data concisely and accurately. Reference specific items by number/name when relevant.
 If the data doesn't contain the answer, say so. Use markdown formatting for readability.
-Keep answers focused and under 300 words unless the user asks for detail.${webSearch ? '\nYou also have access to a web search tool. Use it when the user asks about external information, documentation, or anything not in the workspace data.' : ''}`;
+Keep answers focused and under 300 words unless the user asks for detail.${webSearch && provider === 'copilot' ? '\nYou also have access to a web search tool. Use it when the user asks about external information, documentation, or anything not in the workspace data.' : ''}`;
+
+        // ─── Gemini path ─────────────────────────────────────
+        if (provider === 'gemini') {
+            const messages: Array<{ role: 'user' | 'model'; content: string }> = [
+                { role: 'user', content: systemPrompt },
+                { role: 'user', content: `Here is the current workspace data:\n\n${contextData}\n\nUse this data to answer the user's questions.` },
+            ];
+            for (const msg of history.slice(-10)) {
+                messages.push({
+                    role: msg.role === 'user' ? 'user' : 'model',
+                    content: msg.content,
+                });
+            }
+            messages.push({ role: 'user', content: question });
+
+            return this._geminiService.streamContent(
+                this._getGeminiModel('chat'),
+                messages,
+                onChunk,
+                token,
+            );
+        }
+
+        // ─── Copilot path ────────────────────────────────────
+        const model = await this._selectCopilotModel('chat');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
 
         const messages: vscode.LanguageModelChatMessage[] = [
             vscode.LanguageModelChatMessage.User(systemPrompt),
@@ -394,14 +500,38 @@ Use markdown formatting with clear sections.`,
         token?: vscode.CancellationToken,
         customSystemPrompt?: string,
     ): Promise<string> {
-        const model = await this._selectModel('agent');
-        if (!model) {
-            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        const provider = AiService.activeProvider();
+        if (provider === 'none') {
+            throw new Error('No AI provider available. Install GitHub Copilot or configure a Gemini API key.');
         }
 
         const systemPrompt = customSystemPrompt?.trim() ||
             AiService.AGENT_TEMPLATES[template] ||
             AiService.AGENT_TEMPLATES['custom'];
+
+        // ─── Gemini path ─────────────────────────────────────
+        if (provider === 'gemini') {
+            const messages: Array<{ role: 'user' | 'model'; content: string }> = [
+                { role: 'user', content: systemPrompt },
+                { role: 'user', content: `Here is the complete workspace data to analyze:\n\n${contextData}` },
+            ];
+            if (customPrompt.trim()) {
+                messages.push({ role: 'user', content: `Additional instructions from the user:\n${customPrompt}` });
+            }
+
+            return this._geminiService.streamContent(
+                this._getGeminiModel('agent'),
+                messages,
+                onChunk,
+                token,
+            );
+        }
+
+        // ─── Copilot path ────────────────────────────────────
+        const model = await this._selectCopilotModel('agent');
+        if (!model) {
+            throw new Error('No AI model available. Make sure GitHub Copilot is installed and signed in.');
+        }
 
         const messages: vscode.LanguageModelChatMessage[] = [
             vscode.LanguageModelChatMessage.User(systemPrompt),

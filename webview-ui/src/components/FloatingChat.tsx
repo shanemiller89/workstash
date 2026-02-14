@@ -128,6 +128,7 @@ export const FloatingChat: React.FC = () => {
     const modelAssignments = useAIStore((s) => s.modelAssignments);
     const webSearchEnabled = useAIStore((s) => s.webSearchEnabled);
     const setWebSearchEnabled = useAIStore((s) => s.setWebSearchEnabled);
+    const aiProvider = useAIStore((s) => s.aiProvider);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
@@ -322,7 +323,12 @@ export const FloatingChat: React.FC = () => {
             >
                 <GripVertical size={12} className="text-fg/30 flex-shrink-0" />
                 <Bot size={12} className="text-accent flex-shrink-0" />
-                <span className="text-[11px] font-semibold text-fg/70 flex-1">AI Chat</span>
+                <span className="text-[11px] font-semibold text-fg/70 flex-1">
+                    AI Chat
+                    {aiProvider === 'gemini' && (
+                        <span className="ml-1.5 text-[9px] font-normal text-fg/40">Gemini</span>
+                    )}
+                </span>
                 {chatMessages.length > 0 && (
                     <Button
                         variant="ghost"
@@ -429,6 +435,7 @@ export const FloatingChat: React.FC = () => {
                                         <span>{chatModelLabel}</span>
                                         <ChevronDown size={8} />
                                     </button>
+                                    {aiProvider === 'copilot' && (
                                     <button
                                         type="button"
                                         className={`inline-flex items-center gap-1 text-[9px] transition-colors ${
@@ -442,6 +449,7 @@ export const FloatingChat: React.FC = () => {
                                         <Globe size={9} />
                                         <span>Web</span>
                                     </button>
+                                    )}
                                 </div>
                                 <InputGroupButton
                                     variant="default"

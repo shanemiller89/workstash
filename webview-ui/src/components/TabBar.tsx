@@ -1,8 +1,10 @@
 import React from 'react';
 import { useAppStore } from '../appStore';
 import { useAIStore } from '../aiStore';
-import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban, Bot, Wand2 } from 'lucide-react';
+import { postMessage } from '../vscode';
+import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban, Bot, Wand2, Key } from 'lucide-react';
 import { Button } from './ui/button';
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import { RepoSwitcher } from './RepoSwitcher';
 
 const tabs = [
@@ -21,10 +23,15 @@ export const TabBar: React.FC = () => {
     const isStashActive = activeTab === 'stashes';
     const chatPanelOpen = useAIStore((s) => s.chatPanelOpen);
     const toggleChatPanel = useAIStore((s) => s.toggleChatPanel);
+    const aiAvailable = useAIStore((s) => s.aiAvailable);
+    const aiProvider = useAIStore((s) => s.aiProvider);
+
+    // Filter out AI-only tabs when no AI provider is available
+    const visibleTabs = aiAvailable ? tabs : tabs.filter((t) => t.key !== 'agent');
 
     return (
         <div className="flex border-b border-border bg-card flex-shrink-0 select-none">
-            {tabs.map((tab) => {
+            {visibleTabs.map((tab) => {
                 const isActive = activeTab === tab.key;
                 return (
                     <Button
@@ -62,18 +69,46 @@ export const TabBar: React.FC = () => {
                 >
                     <Archive size={14} />
                 </Button>
-                <Button
-                    variant="ghost"
-                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
-                        chatPanelOpen
-                            ? 'border-accent text-accent'
-                            : 'border-transparent text-fg/50 hover:text-fg/80'
-                    }`}
-                    onClick={toggleChatPanel}
-                    title={chatPanelOpen ? 'Close AI Chat' : 'Open AI Chat'}
-                >
-                    <Bot size={14} />
-                </Button>
+                {aiAvailable ? (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger
+                                render={<Button
+                                    variant="ghost"
+                                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
+                                        chatPanelOpen
+                                            ? 'border-accent text-accent'
+                                            : 'border-transparent text-fg/50 hover:text-fg/80'
+                                    }`}
+                                    onClick={toggleChatPanel}
+                                />}
+                            >
+                                <Bot size={14} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {chatPanelOpen ? 'Close AI Chat' : 'Open AI Chat'} ({aiProvider === 'gemini' ? 'Gemini' : 'Copilot'})
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                ) : (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger
+                                render={<Button
+                                    variant="ghost"
+                                    size="icon-sm"
+                                    className="rounded-none h-auto px-3 py-2 border-b-2 border-transparent text-fg/30 hover:text-fg/60"
+                                    onClick={() => postMessage('ai.configureGeminiKey')}
+                                />}
+                            >
+                                <Key size={14} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                Configure Gemini API key to enable AI features
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
             </div>
         </div>
     );

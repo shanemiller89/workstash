@@ -368,6 +368,12 @@ export class StashPanel {
                 await this._refreshMattermost();
                 // Fire-and-forget: pre-fetch user repos for the repo switcher
                 this._fetchUserRepos();
+                // Inform webview whether AI features are available and which provider
+                this._panel.webview.postMessage({
+                    type: 'aiAvailable',
+                    available: AiService.isAvailable(),
+                    provider: AiService.activeProvider(),
+                });
                 break;
 
             case 'refresh':
@@ -1848,6 +1854,10 @@ export class StashPanel {
             // ─── AI Model Management ─────────────────────────────────
 
             case 'ai.listModels': {
+                if (!AiService.isAvailable()) {
+                    this._panel.webview.postMessage({ type: 'aiModelList', models: [], assignments: {} });
+                    break;
+                }
                 try {
                     const models = await this._aiService.listModels();
                     const assignments = this._aiService.getModelAssignments();
@@ -1865,6 +1875,7 @@ export class StashPanel {
             }
 
             case 'ai.setModel': {
+                if (!AiService.isAvailable()) { break; }
                 const purpose = msg.purpose as string | undefined;
                 const modelId = msg.modelId as string | undefined;
                 if (purpose) {
@@ -1887,6 +1898,10 @@ export class StashPanel {
             // ─── AI Summarize & Chat ──────────────────────────────────
 
             case 'ai.summarize': {
+                if (!AiService.isAvailable()) {
+                    this._panel.webview.postMessage({ type: 'aiSummaryError', tabKey: msg.tabKey, error: 'AI features require GitHub Copilot' });
+                    break;
+                }
                 if (!msg.tabKey) {
                     break;
                 }
@@ -1913,6 +1928,10 @@ export class StashPanel {
             }
 
             case 'ai.chat': {
+                if (!AiService.isAvailable()) {
+                    this._panel.webview.postMessage({ type: 'aiChatError', messageId: '', error: 'AI features require GitHub Copilot' });
+                    break;
+                }
                 if (!msg.question) {
                     break;
                 }
@@ -1965,6 +1984,10 @@ export class StashPanel {
             }
 
             case 'ai.agent': {
+                if (!AiService.isAvailable()) {
+                    this._panel.webview.postMessage({ type: 'aiAgentError', error: 'AI features require GitHub Copilot' });
+                    break;
+                }
                 const prompt = (msg.body as string | undefined) ?? '';
                 const template = (msg.mode as string | undefined) ?? 'custom';
                 const customSystemPrompt = (msg.systemPrompt as string | undefined) ?? '';
@@ -2000,6 +2023,15 @@ export class StashPanel {
                         error: m,
                     });
                 }
+                break;
+            }
+
+            case 'ai.configureGeminiKey': {
+                // Open the settings UI focused on the Gemini API key setting
+                await vscode.commands.executeCommand(
+                    'workbench.action.openSettings',
+                    'workstash.ai.geminiApiKey',
+                );
                 break;
             }
         }
