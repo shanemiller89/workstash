@@ -2117,6 +2117,11 @@ export class StashPanel {
                 }
                 break;
             }
+
+            case 'settings.openInVSCode': {
+                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.workstash');
+                break;
+            }
         }
     }
 

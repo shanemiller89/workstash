@@ -33,6 +33,15 @@ export class AiService {
     constructor(outputChannel: vscode.OutputChannel) {
         this._outputChannel = outputChannel;
         this._geminiService = new GeminiService(outputChannel);
+
+        // Load persisted model overrides from VS Code settings
+        const aiConfig = vscode.workspace.getConfiguration('workstash.ai');
+        for (const purpose of ['summary', 'chat', 'agent'] as const) {
+            const saved = aiConfig.get<string>(`modelOverride.${purpose}`, '');
+            if (saved) {
+                this._modelOverrides[purpose] = saved;
+            }
+        }
     }
 
     // ─── Provider detection ───────────────────────────────────────
@@ -96,7 +105,7 @@ export class AiService {
         return [];
     }
 
-    /** Set a model override for a specific purpose. Pass empty string to clear. */
+    /** Set a model override for a specific purpose. Pass empty string to clear. Persisted to VS Code settings. */
     setModel(purpose: AiModelPurpose, modelId: string): void {
         if (modelId) {
             this._modelOverrides[purpose] = modelId;
@@ -105,6 +114,10 @@ export class AiService {
             delete this._modelOverrides[purpose];
             this._outputChannel.appendLine(`[AI] Model for ${purpose} reset to default`);
         }
+        // Persist to VS Code settings
+        vscode.workspace
+            .getConfiguration('workstash.ai')
+            .update(`modelOverride.${purpose}`, modelId || undefined, vscode.ConfigurationTarget.Global);
     }
 
     /** Get the current model assignments. */

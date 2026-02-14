@@ -143,6 +143,24 @@
                     ],
                     "description": "Default Gemini model to use when the Gemini provider is active.",
                     "order": 2
+                },
+                "workstash.ai.modelOverride.summary": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Override model for AI summaries. Leave empty to use the provider default.",
+                    "order": 3
+                },
+                "workstash.ai.modelOverride.chat": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Override model for AI chat. Leave empty to use the provider default.",
+                    "order": 4
+                },
+                "workstash.ai.modelOverride.agent": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Override model for AI agent analysis. Leave empty to use the provider default.",
+                    "order": 5
                 }
             }
         },

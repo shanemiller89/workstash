@@ -25,6 +25,7 @@ import {
     Eye,
     EyeOff,
     RefreshCw,
+    ExternalLink,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -184,16 +185,27 @@ export const SettingsTab: React.FC = () => {
         <ScrollArea className="h-full">
             <div className="max-w-xl mx-auto px-6 py-6 flex flex-col gap-4">
                 {/* Header */}
-                <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center">
-                        <Settings size={16} className="text-accent" />
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-8 h-8 rounded-lg bg-accent/15 flex items-center justify-center">
+                            <Settings size={16} className="text-accent" />
+                        </div>
+                        <div>
+                            <h2 className="text-[14px] font-semibold text-fg">Settings</h2>
+                            <p className="text-[11px] text-fg/40">
+                                Configure WorkStash preferences
+                            </p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-[14px] font-semibold text-fg">Settings</h2>
-                        <p className="text-[11px] text-fg/40">
-                            Configure WorkStash preferences
-                        </p>
-                    </div>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="text-[11px] gap-1.5"
+                        onClick={() => postMessage('settings.openInVSCode')}
+                    >
+                        <ExternalLink size={12} />
+                        VS Code Settings
+                    </Button>
                 </div>
 
                 <Separator />
@@ -320,34 +332,42 @@ export const SettingsTab: React.FC = () => {
                 </SectionCard>
 
                 {/* ═══ AI Models (per-purpose) ═══ */}
-                {aiAvailable && availableModels.length > 0 && (
+                {aiAvailable && (
                     <SectionCard
                         icon={<Cpu size={12} />}
                         title="Model Assignments"
                     >
                         <p className="text-[10.5px] text-fg/40 leading-snug mb-2">
                             Override which model is used for each AI feature. Leave on "Default" to use the provider's default model.
+                            {aiProvider === 'gemini' && ' Changes are saved to VS Code settings automatically.'}
                         </p>
-                        {MODEL_PURPOSES.map(({ key, label }) => (
-                            <SettingRow key={key} label={label}>
-                                <Select
-                                    value={modelAssignments[key] || '__default__'}
-                                    onValueChange={(v) => handleModelChange(key, v ?? '__default__')}
-                                >
-                                    <SelectTrigger className="w-[200px] h-7 text-[11px]">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="__default__">Default</SelectItem>
-                                        {availableModels.map((m) => (
-                                            <SelectItem key={m.id} value={m.id}>
-                                                {m.name || m.id}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </SettingRow>
-                        ))}
+                        {availableModels.length === 0 ? (
+                            <div className="flex items-center gap-2 py-2">
+                                <RefreshCw size={12} className="animate-spin text-fg/30" />
+                                <span className="text-[11px] text-fg/40">Loading available models…</span>
+                            </div>
+                        ) : (
+                            MODEL_PURPOSES.map(({ key, label }) => (
+                                <SettingRow key={key} label={label}>
+                                    <Select
+                                        value={modelAssignments[key] || '__default__'}
+                                        onValueChange={(v) => handleModelChange(key, v ?? '__default__')}
+                                    >
+                                        <SelectTrigger className="w-[200px] h-7 text-[11px]">
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="__default__">Default</SelectItem>
+                                            {availableModels.map((m) => (
+                                                <SelectItem key={m.id} value={m.id}>
+                                                    {m.name || m.id}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </SettingRow>
+                            ))
+                        )}
                     </SectionCard>
                 )}
 
