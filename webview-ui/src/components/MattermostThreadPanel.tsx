@@ -10,6 +10,7 @@ import {
     Loader2,
 } from 'lucide-react';
 import { EmojiPickerButton } from './EmojiPicker';
+import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 
 function formatTime(iso: string): string {
     const date = new Date(iso);
@@ -144,8 +145,19 @@ export const MattermostThreadPanel: React.FC = () => {
 
     const [replyText, setReplyText] = useState('');
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const replyTextareaRef = useRef<HTMLTextAreaElement>(null);
 
     const currentUserId = currentUser?.id ?? null;
+
+    // Emoji shortcode autocomplete for thread reply
+    const {
+        suggestions: emojiSuggestions,
+        selectedIndex: emojiSelectedIndex,
+        isOpen: emojiAutocompleteOpen,
+        handleKeyDown: emojiKeyDown,
+        handleChange: emojiHandleChange,
+        acceptSuggestion: emojiAcceptSuggestion,
+    } = useEmojiAutocomplete(replyTextareaRef, replyText, setReplyText);
 
     // Auto-scroll on new thread posts
     useEffect(() => {
@@ -179,13 +191,18 @@ export const MattermostThreadPanel: React.FC = () => {
     }, [replyText, selectedChannelId, activeThreadRootId]);
 
     const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
+        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            // Let emoji autocomplete handle keys first if it's open
+            if (emojiAutocompleteOpen) {
+                emojiKeyDown(e);
+                if (e.defaultPrevented) { return; }
+            }
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 handleSendReply();
             }
         },
-        [handleSendReply],
+        [handleSendReply, emojiAutocompleteOpen, emojiKeyDown],
     );
 
     if (!activeThreadRootId) { return null; }
@@ -229,10 +246,17 @@ export const MattermostThreadPanel: React.FC = () => {
 
             {/* Reply compose */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-2">
-                <div className="flex gap-2">
+                <div className="relative flex gap-2">
+                    {/* Emoji autocomplete dropdown */}
+                    <EmojiAutocompleteDropdown
+                        suggestions={emojiSuggestions}
+                        selectedIndex={emojiSelectedIndex}
+                        onSelect={emojiAcceptSuggestion}
+                    />
                     <textarea
+                        ref={replyTextareaRef}
                         value={replyText}
-                        onChange={(e) => setReplyText(e.target.value)}
+                        onChange={emojiHandleChange}
                         onKeyDown={handleKeyDown}
                         placeholder="Reply… (⌘+Enter)"
                         rows={2}

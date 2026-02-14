@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useMattermostStore, type MattermostPostData, type MattermostReactionData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { EmojiPickerButton } from './EmojiPicker';
+import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 import { MarkdownBody } from './MarkdownBody';
 import {
     Send,
@@ -305,6 +306,16 @@ export const MattermostChat: React.FC<{
         postMessage('mattermost.getThread', { postId: rootId });
     }, [openThread]);
 
+    // Emoji shortcode autocomplete
+    const {
+        suggestions: emojiSuggestions,
+        selectedIndex: emojiSelectedIndex,
+        isOpen: emojiAutocompleteOpen,
+        handleKeyDown: emojiKeyDown,
+        handleChange: emojiHandleChange,
+        acceptSuggestion: emojiAcceptSuggestion,
+    } = useEmojiAutocomplete(textareaRef, messageText, setMessageText);
+
     // Send typing indicator (throttled)
     const sendTypingIndicator = useCallback(() => {
         if (!selectedChannelId) { return; }
@@ -326,18 +337,23 @@ export const MattermostChat: React.FC<{
     }, [messageText, selectedChannelId]);
 
     const handleKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
+        (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+            // Let emoji autocomplete handle keys first if it's open
+            if (emojiAutocompleteOpen) {
+                emojiKeyDown(e);
+                if (e.defaultPrevented) { return; }
+            }
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
                 handleSend();
             }
         },
-        [handleSend],
+        [handleSend, emojiAutocompleteOpen, emojiKeyDown],
     );
 
     const handleInputChange = useCallback(
         (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-            setMessageText(e.target.value);
+            emojiHandleChange(e);
             sendTypingIndicator();
         },
         [sendTypingIndicator],
@@ -448,7 +464,13 @@ export const MattermostChat: React.FC<{
 
             {/* Compose area */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-3">
-                <div className="flex gap-2">
+                <div className="relative flex gap-2">
+                    {/* Emoji autocomplete dropdown */}
+                    <EmojiAutocompleteDropdown
+                        suggestions={emojiSuggestions}
+                        selectedIndex={emojiSelectedIndex}
+                        onSelect={emojiAcceptSuggestion}
+                    />
                     <textarea
                         ref={textareaRef}
                         value={messageText}
