@@ -979,9 +979,17 @@ export class StashPanel {
                     this._panel.webview.postMessage({ type: 'mattermostPostsLoading' });
                     const posts = await this._mattermostService.getChannelPosts(msg.channelId, page);
                     const usernames = await this._mattermostService.resolveUsernames(posts);
-                    const payload = posts.map((p) =>
-                        MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId),
-                    );
+
+                    // Resolve file attachments inline before sending posts
+                    const payload = await Promise.all(posts.map(async (p) => {
+                        let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                        if (p.fileIds.length > 0) {
+                            try {
+                                files = await this._mattermostService!.resolveFileInfos(p.fileIds);
+                            } catch { /* ignore file resolution errors */ }
+                        }
+                        return MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId, files);
+                    }));
                     this._panel.webview.postMessage({
                         type: page > 0 ? 'mattermostOlderPosts' : 'mattermostPosts',
                         payload,
@@ -1056,9 +1064,15 @@ export class StashPanel {
                     this._panel.webview.postMessage({ type: 'mattermostThreadLoading', postId: msg.postId });
                     const posts = await this._mattermostService.getPostThread(msg.postId);
                     const usernames = await this._mattermostService.resolveUsernames(posts);
-                    const payload = posts.map((p) =>
-                        MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId),
-                    );
+                    const payload = await Promise.all(posts.map(async (p) => {
+                        let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                        if (p.fileIds.length > 0) {
+                            try {
+                                files = await this._mattermostService!.resolveFileInfos(p.fileIds);
+                            } catch { /* ignore */ }
+                        }
+                        return MattermostService.toPostData(p, usernames.get(p.userId) ?? p.userId, files);
+                    }));
                     this._panel.webview.postMessage({
                         type: 'mattermostThread',
                         rootId: msg.postId,
@@ -1611,9 +1625,19 @@ export class StashPanel {
                     id: string; channel_id: string; user_id: string; message: string;
                     create_at: number; update_at: number; delete_at: number;
                     root_id: string; type: string; props: Record<string, unknown>;
+                    file_ids?: string[];
                 };
                 const username = data.sender_name?.replace(/^@/, '') ??
                     await this._mattermostService.resolveUsername(rawPost.user_id);
+
+                // Resolve file attachments if present
+                let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                if (rawPost.file_ids && rawPost.file_ids.length > 0) {
+                    try {
+                        files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);
+                    } catch { /* ignore */ }
+                }
+
                 const postData: MattermostPostData = {
                     id: rawPost.id,
                     channelId: rawPost.channel_id,
@@ -1624,6 +1648,7 @@ export class StashPanel {
                     updateAt: new Date(rawPost.update_at).toISOString(),
                     rootId: rawPost.root_id,
                     type: rawPost.type,
+                    files: files && files.length > 0 ? files : undefined,
                 };
                 this._panel.webview.postMessage({ type: 'mattermostNewPost', post: postData });
 
@@ -1646,8 +1671,18 @@ export class StashPanel {
                     id: string; channel_id: string; user_id: string; message: string;
                     create_at: number; update_at: number; delete_at: number;
                     root_id: string; type: string; props: Record<string, unknown>;
+                    file_ids?: string[];
                 };
                 const username = await this._mattermostService.resolveUsername(rawPost.user_id);
+
+                // Resolve file attachments if present
+                let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
+                if (rawPost.file_ids && rawPost.file_ids.length > 0) {
+                    try {
+                        files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);
+                    } catch { /* ignore */ }
+                }
+
                 const postData: MattermostPostData = {
                     id: rawPost.id,
                     channelId: rawPost.channel_id,
@@ -1658,6 +1693,7 @@ export class StashPanel {
                     updateAt: new Date(rawPost.update_at).toISOString(),
                     rootId: rawPost.root_id,
                     type: rawPost.type,
+                    files: files && files.length > 0 ? files : undefined,
                 };
                 this._panel.webview.postMessage({ type: 'mattermostPostEdited', post: postData });
             } catch (e) {
@@ -1769,7 +1805,7 @@ export class StashPanel {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy"
-        content="default-src 'none'; img-src https: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https:;">
+        content="default-src 'none'; img-src https: http: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https: http:;">
     <link rel="stylesheet" href="${styleUri}">
     <title>Workstash</title>
 </head>

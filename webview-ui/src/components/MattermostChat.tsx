@@ -5,11 +5,14 @@ import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
 import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
+import { FileAttachments } from './FileAttachments';
 import {
     Send,
     ArrowLeft,
     RefreshCw,
     ChevronUp,
+    ChevronDown,
+    ChevronRight,
     Copy,
     Check,
     MessageSquare,
@@ -88,7 +91,8 @@ const MessageBubble: React.FC<{
     currentUserId: string | null;
     allPosts: MattermostPostData[];
     onOpenThread: (rootId: string) => void;
-}> = ({ post, currentUsername, currentUserId, allPosts, onOpenThread }) => {
+    isThreadReply?: boolean;
+}> = ({ post, currentUsername, currentUserId, allPosts, onOpenThread, isThreadReply }) => {
     const [copied, setCopied] = useState(false);
     const isOwn = currentUsername !== null && post.username === currentUsername;
 
@@ -107,12 +111,12 @@ const MessageBubble: React.FC<{
         );
     }
 
-    // Don't show replies inline in the main feed — they appear via thread panel
+    // Reply detection (used for styling inline thread replies)
     const isReply = post.rootId && post.rootId !== '';
     const replyCount = !isReply ? countReplies(allPosts, post.id) : 0;
 
     return (
-        <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isOwn ? 'flex-row-reverse' : ''} ${isReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''}`}>
+        <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isThreadReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''}`}>
             {/* Avatar with status dot */}
             <div className="relative shrink-0">
                 <div
@@ -127,8 +131,8 @@ const MessageBubble: React.FC<{
                 <StatusDot userId={post.userId} />
             </div>
 
-            <div className={`flex-1 min-w-0 ${isOwn ? 'text-right' : ''}`}>
-                <div className={`flex items-center gap-2 ${isOwn ? 'justify-end' : ''}`}>
+            <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-[var(--vscode-textLink-foreground)]">
                         {post.username}
                     </span>
@@ -156,15 +160,18 @@ const MessageBubble: React.FC<{
                     </div>
                 </div>
 
-                <div className={`text-sm mt-0.5 ${isOwn ? 'text-right' : ''}`}>
+                <div className="text-sm mt-0.5">
                     <MarkdownBody content={post.message} />
                 </div>
+
+                {/* File attachments */}
+                <FileAttachments files={post.files} />
 
                 {/* Reaction bar */}
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
 
-                {/* Thread reply count */}
-                {replyCount > 0 && !isReply && (
+                {/* Thread reply count (only shown on root posts, not inline replies) */}
+                {replyCount > 0 && !isReply && !isThreadReply && (
                     <button
                         onClick={() => onOpenThread(post.id)}
                         className="mt-1 text-xs text-[var(--vscode-textLink-foreground)] hover:underline inline-flex items-center gap-1"
@@ -256,6 +263,63 @@ export const MattermostChat: React.FC<{
     );
 
     const dateGroups = useMemo(() => groupPostsByDate(posts), [posts]);
+
+    // Track which threads are expanded (default = all collapsed)
+    const [expandedThreads, setExpandedThreads] = useState<Set<string>>(new Set());
+
+    const toggleThread = useCallback((rootId: string) => {
+        setExpandedThreads((prev) => {
+            const next = new Set(prev);
+            if (next.has(rootId)) {
+                next.delete(rootId);
+            } else {
+                next.add(rootId);
+            }
+            return next;
+        });
+    }, []);
+
+    // Group posts: root posts in order, with their inline replies collected
+    const threadedGroups = useMemo(() => {
+        return dateGroups.map((group) => {
+            const rootPosts: { root: MattermostPostData; replies: MattermostPostData[] }[] = [];
+            const replyMap = new Map<string, MattermostPostData[]>();
+
+            // First pass: collect replies by rootId
+            for (const post of group.posts) {
+                if (post.rootId && post.rootId !== '') {
+                    const existing = replyMap.get(post.rootId) ?? [];
+                    existing.push(post);
+                    replyMap.set(post.rootId, existing);
+                }
+            }
+
+            // Second pass: build root + replies groups (skip standalone replies whose root is in a different date group)
+            for (const post of group.posts) {
+                if (!post.rootId || post.rootId === '') {
+                    rootPosts.push({
+                        root: post,
+                        replies: replyMap.get(post.id) ?? [],
+                    });
+                }
+            }
+
+            // Also include orphan replies (root post is in a different date group)
+            const usedReplyIds = new Set(rootPosts.flatMap((rp) => rp.replies.map((r) => r.id)));
+            for (const post of group.posts) {
+                if (post.rootId && post.rootId !== '' && !usedReplyIds.has(post.id)) {
+                    // Check if the root is in this group
+                    const rootInGroup = group.posts.some((p) => p.id === post.rootId);
+                    if (!rootInGroup) {
+                        // Show as standalone reply bubble
+                        rootPosts.push({ root: post, replies: [] });
+                    }
+                }
+            }
+
+            return { date: group.date, threads: rootPosts };
+        });
+    }, [dateGroups]);
 
     // Auto-scroll to bottom when new posts arrive
     useEffect(() => {
@@ -400,7 +464,7 @@ export const MattermostChat: React.FC<{
                         No messages yet. Start the conversation!
                     </div>
                 ) : (
-                    dateGroups.map((group) => (
+                    threadedGroups.map((group) => (
                         <div key={group.date}>
                             {/* Date separator */}
                             <div className="flex items-center gap-2 px-3 py-2">
@@ -410,15 +474,49 @@ export const MattermostChat: React.FC<{
                                 </span>
                                 <div className="flex-1 h-px bg-[var(--vscode-panel-border)]" />
                             </div>
-                            {group.posts.map((post) => (
-                                <MessageBubble
-                                    key={post.id}
-                                    post={post}
-                                    currentUsername={currentUsername}
-                                    currentUserId={currentUserId}
-                                    allPosts={posts}
-                                    onOpenThread={handleOpenThread}
-                                />
+                            {group.threads.map(({ root, replies }) => (
+                                <div key={root.id}>
+                                    {/* Root post */}
+                                    <MessageBubble
+                                        post={root}
+                                        currentUsername={currentUsername}
+                                        currentUserId={currentUserId}
+                                        allPosts={posts}
+                                        onOpenThread={handleOpenThread}
+                                    />
+
+                                    {/* Collapsible inline thread replies */}
+                                    {replies.length > 0 && (
+                                        <div className="ml-4">
+                                            <button
+                                                onClick={() => toggleThread(root.id)}
+                                                className="flex items-center gap-1 px-3 py-0.5 text-xs text-[var(--vscode-textLink-foreground)] hover:underline"
+                                            >
+                                                {expandedThreads.has(root.id) ? (
+                                                    <ChevronDown size={12} />
+                                                ) : (
+                                                    <ChevronRight size={12} />
+                                                )}
+                                                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                                            </button>
+                                            {expandedThreads.has(root.id) && (
+                                                <div>
+                                                    {replies.map((reply) => (
+                                                        <MessageBubble
+                                                            key={reply.id}
+                                                            post={reply}
+                                                            currentUsername={currentUsername}
+                                                            currentUserId={currentUserId}
+                                                            allPosts={posts}
+                                                            onOpenThread={handleOpenThread}
+                                                            isThreadReply
+                                                        />
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
                             ))}
                         </div>
                     ))

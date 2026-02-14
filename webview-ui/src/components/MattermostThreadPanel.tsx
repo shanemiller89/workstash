@@ -3,6 +3,7 @@ import { useMattermostStore, type MattermostPostData } from '../mattermostStore'
 import { postMessage } from '../vscode';
 import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
+import { FileAttachments } from './FileAttachments';
 import {
     X,
     Send,
@@ -84,6 +85,7 @@ const ThreadMessage: React.FC<{
                 <div className="text-sm mt-0.5">
                     <MarkdownBody content={post.message} />
                 </div>
+                <FileAttachments files={post.files} />
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
             </div>
         </div>

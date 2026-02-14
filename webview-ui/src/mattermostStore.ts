@@ -21,6 +21,18 @@ export interface MattermostChannelData {
     otherUserId?: string; // For DM channels: the other user's ID
 }
 
+export interface MattermostFileInfoData {
+    id: string;
+    name: string;
+    extension: string;
+    size: number;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    hasPreview: boolean;
+    url: string;
+}
+
 export interface MattermostPostData {
     id: string;
     channelId: string;
@@ -31,6 +43,7 @@ export interface MattermostPostData {
     updateAt: string;
     rootId: string;
     type: string;
+    files?: MattermostFileInfoData[];
 }
 
 export interface MattermostUserData {

@@ -33,6 +33,20 @@ export interface MattermostPost {
     rootId: string; // parent post ID for threads
     type: string;
     props: Record<string, unknown>;
+    fileIds: string[];
+}
+
+export interface MattermostFileInfo {
+    id: string;
+    name: string;
+    extension: string;
+    size: number;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    hasPreview: boolean;
+    /** Full URL to fetch the file (includes auth via proxy or token) */
+    url?: string;
 }
 
 export interface MattermostUser {
@@ -92,6 +106,18 @@ export interface MattermostChannelData {
     otherUserId?: string; // For DM channels: the other user's ID
 }
 
+export interface MattermostFileInfoData {
+    id: string;
+    name: string;
+    extension: string;
+    size: number;
+    mimeType: string;
+    width?: number;
+    height?: number;
+    hasPreview: boolean;
+    url: string;
+}
+
 export interface MattermostPostData {
     id: string;
     channelId: string;
@@ -102,6 +128,7 @@ export interface MattermostPostData {
     updateAt: string;
     rootId: string;
     type: string;
+    files?: MattermostFileInfoData[];
 }
 
 export interface MattermostUserData {
@@ -171,6 +198,21 @@ interface MmApiPost {
     root_id: string;
     type: string;
     props: Record<string, unknown>;
+    file_ids?: string[];
+    metadata?: {
+        files?: MmApiFileInfo[];
+    };
+}
+
+interface MmApiFileInfo {
+    id: string;
+    name: string;
+    extension: string;
+    size: number;
+    mime_type: string;
+    width?: number;
+    height?: number;
+    has_preview_image?: boolean;
 }
 
 interface MmApiUser {
@@ -876,6 +918,67 @@ export class MattermostService {
 
     // ─── User Status ──────────────────────────────────────────────
 
+    // ─── File Attachments ─────────────────────────────────────────
+
+    /** Get file info for a single file ID */
+    async getFileInfo(fileId: string): Promise<MattermostFileInfo> {
+        const raw = await this._request<MmApiFileInfo>(
+            'GET',
+            `/files/${fileId}/info`,
+        );
+        return this._parseFileInfo(raw);
+    }
+
+    /** Build authenticated file URL for the webview to display */
+    async getFileUrl(fileId: string): Promise<string> {
+        const baseUrl = await this._getBaseUrl();
+        const token = await this._getTokenOrThrow();
+        // Mattermost file endpoint: GET /api/v4/files/{fileId}
+        // We append the auth token as a query param so the webview <img> can load it
+        return `${baseUrl}/files/${fileId}?access_token=${encodeURIComponent(token)}`;
+    }
+
+    /** Build authenticated thumbnail URL for image previews */
+    async getFileThumbnailUrl(fileId: string): Promise<string> {
+        const baseUrl = await this._getBaseUrl();
+        const token = await this._getTokenOrThrow();
+        return `${baseUrl}/files/${fileId}/thumbnail?access_token=${encodeURIComponent(token)}`;
+    }
+
+    /** Resolve file metadata + URLs for a list of file IDs */
+    async resolveFileInfos(fileIds: string[]): Promise<MattermostFileInfoData[]> {
+        if (fileIds.length === 0) { return []; }
+        const results: MattermostFileInfoData[] = [];
+        const baseUrl = await this._getBaseUrl();
+        const token = await this._getTokenOrThrow();
+        for (const fid of fileIds) {
+            try {
+                const info = await this.getFileInfo(fid);
+                const isImage = info.mimeType.startsWith('image/');
+                // For images, use thumbnail if available; otherwise full file
+                const url = isImage && info.hasPreview
+                    ? `${baseUrl}/files/${fid}/preview?access_token=${encodeURIComponent(token)}`
+                    : `${baseUrl}/files/${fid}?access_token=${encodeURIComponent(token)}`;
+                results.push({
+                    id: info.id,
+                    name: info.name,
+                    extension: info.extension,
+                    size: info.size,
+                    mimeType: info.mimeType,
+                    width: info.width,
+                    height: info.height,
+                    hasPreview: info.hasPreview,
+                    url,
+                });
+            } catch {
+                // Skip files we can't resolve
+            }
+        }
+        return results;
+    }
+
+    // ─── User Status (continued) ──────────────────────────────────
+
     /** Bulk-fetch user statuses by IDs */
     async getUserStatuses(userIds: string[]): Promise<MattermostUserStatus[]> {
         if (userIds.length === 0) { return []; }
@@ -1028,6 +1131,20 @@ export class MattermostService {
             rootId: p.root_id,
             type: p.type,
             props: p.props,
+            fileIds: p.file_ids ?? [],
+        };
+    }
+
+    private _parseFileInfo(f: MmApiFileInfo): MattermostFileInfo {
+        return {
+            id: f.id,
+            name: f.name,
+            extension: f.extension,
+            size: f.size,
+            mimeType: f.mime_type,
+            width: f.width,
+            height: f.height,
+            hasPreview: f.has_preview_image ?? false,
         };
     }
 
@@ -1082,6 +1199,7 @@ export class MattermostService {
     static toPostData(
         post: MattermostPost,
         username: string,
+        files?: MattermostFileInfoData[],
     ): MattermostPostData {
         return {
             id: post.id,
@@ -1093,6 +1211,7 @@ export class MattermostService {
             updateAt: new Date(post.updateAt).toISOString(),
             rootId: post.rootId,
             type: post.type,
+            files: files && files.length > 0 ? files : undefined,
         };
     }
 
