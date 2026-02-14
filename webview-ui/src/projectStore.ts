@@ -128,6 +128,7 @@ interface ProjectStore {
     // Filters
     statusFilter: string; // 'all' or option name
     searchQuery: string;
+    myIssuesOnly: boolean;
 
     // Loading states
     isLoading: boolean;
@@ -144,6 +145,7 @@ interface ProjectStore {
     clearSelection: () => void;
     setStatusFilter: (filter: string) => void;
     setSearchQuery: (query: string) => void;
+    setMyIssuesOnly: (on: boolean) => void;
     setSelectedViewId: (viewId: string | null) => void;
     setLoading: (loading: boolean) => void;
     setItemsLoading: (loading: boolean) => void;
@@ -171,6 +173,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     selectedViewId: '__simple__',
     statusFilter: 'all',
     searchQuery: '',
+    myIssuesOnly: false,
     isLoading: false,
     isItemsLoading: false,
     isFieldUpdating: false,
@@ -187,6 +190,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             selectedViewId: '__simple__',
             statusFilter: 'all',
             searchQuery: '',
+            myIssuesOnly: false,
         }),
 
     setItems: (items) => {
@@ -216,6 +220,8 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
         set({ statusFilter }),
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
+
+    setMyIssuesOnly: (myIssuesOnly) => set({ myIssuesOnly }),
 
     setSelectedViewId: (viewId) => set({ selectedViewId: viewId }),
 

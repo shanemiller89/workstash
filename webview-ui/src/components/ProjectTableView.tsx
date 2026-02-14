@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useProjectStore, type ProjectItemData, type ProjectFieldData } from '../projectStore';
+import { useNotesStore } from '../notesStore';
 import { Badge } from './ui/badge';
 import {
     CircleDot,
@@ -175,11 +176,21 @@ export const ProjectTableView: React.FC = () => {
     const rawItems = useProjectStore((s) => s.items);
     const statusFilter = useProjectStore((s) => s.statusFilter);
     const searchQuery = useProjectStore((s) => s.searchQuery);
+    const myIssuesOnly = useProjectStore((s) => s.myIssuesOnly);
     const selectItem = useProjectStore((s) => s.selectItem);
     const selectedItemId = useProjectStore((s) => s.selectedItemId);
+    const authUsername = useNotesStore((s) => s.authUsername);
 
     const items = useMemo(() => {
         let filtered = rawItems.filter((i) => !i.isArchived);
+
+        if (myIssuesOnly && authUsername) {
+            filtered = filtered.filter((item) =>
+                item.content?.assignees?.some(
+                    (a) => a.login.toLowerCase() === authUsername.toLowerCase(),
+                ),
+            );
+        }
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter((item) => {
@@ -201,7 +212,7 @@ export const ProjectTableView: React.FC = () => {
         }
 
         return filtered;
-    }, [rawItems, statusFilter, searchQuery]);
+    }, [rawItems, statusFilter, searchQuery, myIssuesOnly, authUsername]);
 
     // Pick visible columns: filter out Title (always shown), keep only useful types
     const visibleFields = useMemo(() => {

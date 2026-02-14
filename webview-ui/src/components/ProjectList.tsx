@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useProjectStore } from '../projectStore';
+import { useNotesStore } from '../notesStore';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import {
@@ -73,12 +74,22 @@ export const ProjectList: React.FC = () => {
     const items = useProjectStore((s) => s.items);
     const searchQuery = useProjectStore((s) => s.searchQuery);
     const statusFilter = useProjectStore((s) => s.statusFilter);
+    const myIssuesOnly = useProjectStore((s) => s.myIssuesOnly);
     const selectItem = useProjectStore((s) => s.selectItem);
     const selectedItemId = useProjectStore((s) => s.selectedItemId);
     const selectedProject = useProjectStore((s) => s.selectedProject);
+    const authUsername = useNotesStore((s) => s.authUsername);
 
     const filteredItems = useMemo(() => {
         let filtered = items.filter((i) => !i.isArchived);
+
+        if (myIssuesOnly && authUsername) {
+            filtered = filtered.filter((item) =>
+                item.content?.assignees?.some(
+                    (a) => a.login.toLowerCase() === authUsername.toLowerCase(),
+                ),
+            );
+        }
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter((item) => {
@@ -100,7 +111,7 @@ export const ProjectList: React.FC = () => {
         }
 
         return filtered;
-    }, [items, statusFilter, searchQuery]);
+    }, [items, statusFilter, searchQuery, myIssuesOnly, authUsername]);
 
     const handleSelectItem = useCallback(
         (itemId: string) => {

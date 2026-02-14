@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { useProjectStore, type BoardColumn, type ProjectItemData } from '../projectStore';
+import { useNotesStore } from '../notesStore';
 import { Badge } from './ui/badge';
 import { ScrollArea } from './ui/scroll-area';
 import {
@@ -210,14 +211,24 @@ export const ProjectBoardView: React.FC = () => {
     const rawItems = useProjectStore((s) => s.items);
     const statusFilter = useProjectStore((s) => s.statusFilter);
     const searchQuery = useProjectStore((s) => s.searchQuery);
+    const myIssuesOnly = useProjectStore((s) => s.myIssuesOnly);
     const selectedProject = useProjectStore((s) => s.selectedProject);
     const selectedViewId = useProjectStore((s) => s.selectedViewId);
     const selectItem = useProjectStore((s) => s.selectItem);
     const selectedItemId = useProjectStore((s) => s.selectedItemId);
+    const authUsername = useNotesStore((s) => s.authUsername);
 
     const columns = useMemo(() => {
         // First compute filtered items
         let filtered = rawItems.filter((i) => !i.isArchived);
+
+        if (myIssuesOnly && authUsername) {
+            filtered = filtered.filter((item) =>
+                item.content?.assignees?.some(
+                    (a) => a.login.toLowerCase() === authUsername.toLowerCase(),
+                ),
+            );
+        }
 
         if (statusFilter !== 'all') {
             filtered = filtered.filter((item) => {
@@ -276,7 +287,7 @@ export const ProjectBoardView: React.FC = () => {
         }
 
         return cols;
-    }, [rawItems, statusFilter, searchQuery, fields, selectedProject, selectedViewId]);
+    }, [rawItems, statusFilter, searchQuery, myIssuesOnly, authUsername, fields, selectedProject, selectedViewId]);
 
     const handleSelectItem = useCallback(
         (itemId: string) => {

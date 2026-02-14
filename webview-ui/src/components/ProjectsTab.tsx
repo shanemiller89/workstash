@@ -17,6 +17,7 @@ import {
     Search,
     RefreshCw,
     ChevronDown,
+    User,
 } from 'lucide-react';
 
 // Synthetic view id for the built-in simple list view
@@ -28,8 +29,10 @@ export const ProjectsTab: React.FC = () => {
     const selectedProject = useProjectStore((s) => s.selectedProject);
     const selectedViewId = useProjectStore((s) => s.selectedViewId);
     const setSelectedViewId = useProjectStore((s) => s.setSelectedViewId);
-    const activeView = useProjectStore((s) => s.activeView);
+    const myIssuesOnly = useProjectStore((s) => s.myIssuesOnly);
+    const setMyIssuesOnly = useProjectStore((s) => s.setMyIssuesOnly);
     const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
+    const authUsername = useNotesStore((s) => s.authUsername);
     const isRepoNotFound = useProjectStore((s) => s.isRepoNotFound);
     const isLoading = useProjectStore((s) => s.isLoading);
     const isItemsLoading = useProjectStore((s) => s.isItemsLoading);
@@ -40,8 +43,21 @@ export const ProjectsTab: React.FC = () => {
     const setSearchQuery = useProjectStore((s) => s.setSearchQuery);
     const fields = useProjectStore((s) => s.fields);
 
-    const currentView = useMemo(() => activeView(), [activeView]);
     const views = selectedProject?.views;
+
+    // Derive active view from raw data — must depend on selectedViewId & views
+    const currentView = useMemo(() => {
+        if (!views?.length) {
+            return undefined;
+        }
+        if (selectedViewId && selectedViewId !== SIMPLE_VIEW_ID) {
+            const found = views.find((v) => v.id === selectedViewId);
+            if (found) {
+                return found;
+            }
+        }
+        return views[0];
+    }, [views, selectedViewId]);
 
     const currentStatusOptions = useMemo(() => {
         const statusField = fields.find(
@@ -165,6 +181,17 @@ export const ProjectsTab: React.FC = () => {
                         >
                             All
                         </Button>
+                        {authUsername && (
+                            <Button
+                                variant={myIssuesOnly ? 'default' : 'secondary'}
+                                size="sm"
+                                className="h-auto px-2.5 py-1 text-[11px] rounded-full gap-1"
+                                onClick={() => setMyIssuesOnly(!myIssuesOnly)}
+                            >
+                                <User size={10} />
+                                My Issues
+                            </Button>
+                        )}
                         {currentStatusOptions.map((opt) => (
                             <Button
                                 key={opt.id}
