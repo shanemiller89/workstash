@@ -12,6 +12,13 @@ export interface AvailableRepo extends RepoInfo {
     remote: string;
 }
 
+/** A group of repos belonging to a single GitHub owner (user or org) */
+export interface RepoGroup {
+    owner: string;
+    avatarUrl: string;
+    repos: { name: string; fullName: string; isPrivate: boolean }[];
+}
+
 interface AppStore {
     activeTab: TabKey;
     setActiveTab: (tab: TabKey) => void;
@@ -38,6 +45,11 @@ interface AppStore {
     /** All GitHub repos discovered from git remotes */
     availableRepos: AvailableRepo[];
     setRepoContext: (current: RepoInfo | null, repos: AvailableRepo[]) => void;
+    /** Pre-fetched repos grouped by owner (user + orgs) */
+    repoGroups: RepoGroup[];
+    repoGroupsLoading: boolean;
+    setRepoGroups: (groups: RepoGroup[]) => void;
+    setRepoGroupsLoading: (loading: boolean) => void;
 }
 
 export const useAppStore = create<AppStore>((set) => ({
@@ -58,4 +70,8 @@ export const useAppStore = create<AppStore>((set) => ({
     currentRepo: null,
     availableRepos: [],
     setRepoContext: (currentRepo, availableRepos) => set({ currentRepo, availableRepos }),
+    repoGroups: [],
+    repoGroupsLoading: false,
+    setRepoGroups: (repoGroups) => set({ repoGroups, repoGroupsLoading: false }),
+    setRepoGroupsLoading: (repoGroupsLoading) => set({ repoGroupsLoading }),
 }));

@@ -450,6 +450,56 @@ export class PrService {
         return data.login;
     }
 
+    /**
+     * Fetch the authenticated user's repos + org repos, grouped by owner.
+     * Returns groups sorted: user's own repos first, then orgs alphabetically.
+     */
+    async getUserRepoGroups(): Promise<{ owner: string; avatarUrl: string; repos: { name: string; fullName: string; isPrivate: boolean }[] }[]> {
+        interface GHRepo {
+            name: string;
+            full_name: string;
+            private: boolean;
+            owner: { login: string; avatar_url: string };
+        }
+
+        // Fetch up to 100 repos the user has push access to (covers personal + org)
+        const { data: repos } = await this._request<GHRepo[]>(
+            'GET',
+            '/user/repos?per_page=100&sort=pushed&affiliation=owner,collaborator,organization_member',
+        );
+
+        // Group by owner
+        const groups = new Map<string, { avatarUrl: string; repos: { name: string; fullName: string; isPrivate: boolean }[] }>();
+        for (const r of repos) {
+            const ownerLogin = r.owner.login;
+            if (!groups.has(ownerLogin)) {
+                groups.set(ownerLogin, { avatarUrl: r.owner.avatar_url, repos: [] });
+            }
+            groups.get(ownerLogin)!.repos.push({
+                name: r.name,
+                fullName: r.full_name,
+                isPrivate: r.private,
+            });
+        }
+
+        // Get the authenticated user to sort them first
+        let currentUser = '';
+        try {
+            currentUser = await this.getAuthenticatedUser();
+        } catch { /* ignore */ }
+
+        // Sort: user first, then orgs alphabetically
+        const sorted = [...groups.entries()]
+            .sort(([a], [b]) => {
+                if (a.toLowerCase() === currentUser.toLowerCase()) { return -1; }
+                if (b.toLowerCase() === currentUser.toLowerCase()) { return 1; }
+                return a.toLowerCase().localeCompare(b.toLowerCase());
+            })
+            .map(([owner, data]) => ({ owner, avatarUrl: data.avatarUrl, repos: data.repos }));
+
+        return sorted;
+    }
+
     // ─── GraphQL ──────────────────────────────────────────────────
 
     /** Execute a GitHub GraphQL query/mutation. */

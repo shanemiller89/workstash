@@ -83,6 +83,34 @@ export class StashPanel {
         });
     }
 
+    /**
+     * Fetch the user's repos grouped by owner (personal + orgs) via GitHub API
+     * and send to the webview for the repo switcher.
+     */
+    private async _fetchUserRepos(): Promise<void> {
+        if (!this._prService || !this._authService) {
+            return;
+        }
+        try {
+            const isAuth = await this._authService.isAuthenticated();
+            if (!isAuth) {
+                return;
+            }
+
+            this._panel.webview.postMessage({ type: 'repoGroupsLoading' });
+
+            const groups = await this._prService.getUserRepoGroups();
+            this._panel.webview.postMessage({
+                type: 'repoGroups',
+                payload: groups,
+            });
+        } catch (e: unknown) {
+            this._outputChannel.appendLine(
+                `[RepoSwitcher] Failed to fetch user repos: ${e instanceof Error ? e.message : e}`,
+            );
+        }
+    }
+
     public static createOrShow(
         extensionUri: vscode.Uri,
         gitService: GitService,
@@ -326,6 +354,8 @@ export class StashPanel {
                 await this._refreshIssues();
                 await this._refreshProjects();
                 await this._refreshMattermost();
+                // Fire-and-forget: pre-fetch user repos for the repo switcher
+                this._fetchUserRepos();
                 break;
 
             case 'refresh':

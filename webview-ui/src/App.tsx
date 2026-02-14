@@ -15,7 +15,7 @@ import {
     type MattermostEmojiData,
     type MattermostFileInfoData,
 } from './mattermostStore';
-import { useAppStore, type RepoInfo, type AvailableRepo } from './appStore';
+import { useAppStore, type RepoInfo, type AvailableRepo, type RepoGroup } from './appStore';
 import { useProjectStore, type ProjectItemData, type ProjectData, type ProjectSummary } from './projectStore';
 import { onMessage, postMessage } from './vscode';
 import { StashList } from './components/StashList';
@@ -81,6 +81,12 @@ export const App: React.FC = () => {
                         (msg.current as RepoInfo) ?? null,
                         (msg.repos as AvailableRepo[]) ?? [],
                     );
+                    break;
+                case 'repoGroups':
+                    appStore.setRepoGroups(msg.payload as RepoGroup[]);
+                    break;
+                case 'repoGroupsLoading':
+                    appStore.setRepoGroupsLoading(true);
                     break;
 
                 // ─── Notes messages ───
