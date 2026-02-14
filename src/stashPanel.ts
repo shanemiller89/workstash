@@ -352,6 +352,8 @@ export class StashPanel {
         purpose?: string;
         modelId?: string;
         customPrompt?: string;
+        systemPrompt?: string;
+        webSearch?: boolean;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -1916,12 +1918,13 @@ export class StashPanel {
                 }
                 const question = msg.question;
                 const history = msg.history ?? [];
+                const webSearch = msg.webSearch === true;
                 const assistantMsgId = `assist_${Date.now()}`;
 
                 try {
                     // Gather context from all tabs
                     const contextData = await this._gatherContext();
-                    this._outputChannel.appendLine(`[AI] Chat — context length: ${contextData.length} chars, history: ${history.length} msgs`);
+                    this._outputChannel.appendLine(`[AI] Chat — context length: ${contextData.length} chars, history: ${history.length} msgs, webSearch: ${webSearch}`);
                     if (contextData.length < 50) {
                         this._outputChannel.appendLine(`[AI] Warning: context is very short: "${contextData}"`);
                     }
@@ -1942,6 +1945,8 @@ export class StashPanel {
                                 chunk,
                             });
                         },
+                        undefined,
+                        webSearch,
                     );
 
                     this._panel.webview.postMessage({
@@ -2194,13 +2199,13 @@ export class StashPanel {
                             for (const ch of activeChannels) {
                                 try {
                                     const posts = await this._mattermostService.getChannelPosts(
-                                        ch.id, 0, 5,
+                                        ch.id, 0, 35,
                                     );
                                     if (posts.length > 0) {
                                         const postLines = posts.map((p) => {
                                             const time = new Date(p.createAt).toLocaleString();
-                                            const msg = p.message.length > 200
-                                                ? p.message.slice(0, 200) + '…'
+                                            const msg = p.message.length > 750
+                                                ? p.message.slice(0, 750) + '…'
                                                 : p.message;
                                             return `  - [${time}] ${msg}`;
                                         });

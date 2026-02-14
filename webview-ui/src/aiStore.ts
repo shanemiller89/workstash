@@ -43,6 +43,7 @@ interface AIStore {
     chatMessages: AIChatMessage[];
     chatInput: string;
     isChatLoading: boolean;
+    webSearchEnabled: boolean;
 
     // Agent
     agentTemplate: string;
@@ -82,6 +83,7 @@ interface AIStore {
     setAssistantError: (id: string, error: string) => void;
     setChatLoading: (loading: boolean) => void;
     clearChat: () => void;
+    setWebSearchEnabled: (enabled: boolean) => void;
 
     // Agent actions
     setAgentTemplate: (template: string) => void;
@@ -112,6 +114,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
     chatMessages: [],
     chatInput: '',
     isChatLoading: false,
+    webSearchEnabled: false,
     agentTemplate: 'sprint',
     agentPrompt: '',
     agentSystemPrompts: {},
@@ -244,6 +247,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
     setChatLoading: (isChatLoading) => set({ isChatLoading }),
 
     clearChat: () => set({ chatMessages: [], isChatLoading: false }),
+    setWebSearchEnabled: (webSearchEnabled) => set({ webSearchEnabled }),
 
     // ─── Agent ───────────────────────────────────────────────
     setAgentTemplate: (agentTemplate) => set({ agentTemplate }),

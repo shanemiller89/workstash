@@ -1,8 +1,13 @@
 import React, { useCallback, useRef, useEffect, useState } from 'react';
-import { useAIStore } from '../aiStore';
+import { useAIStore, type AIModelInfo } from '../aiStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
-import { Textarea } from './ui/textarea';
+import {
+    InputGroup,
+    InputGroupTextarea,
+    InputGroupAddon,
+    InputGroupButton,
+} from './ui/input-group';
 import { MarkdownBody } from './MarkdownBody';
 import {
     Send,
@@ -13,6 +18,11 @@ import {
     X,
     Minus,
     GripVertical,
+    ChevronDown,
+    Cpu,
+    Copy,
+    Check,
+    Globe,
 } from 'lucide-react';
 
 // ─── Chat Bubble ──────────────────────────────────────────────────
@@ -23,9 +33,16 @@ const ChatBubble: React.FC<{
     isStreaming?: boolean;
 }> = React.memo(({ role, content, isStreaming }) => {
     const isUser = role === 'user';
+    const [copied, setCopied] = useState(false);
+
+    const handleCopy = useCallback(() => {
+        void navigator.clipboard.writeText(content);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+    }, [content]);
 
     return (
-        <div className={`flex gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
+        <div className={`group/bubble flex gap-2 ${isUser ? 'flex-row-reverse' : ''}`}>
             <div
                 className={`flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5 ${
                     isUser
@@ -36,7 +53,7 @@ const ChatBubble: React.FC<{
                 {isUser ? <User size={10} /> : <Bot size={10} />}
             </div>
             <div
-                className={`flex-1 min-w-0 rounded-lg px-2.5 py-2 text-[11px] leading-relaxed ${
+                className={`relative flex-1 min-w-0 rounded-lg px-2.5 py-2 text-[11px] leading-relaxed ${
                     isUser
                         ? 'bg-accent/10 text-fg'
                         : 'bg-[var(--vscode-editor-background)] text-fg/90 border border-border'
@@ -49,6 +66,21 @@ const ChatBubble: React.FC<{
                 )}
                 {isStreaming && content && (
                     <span className="inline-block w-1.5 h-3 bg-accent/60 ml-0.5 animate-pulse" />
+                )}
+                {/* Copy button — visible on hover */}
+                {content && !isStreaming && (
+                    <button
+                        type="button"
+                        className={`absolute top-1 right-1 p-0.5 rounded transition-opacity ${
+                            copied
+                                ? 'opacity-100 text-green-500'
+                                : 'opacity-0 group-hover/bubble:opacity-100 text-fg/40 hover:text-fg/70'
+                        }`}
+                        onClick={handleCopy}
+                        title="Copy message"
+                    >
+                        {copied ? <Check size={10} /> : <Copy size={10} />}
+                    </button>
                 )}
             </div>
         </div>
@@ -92,10 +124,22 @@ export const FloatingChat: React.FC = () => {
     const isChatLoading = useAIStore((s) => s.isChatLoading);
     const clearChat = useAIStore((s) => s.clearChat);
     const setChatPanelOpen = useAIStore((s) => s.setChatPanelOpen);
+    const availableModels = useAIStore((s) => s.availableModels);
+    const modelAssignments = useAIStore((s) => s.modelAssignments);
+    const webSearchEnabled = useAIStore((s) => s.webSearchEnabled);
+    const setWebSearchEnabled = useAIStore((s) => s.setWebSearchEnabled);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const panelRef = useRef<HTMLDivElement>(null);
     const [minimized, setMinimized] = useState(false);
+    const [modelPickerOpen, setModelPickerOpen] = useState(false);
+
+    // Fetch models on mount if not already loaded
+    useEffect(() => {
+        if (availableModels.length === 0) {
+            postMessage('ai.listModels');
+        }
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Position & size state
     const [geo, setGeo] = useState<PanelGeometry>(() => {
@@ -207,6 +251,13 @@ export const FloatingChat: React.FC = () => {
         document.addEventListener('mouseup', handleResizeEnd);
     }, [geo]);
 
+    // Reset textarea height when input is cleared (e.g. after send)
+    useEffect(() => {
+        if (!chatInput && inputRef.current) {
+            inputRef.current.style.height = 'auto';
+        }
+    }, [chatInput]);
+
     // ─── Chat actions ─────────────────────────────────────────
     const handleSend = useCallback(() => {
         const text = chatInput.trim();
@@ -218,8 +269,8 @@ export const FloatingChat: React.FC = () => {
             .filter((m) => !m.isStreaming)
             .map((m) => ({ role: m.role, content: m.content }));
         useAIStore.getState().addUserMessage(text);
-        postMessage('ai.chat', { question: text, history });
-    }, [chatInput, isChatLoading]);
+        postMessage('ai.chat', { question: text, history, webSearch: webSearchEnabled });
+    }, [chatInput, isChatLoading, webSearchEnabled]);
 
     const handleKeyDown = useCallback(
         (e: React.KeyboardEvent) => {
@@ -238,6 +289,15 @@ export const FloatingChat: React.FC = () => {
     const handleMinimize = useCallback(() => {
         setMinimized((prev) => !prev);
     }, []);
+
+    const handleSetChatModel = useCallback((modelId: string) => {
+        postMessage('ai.setModel', { purpose: 'chat', modelId });
+        setModelPickerOpen(false);
+    }, []);
+
+    const currentChatModelId = modelAssignments['chat'] ?? '';
+    const currentChatModel = availableModels.find((m) => m.id === currentChatModelId);
+    const chatModelLabel = currentChatModel?.name ?? 'Auto';
 
     // Don't render if position not yet computed
     if (geo.x === -1 && geo.y === -1) {
@@ -317,7 +377,7 @@ export const FloatingChat: React.FC = () => {
                                             className="h-auto px-2.5 py-1.5 text-[10px] text-left justify-start"
                                             onClick={() => {
                                                 useAIStore.getState().addUserMessage(q);
-                                                postMessage('ai.chat', { question: q, history: [] });
+                                                postMessage('ai.chat', { question: q, history: [], webSearch: webSearchEnabled });
                                             }}
                                         >
                                             {q}
@@ -341,31 +401,91 @@ export const FloatingChat: React.FC = () => {
 
                     {/* ── Input ── */}
                     <div className="flex-shrink-0 border-t border-border p-2">
-                        <div className="flex gap-1.5 items-end">
-                            <Textarea
+                        <InputGroup className="h-auto">
+                            <InputGroupTextarea
                                 ref={inputRef}
                                 value={chatInput}
-                                onChange={(e) => setChatInput(e.target.value)}
+                                onChange={(e) => {
+                                    setChatInput(e.target.value);
+                                    // Auto-grow textarea
+                                    const el = e.target;
+                                    el.style.height = 'auto';
+                                    el.style.height = `${Math.min(el.scrollHeight, 240)}px`;
+                                }}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask about your workspace…"
-                                className="flex-1 text-[11px] min-h-[32px] max-h-[80px] resize-none py-1.5"
+                                className="text-[11px] min-h-[32px] max-h-[240px] resize-none py-1.5 px-2.5"
                                 rows={1}
                                 disabled={isChatLoading}
                             />
-                            <Button
-                                variant="default"
-                                size="icon-sm"
-                                onClick={handleSend}
-                                disabled={!chatInput.trim() || isChatLoading}
-                                title="Send"
-                            >
-                                {isChatLoading ? (
-                                    <Loader2 size={13} className="animate-spin" />
-                                ) : (
-                                    <Send size={13} />
-                                )}
-                            </Button>
-                        </div>
+                            <InputGroupAddon align="block-end" className="px-2 pb-1.5 pt-0 justify-between">
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        type="button"
+                                        className="inline-flex items-center gap-1 text-[9px] text-fg/40 hover:text-fg/70 transition-colors"
+                                        onClick={() => setModelPickerOpen(!modelPickerOpen)}
+                                    >
+                                        <Cpu size={9} />
+                                        <span>{chatModelLabel}</span>
+                                        <ChevronDown size={8} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`inline-flex items-center gap-1 text-[9px] transition-colors ${
+                                            webSearchEnabled
+                                                ? 'text-accent'
+                                                : 'text-fg/40 hover:text-fg/70'
+                                        }`}
+                                        onClick={() => setWebSearchEnabled(!webSearchEnabled)}
+                                        title={webSearchEnabled ? 'Web search enabled' : 'Enable web search'}
+                                    >
+                                        <Globe size={9} />
+                                        <span>Web</span>
+                                    </button>
+                                </div>
+                                <InputGroupButton
+                                    variant="default"
+                                    size="icon-xs"
+                                    onClick={handleSend}
+                                    disabled={!chatInput.trim() || isChatLoading}
+                                    title="Send"
+                                >
+                                    {isChatLoading ? (
+                                        <Loader2 size={12} className="animate-spin" />
+                                    ) : (
+                                        <Send size={12} />
+                                    )}
+                                </InputGroupButton>
+                            </InputGroupAddon>
+                        </InputGroup>
+                        {/* Model picker dropdown */}
+                        {modelPickerOpen && (
+                            <div className="mt-1 border border-border rounded-md bg-[var(--vscode-editor-background)] p-1.5 max-h-[120px] overflow-y-auto">
+                                <button
+                                    className={`w-full text-left px-2 py-1 rounded text-[9px] transition-colors ${
+                                        !currentChatModelId
+                                            ? 'bg-accent/15 text-fg'
+                                            : 'text-fg/50 hover:bg-[var(--vscode-list-hoverBackground)]'
+                                    }`}
+                                    onClick={() => handleSetChatModel('')}
+                                >
+                                    Auto (gpt-4o)
+                                </button>
+                                {availableModels.map((m) => (
+                                    <button
+                                        key={m.id}
+                                        className={`w-full text-left px-2 py-1 rounded text-[9px] transition-colors ${
+                                            currentChatModelId === m.id
+                                                ? 'bg-accent/15 text-fg'
+                                                : 'text-fg/50 hover:bg-[var(--vscode-list-hoverBackground)]'
+                                        }`}
+                                        onClick={() => handleSetChatModel(m.id)}
+                                    >
+                                        {m.name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     {/* ── Resize handle (bottom-right corner) ── */}

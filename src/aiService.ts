@@ -104,6 +104,29 @@ export class AiService {
     }
 
     /**
+     * Find the Copilot web search tool from available LM tools.
+     * Looks for tools with common web search names/tags.
+     */
+    private _findWebSearchTool(): vscode.LanguageModelChatTool | undefined {
+        const tools = vscode.lm.tools;
+        // Look for the Copilot web search tool by known name patterns
+        const webSearchTool = tools.find(
+            (t) =>
+                t.name.toLowerCase().includes('websearch') ||
+                t.name.toLowerCase().includes('web_search') ||
+                t.name.toLowerCase() === 'copilot_websearch',
+        );
+        if (webSearchTool) {
+            return webSearchTool;
+        }
+        // Fallback: look by tags
+        const byTag = tools.find(
+            (t) => t.tags.some((tag) => tag.includes('search') || tag.includes('web')),
+        );
+        return byTag;
+    }
+
+    /**
      * Generate a summary for a specific tab's data.
      */
     async summarize(
@@ -151,6 +174,7 @@ Do NOT use markdown headers (##) in brief summaries.`;
     /**
      * Chat: answer a user question using all available workspace context.
      * Streams the response back via a callback.
+     * When `webSearch` is true, the web search tool is offered to the model.
      */
     async chat(
         question: string,
@@ -158,6 +182,7 @@ Do NOT use markdown headers (##) in brief summaries.`;
         history: Array<{ role: 'user' | 'assistant'; content: string }>,
         onChunk: (chunk: string) => void,
         token?: vscode.CancellationToken,
+        webSearch?: boolean,
     ): Promise<string> {
         const model = await this._selectModel('chat');
         if (!model) {
@@ -168,7 +193,7 @@ Do NOT use markdown headers (##) in brief summaries.`;
 You have access to the user's workspace data: git stashes, GitHub PRs, Issues, Projects, Gist notes, and Mattermost chat.
 Answer questions about this data concisely and accurately. Reference specific items by number/name when relevant.
 If the data doesn't contain the answer, say so. Use markdown formatting for readability.
-Keep answers focused and under 300 words unless the user asks for detail.`;
+Keep answers focused and under 300 words unless the user asks for detail.${webSearch ? '\nYou also have access to a web search tool. Use it when the user asks about external information, documentation, or anything not in the workspace data.' : ''}`;
 
         const messages: vscode.LanguageModelChatMessage[] = [
             vscode.LanguageModelChatMessage.User(systemPrompt),
@@ -189,13 +214,81 @@ Keep answers focused and under 300 words unless the user asks for detail.`;
         // Add current question
         messages.push(vscode.LanguageModelChatMessage.User(question));
 
-        try {
-            const response = await model.sendRequest(messages, {}, token);
-            let result = '';
-            for await (const chunk of response.text) {
-                result += chunk;
-                onChunk(chunk);
+        // Resolve web search tool if enabled
+        const requestOptions: vscode.LanguageModelChatRequestOptions = {};
+        if (webSearch) {
+            const webSearchTool = this._findWebSearchTool();
+            if (webSearchTool) {
+                requestOptions.tools = [webSearchTool];
+                this._outputChannel.appendLine(`[AI] Web search tool enabled: ${webSearchTool.name}`);
+            } else {
+                this._outputChannel.appendLine('[AI] Web search requested but no web search tool found');
             }
+        }
+
+        try {
+            let result = '';
+            const maxToolRounds = 5;
+
+            for (let round = 0; round <= maxToolRounds; round++) {
+                const response = await model.sendRequest(messages, requestOptions, token);
+                const toolCalls: vscode.LanguageModelToolCallPart[] = [];
+                let responseStr = '';
+
+                for await (const part of response.stream) {
+                    if (part instanceof vscode.LanguageModelTextPart) {
+                        responseStr += part.value;
+                        result += part.value;
+                        onChunk(part.value);
+                    } else if (part instanceof vscode.LanguageModelToolCallPart) {
+                        toolCalls.push(part);
+                    }
+                }
+
+                // If no tool calls, we're done
+                if (toolCalls.length === 0) {
+                    break;
+                }
+
+                this._outputChannel.appendLine(`[AI] Model requested ${toolCalls.length} tool call(s) in round ${round + 1}`);
+
+                // Add assistant message with tool calls
+                messages.push(
+                    vscode.LanguageModelChatMessage.Assistant([
+                        ...(responseStr ? [new vscode.LanguageModelTextPart(responseStr)] : []),
+                        ...toolCalls,
+                    ]),
+                );
+
+                // Invoke each tool and add results
+                for (const toolCall of toolCalls) {
+                    try {
+                        this._outputChannel.appendLine(`[AI] Invoking tool: ${toolCall.name} (${toolCall.callId})`);
+                        const toolResult = await vscode.lm.invokeTool(
+                            toolCall.name,
+                            { input: toolCall.input, toolInvocationToken: undefined },
+                            token ?? new vscode.CancellationTokenSource().token,
+                        );
+
+                        messages.push(
+                            vscode.LanguageModelChatMessage.User([
+                                new vscode.LanguageModelToolResultPart(toolCall.callId, toolResult.content),
+                            ]),
+                        );
+                    } catch (toolErr: unknown) {
+                        const errMsg = toolErr instanceof Error ? toolErr.message : 'Tool invocation failed';
+                        this._outputChannel.appendLine(`[AI] Tool error: ${errMsg}`);
+                        messages.push(
+                            vscode.LanguageModelChatMessage.User([
+                                new vscode.LanguageModelToolResultPart(toolCall.callId, [
+                                    new vscode.LanguageModelTextPart(`Error: ${errMsg}`),
+                                ]),
+                            ]),
+                        );
+                    }
+                }
+            }
+
             return result.trim();
         } catch (e: unknown) {
             if (e instanceof vscode.LanguageModelError) {

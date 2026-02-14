@@ -33,6 +33,8 @@ import {
     CircleDot,
     Kanban,
     MessageSquare,
+    Pencil,
+    RotateCcw,
 } from 'lucide-react';
 
 // ─── Templates ────────────────────────────────────────────────────
@@ -63,6 +65,67 @@ const AGENT_TEMPLATES = [
         Icon: FileText,
     },
 ] as const;
+
+// ─── Default system prompts (mirrors aiService AGENT_TEMPLATES) ───
+
+const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
+    sprint: `You are a senior engineering manager creating a sprint status report.
+Analyze ALL the workspace data provided and produce a comprehensive sprint overview with these sections:
+## Sprint Overview
+- Overall velocity and health assessment
+## Pull Requests
+- PRs ready to merge, PRs needing review, stale PRs
+## Issues & Projects
+- Open issues by priority/label, project board status, blockers
+## Code Activity
+- Stash activity (work-in-progress indicators), branch patterns
+## Team Communication
+- Mattermost highlights, unread threads, action items from chat
+## Recommendations
+- Top 3 actions the team should take today
+
+Use markdown formatting. Be specific — reference PR numbers, issue titles, etc.`,
+
+    review: `You are a senior code reviewer analyzing the workspace for code review status.
+Produce a detailed code review report:
+## Review Dashboard
+- PRs awaiting review (list each with age, author, size)
+- PRs with unresolved comments
+- PRs with requested changes
+## Risk Assessment
+- Large PRs (high additions/deletions) that need careful review
+- PRs that have been open longest
+- Draft PRs that might need help
+## Suggested Review Order
+- Prioritized list of which PRs to review first and why
+## Related Issues
+- Link PRs to their related issues where possible
+
+Be specific with PR numbers and issue references.`,
+
+    activity: `You are a team activity analyst reviewing the workspace.
+Produce a team activity summary:
+## Today's Snapshot
+- What changed recently across all data sources
+- New PRs, closed issues, updated projects
+## Work In Progress
+- Active stashes (uncommitted work)
+- Open draft PRs
+- Issues in progress
+## Communication
+- Mattermost channel activity, any mentions or urgent messages
+- Notes recently updated
+## Attention Needed
+- Items that may be blocked or stale
+- Anything that looks unusual or needs follow-up
+
+Keep it scannable with bullet points.`,
+
+    custom: `You are an expert development assistant with deep knowledge of software workflows.
+Analyze the workspace data provided and respond to the user's custom prompt.
+Be thorough, specific, and reference actual data items by name/number.
+Use markdown formatting with clear sections.`,
+};
 
 // ─── Tab metadata for summaries dashboard ─────────────────────────
 
@@ -338,16 +401,26 @@ const ModelSettings: React.FC = () => {
 export const AgentTab: React.FC = () => {
     const agentTemplate = useAIStore((s) => s.agentTemplate);
     const agentPrompt = useAIStore((s) => s.agentPrompt);
+    const agentSystemPrompts = useAIStore((s) => s.agentSystemPrompts);
     const agentResult = useAIStore((s) => s.agentResult);
     const agentIsStreaming = useAIStore((s) => s.agentIsStreaming);
     const agentError = useAIStore((s) => s.agentError);
     const agentPaneOpen = useAIStore((s) => s.agentPaneOpen);
+    const agentPaneWidth = useAIStore((s) => s.agentPaneWidth);
     const setAgentTemplate = useAIStore((s) => s.setAgentTemplate);
     const setAgentPrompt = useAIStore((s) => s.setAgentPrompt);
+    const setAgentSystemPrompt = useAIStore((s) => s.setAgentSystemPrompt);
     const clearAgent = useAIStore((s) => s.clearAgent);
     const setAgentPaneOpen = useAIStore((s) => s.setAgentPaneOpen);
+    const setAgentPaneWidth = useAIStore((s) => s.setAgentPaneWidth);
     const summaryPaneTabKey = useAIStore((s) => s.summaryPaneTabKey);
     const resultRef = useRef<HTMLDivElement>(null);
+    const [systemPromptOpen, setSystemPromptOpen] = useState(false);
+
+    // Current system prompt (custom override or default)
+    const currentSystemPrompt = agentSystemPrompts[agentTemplate] ?? '';
+    const effectiveSystemPrompt = currentSystemPrompt.trim() || DEFAULT_SYSTEM_PROMPTS[agentTemplate] || '';
+    const isSystemPromptCustomized = !!currentSystemPrompt.trim();
 
     // Auto-scroll as streaming content arrives
     useEffect(() => {
@@ -360,8 +433,17 @@ export const AgentTab: React.FC = () => {
         if (agentIsStreaming) {
             return;
         }
-        postMessage('ai.agent', { mode: agentTemplate, body: agentPrompt });
-    }, [agentTemplate, agentPrompt, agentIsStreaming]);
+        const customSysPrompt = agentSystemPrompts[agentTemplate]?.trim() || '';
+        postMessage('ai.agent', {
+            mode: agentTemplate,
+            body: agentPrompt,
+            ...(customSysPrompt ? { systemPrompt: customSysPrompt } : {}),
+        });
+    }, [agentTemplate, agentPrompt, agentIsStreaming, agentSystemPrompts]);
+
+    const handleResetSystemPrompt = useCallback(() => {
+        setAgentSystemPrompt(agentTemplate, '');
+    }, [agentTemplate, setAgentSystemPrompt]);
 
     const selectedMeta = useMemo(
         () => AGENT_TEMPLATES.find((t) => t.key === agentTemplate) ?? AGENT_TEMPLATES[0],
@@ -375,6 +457,30 @@ export const AgentTab: React.FC = () => {
         if (!summaryPaneTabKey) return '';
         return SUMMARY_TABS.find((t) => t.key === summaryPaneTabKey)?.label ?? summaryPaneTabKey;
     }, [summaryPaneTabKey]);
+
+    // ─── Agent pane resize logic ──────────────────────────────
+    const resizeRef = useRef<{ startX: number; startW: number } | null>(null);
+
+    const handlePaneResizeStart = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        resizeRef.current = { startX: e.clientX, startW: agentPaneWidth };
+
+        const handleResizeMove = (ev: MouseEvent) => {
+            if (!resizeRef.current) return;
+            const delta = resizeRef.current.startX - ev.clientX;
+            const newWidth = Math.max(240, Math.min(800, resizeRef.current.startW + delta));
+            setAgentPaneWidth(newWidth);
+        };
+
+        const handleResizeEnd = () => {
+            resizeRef.current = null;
+            document.removeEventListener('mousemove', handleResizeMove);
+            document.removeEventListener('mouseup', handleResizeEnd);
+        };
+
+        document.addEventListener('mousemove', handleResizeMove);
+        document.addEventListener('mouseup', handleResizeEnd);
+    }, [agentPaneWidth, setAgentPaneWidth]);
 
     return (
         <div className="flex h-full">
@@ -459,6 +565,56 @@ export const AgentTab: React.FC = () => {
                             />
                         </div>
 
+                        {/* System prompt editor (collapsible) */}
+                        <div className="border border-border rounded-lg overflow-hidden">
+                            <button
+                                className="flex items-center gap-2 w-full px-3 py-2 text-left hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+                                onClick={() => setSystemPromptOpen(!systemPromptOpen)}
+                            >
+                                <Pencil size={12} className={isSystemPromptCustomized ? 'text-accent' : 'text-fg/50'} />
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-[11px] font-medium text-fg/70">
+                                        System Prompt
+                                        {isSystemPromptCustomized && (
+                                            <span className="ml-1.5 text-[8px] text-accent font-normal">(customized)</span>
+                                        )}
+                                    </div>
+                                    <div className="text-[9px] text-fg/30 truncate">
+                                        Edit the AI system instructions for this template
+                                    </div>
+                                </div>
+                                {systemPromptOpen ? (
+                                    <ChevronUp size={12} className="text-fg/30 flex-shrink-0" />
+                                ) : (
+                                    <ChevronDown size={12} className="text-fg/30 flex-shrink-0" />
+                                )}
+                            </button>
+                            {systemPromptOpen && (
+                                <div className="border-t border-border px-3 py-2.5 flex flex-col gap-2">
+                                    <Textarea
+                                        value={currentSystemPrompt || DEFAULT_SYSTEM_PROMPTS[agentTemplate] || ''}
+                                        onChange={(e) => setAgentSystemPrompt(agentTemplate, e.target.value)}
+                                        placeholder="System prompt for AI analysis…"
+                                        className="text-[11px] min-h-[120px] max-h-[300px] resize-y font-mono leading-relaxed"
+                                        rows={8}
+                                    />
+                                    {isSystemPromptCustomized && (
+                                        <div className="flex justify-end">
+                                            <Button
+                                                variant="ghost"
+                                                size="sm"
+                                                className="h-auto px-2 py-0.5 text-[9px] gap-1 text-fg/50"
+                                                onClick={handleResetSystemPrompt}
+                                            >
+                                                <RotateCcw size={9} />
+                                                Reset to Default
+                                            </Button>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+
                         {/* Run button */}
                         <Button
                             variant="default"
@@ -505,9 +661,18 @@ export const AgentTab: React.FC = () => {
                 </ScrollArea>
         </div>
 
-        {/* ══════════ Agent results pane (right side) ══════════ */}
+        {/* ══════════ Agent results pane (right side, resizable) ══════════ */}
         {agentPaneOpen && hasResult && (
-            <div className="w-[320px] flex-shrink-0 border-l border-border flex flex-col min-h-0">
+            <div
+                className="flex-shrink-0 border-l border-border flex flex-col min-h-0 relative"
+                style={{ width: agentPaneWidth }}
+            >
+                {/* Resize handle (left edge) */}
+                <div
+                    className="absolute top-0 left-0 w-1 h-full cursor-col-resize z-10 hover:bg-accent/30 active:bg-accent/50 transition-colors"
+                    onMouseDown={handlePaneResizeStart}
+                />
+
                 {/* Results header */}
                 <div className="flex items-center gap-2 px-3 py-2 border-b border-border bg-[var(--vscode-editor-background)] flex-shrink-0">
                     <selectedMeta.Icon size={13} className="text-accent flex-shrink-0" />
