@@ -31,6 +31,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAIStore } from './aiStore';
 import { FloatingChat } from './components/FloatingChat';
 import { AgentTab } from './components/AgentTab';
+import { SettingsTab } from './components/SettingsTab';
 import { TabWithSummary } from './components/TabWithSummary';
 
 /** Stash master-detail pane (extracted from old App root) */
@@ -933,6 +934,10 @@ export const App: React.FC = () => {
                     ) : activeTab === 'projects' ? (
                         <ErrorBoundary key="projects" label="Projects">
                             <ProjectsTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'settings' ? (
+                        <ErrorBoundary key="settings" label="Settings">
+                            <SettingsTab />
                         </ErrorBoundary>
                     ) : activeTab === 'agent' ? (
                         <ErrorBoundary key="agent" label="Agent">

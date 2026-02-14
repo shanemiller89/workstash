@@ -354,6 +354,8 @@ export class StashPanel {
         customPrompt?: string;
         systemPrompt?: string;
         webSearch?: boolean;
+        // Settings message properties
+        key?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -2032,6 +2034,87 @@ export class StashPanel {
                     'workbench.action.openSettings',
                     'workstash.ai.geminiApiKey',
                 );
+                break;
+            }
+
+            // ─── Settings Tab ──────────────────────────────────────────
+
+            case 'settings.getSettings': {
+                const mystash = vscode.workspace.getConfiguration('mystash');
+                const workstash = vscode.workspace.getConfiguration('workstash');
+                this._panel.webview.postMessage({
+                    type: 'settingsData',
+                    settings: {
+                        // Stash
+                        autoRefresh: mystash.get<boolean>('autoRefresh', true),
+                        confirmOnDrop: mystash.get<boolean>('confirmOnDrop', true),
+                        confirmOnClear: mystash.get<boolean>('confirmOnClear', true),
+                        showFileStatus: mystash.get<boolean>('showFileStatus', true),
+                        defaultIncludeUntracked: mystash.get<boolean>('defaultIncludeUntracked', false),
+                        sortOrder: mystash.get<string>('sortOrder', 'newest'),
+                        showBranchInDescription: mystash.get<boolean>('showBranchInDescription', true),
+                        // Notes
+                        autosaveDelay: workstash.get<number>('notes.autosaveDelay', 30),
+                        defaultVisibility: workstash.get<string>('notes.defaultVisibility', 'secret'),
+                        // Mattermost
+                        mattermostServerUrl: workstash.get<string>('mattermost.serverUrl', ''),
+                        // AI Privacy
+                        includeSecretGists: workstash.get<boolean>('ai.includeSecretGists', false),
+                        includePrivateMessages: workstash.get<boolean>('ai.includePrivateMessages', false),
+                        // AI Provider
+                        aiProvider: AiService.activeProvider(),
+                        geminiApiKey: workstash.get<string>('ai.geminiApiKey', ''),
+                        geminiModel: workstash.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
+                    },
+                });
+                break;
+            }
+
+            case 'settings.updateSetting': {
+                const settingKey = msg.key as string;
+                const settingValue = msg.value;
+                if (!settingKey) { break; }
+
+                // Map setting keys to their VS Code configuration paths
+                const SETTING_MAP: Record<string, { section: string; key: string }> = {
+                    autoRefresh: { section: 'mystash', key: 'autoRefresh' },
+                    confirmOnDrop: { section: 'mystash', key: 'confirmOnDrop' },
+                    confirmOnClear: { section: 'mystash', key: 'confirmOnClear' },
+                    showFileStatus: { section: 'mystash', key: 'showFileStatus' },
+                    defaultIncludeUntracked: { section: 'mystash', key: 'defaultIncludeUntracked' },
+                    sortOrder: { section: 'mystash', key: 'sortOrder' },
+                    showBranchInDescription: { section: 'mystash', key: 'showBranchInDescription' },
+                    autosaveDelay: { section: 'workstash.notes', key: 'autosaveDelay' },
+                    defaultVisibility: { section: 'workstash.notes', key: 'defaultVisibility' },
+                    mattermostServerUrl: { section: 'workstash.mattermost', key: 'serverUrl' },
+                    includeSecretGists: { section: 'workstash.ai', key: 'includeSecretGists' },
+                    includePrivateMessages: { section: 'workstash.ai', key: 'includePrivateMessages' },
+                    geminiApiKey: { section: 'workstash.ai', key: 'geminiApiKey' },
+                    geminiModel: { section: 'workstash.ai', key: 'geminiModel' },
+                };
+
+                const mapping = SETTING_MAP[settingKey];
+                if (mapping) {
+                    await vscode.workspace
+                        .getConfiguration(mapping.section)
+                        .update(mapping.key, settingValue, vscode.ConfigurationTarget.Global);
+
+                    // If AI key or model changed, re-send AI availability
+                    if (settingKey === 'geminiApiKey' || settingKey === 'geminiModel') {
+                        this._panel.webview.postMessage({
+                            type: 'aiAvailable',
+                            available: AiService.isAvailable(),
+                            provider: AiService.activeProvider(),
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'openExternal': {
+                if (msg.url) {
+                    vscode.env.openExternal(vscode.Uri.parse(msg.url as string));
+                }
                 break;
             }
         }
