@@ -98,6 +98,10 @@ export class MattermostWebSocket implements vscode.Disposable {
         return this._connected;
     }
 
+    get reconnectAttempts(): number {
+        return this._reconnectAttempts;
+    }
+
     /**
      * Connect (or reconnect) to the Mattermost WebSocket endpoint.
      * @param serverUrl  Base URL, e.g. `https://mattermost.example.com`

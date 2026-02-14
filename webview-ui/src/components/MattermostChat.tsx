@@ -55,6 +55,8 @@ import {
     UserMinus,
     Settings,
     ArrowRightLeft,
+    AlertTriangle,
+    RotateCcw,
 } from 'lucide-react';
 
 function formatTime(iso: string): string {
@@ -470,6 +472,21 @@ const MessageBubble: React.FC<{
     const isEditing = editingPostId === post.id;
     const isFlagged = flaggedPostIds.has(post.id);
     const isEdited = post.updateAt !== post.createAt;
+    const isPending = post._pending === true;
+    const isFailed = !!post._failedError;
+
+    const retryPost = useMattermostStore((s) => s.retryPost);
+    const discardFailedPost = useMattermostStore((s) => s.discardFailedPost);
+
+    const handleRetry = useCallback(() => {
+        if (!post._sendParams) { return; }
+        retryPost(post.id);
+        postMessage('mattermost.sendPost', { ...post._sendParams, pendingId: post.id });
+    }, [post.id, post._sendParams, retryPost]);
+
+    const handleDiscard = useCallback(() => {
+        discardFailedPost(post.id);
+    }, [post.id, discardFailedPost]);
 
     const handleCopy = useCallback(() => {
         void navigator.clipboard.writeText(post.message);
@@ -514,7 +531,7 @@ const MessageBubble: React.FC<{
     const isReply = post.rootId && post.rootId !== '';
 
     return (
-        <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isThreadReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''}`}>
+        <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isThreadReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''} ${isPending ? 'opacity-50' : ''} ${isFailed ? 'opacity-80' : ''}`}>
             {/* Avatar with status dot */}
             <div className="relative shrink-0 w-8 h-8">
                 <UserAvatar userId={post.userId} username={post.username} isOwn={isOwn} onClick={handleUsernameClick} />
@@ -531,12 +548,19 @@ const MessageBubble: React.FC<{
                         {post.username}
                     </span>
                     <span className="text-xs text-fg/40">{formatTime(post.createAt)}</span>
-                    {isEdited && <span className="text-[10px] text-fg/30">(edited)</span>}
+                    {isPending && (
+                        <span className="flex items-center gap-1 text-[10px] text-fg/40">
+                            <Loader2 size={10} className="animate-spin" />
+                            Sending…
+                        </span>
+                    )}
+                    {isEdited && !isPending && <span className="text-[10px] text-fg/30">(edited)</span>}
                     {post.isPinned && (
                         <span title="Pinned"><Pin size={10} className="text-yellow-500 shrink-0" /></span>
                     )}
 
-                    {/* Action buttons — visible on hover */}
+                    {/* Action buttons — visible on hover (hidden for pending/failed) */}
+                    {!isPending && !isFailed && (
                     <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
                         <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy message">
                             {copied ? <Check size={12} /> : <Copy size={12} />}
@@ -595,7 +619,22 @@ const MessageBubble: React.FC<{
                             </>
                         )}
                     </div>
+                    )}
                 </div>
+
+                {/* Failed message error bar */}
+                {isFailed && (
+                    <div className="flex items-center gap-2 mt-1 px-2 py-1 rounded bg-red-500/10 border border-red-500/30 text-xs text-red-500">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        <span className="flex-1 truncate">{post._failedError}</span>
+                        <Button variant="ghost" size="icon-xs" onClick={handleRetry} title="Retry sending">
+                            <RotateCcw size={12} />
+                        </Button>
+                        <Button variant="ghost" size="icon-xs" onClick={handleDiscard} title="Discard message">
+                            <X size={12} />
+                        </Button>
+                    </div>
+                )}
 
                 {/* Message body or inline edit form */}
                 {isEditing ? (
@@ -663,15 +702,19 @@ const TypingIndicator: React.FC<{ channelId: string }> = ({ channelId }) => {
     );
 };
 
-/** Reconnecting banner */
+/** Reconnecting banner with attempt count */
 const ConnectionBanner: React.FC = () => {
     const isConnected = useMattermostStore((s) => s.isConnected);
     const isConfigured = useMattermostStore((s) => s.isConfigured);
+    const reconnectAttempt = useMattermostStore((s) => s.reconnectAttempt);
     if (isConnected || !isConfigured) { return null; }
     return (
         <div className="flex items-center gap-2 px-3 py-1.5 bg-yellow-500/10 border-b border-yellow-500/30 text-yellow-600 dark:text-yellow-400 text-xs">
             <WifiOff size={12} />
-            Reconnecting…
+            <span className="flex-1">
+                Reconnecting{reconnectAttempt > 1 ? ` (attempt ${reconnectAttempt})` : ''}…
+            </span>
+            <Loader2 size={12} className="animate-spin" />
         </div>
     );
 };
@@ -845,20 +888,50 @@ export const MattermostChat: React.FC<{
 
     const handleSend = useCallback(() => {
         const text = messageText.trim();
-        if ((!text && pendingFileIds.length === 0) || !selectedChannelId) { return; }
-        postMessage('mattermost.sendPost', {
+        if ((!text && pendingFileIds.length === 0) || !selectedChannelId || !currentUser) { return; }
+
+        // Generate a temporary pending ID
+        const pendingId = `_pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const now = new Date().toISOString();
+        const sendParams = {
             channelId: selectedChannelId,
-            message: text || ' ', // Mattermost requires non-empty message
+            message: text || ' ',
             rootId: replyToPostId ?? undefined,
             fileIds: pendingFileIds.length > 0 ? pendingFileIds : undefined,
-        });
+        };
+
+        // Create optimistic post and insert immediately
+        const optimisticPost: MattermostPostData = {
+            id: pendingId,
+            channelId: selectedChannelId,
+            userId: currentUser.id,
+            username: currentUser.username,
+            message: text || ' ',
+            createAt: now,
+            updateAt: now,
+            rootId: replyToPostId ?? '',
+            type: '',
+            isPinned: false,
+            _pending: true,
+            _sendParams: sendParams,
+        };
+
+        const mmStore = useMattermostStore.getState();
+        mmStore.prependNewPost(optimisticPost);
+        if (optimisticPost.rootId && optimisticPost.rootId === mmStore.activeThreadRootId) {
+            mmStore.appendThreadPost(optimisticPost);
+        }
+
+        // Send to extension host with pendingId for correlation
+        postMessage('mattermost.sendPost', { ...sendParams, pendingId });
+
         setMessageText('');
         clearReplyTo();
         clearPendingFiles();
         setShowPreview(false);
         // Reset textarea height
         if (textareaRef.current) { textareaRef.current.style.height = 'auto'; }
-    }, [messageText, selectedChannelId, replyToPostId, clearReplyTo, pendingFileIds, clearPendingFiles]);
+    }, [messageText, selectedChannelId, replyToPostId, clearReplyTo, pendingFileIds, clearPendingFiles, currentUser]);
 
     const handleUploadClick = useCallback(() => {
         if (!selectedChannelId) { return; }

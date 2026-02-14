@@ -253,6 +253,8 @@ export class StashPanel {
         fileIds?: string[];
         // Link preview properties
         url?: string;
+        // Optimistic message correlation
+        pendingId?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -959,11 +961,19 @@ export class StashPanel {
             case 'mattermost.getChannels': {
                 if (!this._mattermostService || !msg.teamId) { break; }
                 try {
-                    this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
-                    // Use getAllMyChannels to include DMs/groups (Gap #13 fix)
-                    const { channels, dmChannels, groupChannels } = await this._mattermostService.getAllMyChannels(msg.teamId);
+                    const page = msg.page ?? 0;
+                    if (page === 0) {
+                        this._panel.webview.postMessage({ type: 'mattermostChannelsLoading' });
+                    }
+                    // Use getAllMyChannels with pagination to handle large servers
+                    const { channels, dmChannels, groupChannels, hasMore } =
+                        await this._mattermostService.getAllMyChannels(msg.teamId, page, 100);
                     const channelsPayload = channels.map((c) => MattermostService.toChannelData(c));
-                    this._panel.webview.postMessage({ type: 'mattermostChannels', payload: channelsPayload });
+                    this._panel.webview.postMessage({
+                        type: page === 0 ? 'mattermostChannels' : 'mattermostChannelsAppend',
+                        payload: channelsPayload,
+                        hasMoreChannels: hasMore,
+                    });
 
                     // Also send DM channels
                     const me = await this._mattermostService.getMe();
@@ -971,12 +981,24 @@ export class StashPanel {
                         [...dmChannels, ...groupChannels],
                         me.id,
                     );
-                    this._panel.webview.postMessage({ type: 'mattermostDmChannels', payload: dmPayload });
+                    this._panel.webview.postMessage({
+                        type: page === 0 ? 'mattermostDmChannels' : 'mattermostDmChannelsAppend',
+                        payload: dmPayload,
+                    });
 
-                    // Fetch custom emoji list and send to webview (fire-and-forget)
-                    this._mattermostService.getCustomEmojis().then((customEmojis) => {
-                        this._panel.webview.postMessage({ type: 'mattermostCustomEmojis', payload: customEmojis });
-                    }).catch(() => { /* non-critical — custom emojis just won't render */ });
+                    // Auto-fetch next page if there are more channels
+                    if (hasMore) {
+                        await this._handleMessage({
+                            type: 'mattermost.getChannels',
+                            teamId: msg.teamId,
+                            page: page + 1,
+                        });
+                    } else if (page === 0) {
+                        // Fetch custom emoji list on first page load (fire-and-forget)
+                        this._mattermostService.getCustomEmojis().then((customEmojis) => {
+                            this._panel.webview.postMessage({ type: 'mattermostCustomEmojis', payload: customEmojis });
+                        }).catch(() => { /* non-critical — custom emojis just won't render */ });
+                    }
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
@@ -1051,8 +1073,8 @@ export class StashPanel {
 
             case 'mattermost.sendPost': {
                 if (!this._mattermostService || !msg.channelId || !msg.message) { break; }
+                const pendingId = msg.pendingId;
                 try {
-                    this._panel.webview.postMessage({ type: 'mattermostSendingPost' });
                     const post = await this._mattermostService.createPost(msg.channelId, msg.message, msg.rootId, msg.fileIds);
                     const username = await this._mattermostService.resolveUsername(post.userId);
                     let files: import('./mattermostService').MattermostFileInfoData[] | undefined;
@@ -1062,10 +1084,18 @@ export class StashPanel {
                         } catch { /* ignore */ }
                     }
                     const postData = MattermostService.toPostData(post, username, files);
-                    this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
+                    if (pendingId) {
+                        this._panel.webview.postMessage({ type: 'mattermostPostConfirmed', pendingId, post: postData });
+                    } else {
+                        this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
+                    }
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
-                    this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                    if (pendingId) {
+                        this._panel.webview.postMessage({ type: 'mattermostPostFailed', pendingId, error: m });
+                    } else {
+                        this._panel.webview.postMessage({ type: 'mattermostError', message: m });
+                    }
                 }
                 break;
             }
@@ -1895,7 +1925,11 @@ export class StashPanel {
 
         // Connection status → webview banner
         ws.onConnectionChange((connected) => {
-            this._panel.webview.postMessage({ type: 'mattermostConnectionStatus', connected });
+            this._panel.webview.postMessage({
+                type: 'mattermostConnectionStatus',
+                connected,
+                reconnectAttempt: connected ? 0 : ws.reconnectAttempts,
+            });
         });
 
         // New post → relay to webview

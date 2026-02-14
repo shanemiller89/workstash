@@ -54,6 +54,17 @@ export interface MattermostPostData {
     isPinned: boolean;
     files?: MattermostFileInfoData[];
     linkPreviews?: MattermostLinkPreviewData[];
+    /** Client-only: true while message is being sent (optimistic) */
+    _pending?: boolean;
+    /** Client-only: error message if send failed */
+    _failedError?: string;
+    /** Client-only: original send params for retry */
+    _sendParams?: {
+        channelId: string;
+        message: string;
+        rootId?: string;
+        fileIds?: string[];
+    };
 }
 
 export interface MattermostUserData {
@@ -106,6 +117,7 @@ interface MattermostStore {
 
     // Connection status (WebSocket)
     isConnected: boolean;
+    reconnectAttempt: number;
 
     // Teams & Channels
     teams: MattermostTeamData[];
@@ -193,11 +205,14 @@ interface MattermostStore {
     setConfigured: (configured: boolean) => void;
     setCurrentUser: (user: MattermostUserData | null) => void;
     setConnected: (connected: boolean) => void;
+    setReconnectAttempt: (attempt: number) => void;
 
     // Actions — teams / channels
     setTeams: (teams: MattermostTeamData[]) => void;
     setChannels: (channels: MattermostChannelData[]) => void;
+    appendChannels: (channels: MattermostChannelData[]) => void;
     setDmChannels: (channels: MattermostChannelData[]) => void;
+    appendDmChannels: (channels: MattermostChannelData[]) => void;
     selectTeam: (teamId: string) => void;
     selectChannel: (channelId: string, channelName: string) => void;
     clearChannelSelection: () => void;
@@ -213,6 +228,13 @@ interface MattermostStore {
     setSendingMessage: (sending: boolean) => void;
     setHasMorePosts: (hasMore: boolean) => void;
     setSearchQuery: (query: string) => void;
+    /** Replace a pending (optimistic) post with the real server post, or mark it failed */
+    confirmPendingPost: (pendingId: string, realPost: MattermostPostData) => void;
+    failPendingPost: (pendingId: string, error: string) => void;
+    /** Retry a failed message */
+    retryPost: (pendingId: string) => void;
+    /** Remove a failed message */
+    discardFailedPost: (pendingId: string) => void;
 
     // Actions — threads
     openThread: (rootId: string) => void;
@@ -306,6 +328,7 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     isConfigured: false,
     currentUser: null,
     isConnected: false,
+    reconnectAttempt: 0,
     teams: EMPTY_TEAMS,
     channels: EMPTY_CHANNELS,
     dmChannels: EMPTY_CHANNELS,
@@ -349,11 +372,16 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     setConfigured: (isConfigured) => set({ isConfigured }),
     setCurrentUser: (currentUser) => set({ currentUser }),
     setConnected: (isConnected) => set({ isConnected }),
+    setReconnectAttempt: (reconnectAttempt) => set({ reconnectAttempt }),
 
     // ─── Teams / Channels ─────────────────────────────────────────
     setTeams: (teams) => set({ teams }),
     setChannels: (channels) => set({ channels }),
+    appendChannels: (newChannels) =>
+        set((state) => ({ channels: [...state.channels, ...newChannels] })),
     setDmChannels: (dmChannels) => set({ dmChannels }),
+    appendDmChannels: (newDmChannels) =>
+        set((state) => ({ dmChannels: [...state.dmChannels, ...newDmChannels] })),
     selectTeam: (teamId) =>
         set({
             selectedTeamId: teamId,
@@ -411,6 +439,39 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     setSendingMessage: (isSendingMessage) => set({ isSendingMessage }),
     setHasMorePosts: (hasMorePosts) => set({ hasMorePosts }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
+    confirmPendingPost: (pendingId, realPost) =>
+        set((state) => ({
+            posts: state.posts.map((p) =>
+                p.id === pendingId ? { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined } : p,
+            ),
+            // Also update thread posts if applicable
+            threadPosts: state.threadPosts.map((p) =>
+                p.id === pendingId ? { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined } : p,
+            ),
+        })),
+    failPendingPost: (pendingId, error) =>
+        set((state) => ({
+            posts: state.posts.map((p) =>
+                p.id === pendingId ? { ...p, _pending: false, _failedError: error } : p,
+            ),
+            threadPosts: state.threadPosts.map((p) =>
+                p.id === pendingId ? { ...p, _pending: false, _failedError: error } : p,
+            ),
+        })),
+    retryPost: (pendingId) =>
+        set((state) => ({
+            posts: state.posts.map((p) =>
+                p.id === pendingId ? { ...p, _pending: true, _failedError: undefined } : p,
+            ),
+            threadPosts: state.threadPosts.map((p) =>
+                p.id === pendingId ? { ...p, _pending: true, _failedError: undefined } : p,
+            ),
+        })),
+    discardFailedPost: (pendingId) =>
+        set((state) => ({
+            posts: state.posts.filter((p) => p.id !== pendingId),
+            threadPosts: state.threadPosts.filter((p) => p.id !== pendingId),
+        })),
 
     // ─── Threads ──────────────────────────────────────────────────
     openThread: (rootId) =>

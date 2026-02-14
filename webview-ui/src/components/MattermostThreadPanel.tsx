@@ -36,6 +36,8 @@ import {
     Bookmark,
     BookmarkCheck,
     Paperclip,
+    AlertTriangle,
+    RotateCcw,
 } from 'lucide-react';
 import { EmojiPickerButton, ComposeEmojiPickerButton } from './EmojiPicker';
 import { useEmojiAutocomplete, EmojiAutocompleteDropdown } from './useEmojiAutocomplete';
@@ -162,11 +164,32 @@ const ThreadMessage: React.FC<{
     const startEditing = useMattermostStore((s) => s.startEditing);
     const cancelEditing = useMattermostStore((s) => s.cancelEditing);
     const flaggedPostIds = useMattermostStore((s) => s.flaggedPostIds);
+    const retryPost = useMattermostStore((s) => s.retryPost);
+    const discardFailedPost = useMattermostStore((s) => s.discardFailedPost);
 
     const isOwn = currentUsername !== null && post.username === currentUsername;
+    const isPending = post._pending === true;
+    const isFailed = !!post._failedError;
     const isEditing = editingPostId === post.id;
     const isFlagged = flaggedPostIds.has(post.id);
     const isEdited = post.updateAt !== post.createAt;
+
+    const handleRetry = useCallback(() => {
+        retryPost(post.id);
+        if (post._sendParams) {
+            postMessage('mattermost.sendPost', {
+                channelId: post._sendParams.channelId,
+                message: post._sendParams.message,
+                rootId: post._sendParams.rootId,
+                fileIds: post._sendParams.fileIds,
+                pendingId: post.id,
+            });
+        }
+    }, [post.id, post._sendParams, retryPost]);
+
+    const handleDiscard = useCallback(() => {
+        discardFailedPost(post.id);
+    }, [post.id, discardFailedPost]);
 
     const handleCopy = useCallback(() => {
         void navigator.clipboard.writeText(post.message);
@@ -199,7 +222,7 @@ const ThreadMessage: React.FC<{
     }, [post.id, isFlagged]);
 
     return (
-        <div className={`group flex gap-2 px-3 py-2 hover:bg-[var(--vscode-list-hoverBackground)] ${isRoot ? 'border-b border-[var(--vscode-panel-border)] pb-3' : ''}`}>
+        <div className={`group flex gap-2 px-3 py-2 hover:bg-[var(--vscode-list-hoverBackground)] ${isRoot ? 'border-b border-[var(--vscode-panel-border)] pb-3' : ''} ${isPending ? 'opacity-50' : ''}`}>
             <div className="relative shrink-0">
                 <ThreadUserAvatar userId={post.userId} username={post.username} isOwn={isOwn} />
                 <StatusDot userId={post.userId} />
@@ -215,7 +238,12 @@ const ThreadMessage: React.FC<{
                     {post.isPinned && (
                         <span title="Pinned"><Pin size={9} className="text-yellow-500 shrink-0" /></span>
                     )}
-                    <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
+                    {isPending && (
+                        <span className="flex items-center gap-1 text-[10px] text-fg/40">
+                            <Loader2 size={10} className="animate-spin" /> Sending…
+                        </span>
+                    )}
+                    {!isPending && !isFailed && <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity">
                         <Button variant="ghost" size="icon-xs" onClick={handleCopy} title="Copy">
                             {copied ? <Check size={10} /> : <Copy size={10} />}
                         </Button>
@@ -262,8 +290,20 @@ const ThreadMessage: React.FC<{
                                 </AlertDialog>
                             </>
                         )}
-                    </div>
+                    </div>}
                 </div>
+                {isFailed && (
+                    <div className="flex items-center gap-2 mt-1 px-2 py-1 rounded text-xs bg-red-500/10 text-red-400">
+                        <AlertTriangle size={12} className="shrink-0" />
+                        <span className="flex-1 truncate">{post._failedError}</span>
+                        <Button variant="ghost" size="icon-xs" onClick={handleRetry} title="Retry">
+                            <RotateCcw size={10} />
+                        </Button>
+                        <Button variant="ghost" size="icon-xs" onClick={handleDiscard} title="Discard">
+                            <X size={10} />
+                        </Button>
+                    </div>
+                )}
                 {/* Message body or inline edit */}
                 {isEditing ? (
                     <ThreadInlineEditForm
@@ -341,18 +381,42 @@ export const MattermostThreadPanel: React.FC = () => {
 
     const handleSendReply = useCallback(() => {
         const text = replyText.trim();
-        if ((!text && pendingFileIds.length === 0) || !selectedChannelId || !activeThreadRootId) { return; }
-        postMessage('mattermost.sendReply', {
+        if ((!text && pendingFileIds.length === 0) || !selectedChannelId || !activeThreadRootId || !currentUser) { return; }
+
+        const pendingId = `_pending_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const now = new Date().toISOString();
+        const sendParams = {
             channelId: selectedChannelId,
             message: text || ' ',
             rootId: activeThreadRootId,
             fileIds: pendingFileIds.length > 0 ? pendingFileIds : undefined,
-        });
+        };
+
+        // Create optimistic post
+        const optimisticPost: MattermostPostData = {
+            id: pendingId,
+            channelId: selectedChannelId,
+            userId: currentUser.id,
+            username: currentUser.username,
+            message: text || ' ',
+            createAt: now,
+            updateAt: now,
+            rootId: activeThreadRootId,
+            type: '',
+            isPinned: false,
+            _pending: true,
+            _sendParams: sendParams,
+        };
+
+        const mmStore = useMattermostStore.getState();
+        mmStore.appendThreadPost(optimisticPost);
+        mmStore.prependNewPost(optimisticPost);
+
+        postMessage('mattermost.sendPost', { ...sendParams, pendingId });
         setReplyText('');
         clearPendingFiles();
-        // Reset textarea height
         if (replyTextareaRef.current) { replyTextareaRef.current.style.height = 'auto'; }
-    }, [replyText, selectedChannelId, activeThreadRootId, pendingFileIds, clearPendingFiles]);
+    }, [replyText, selectedChannelId, activeThreadRootId, pendingFileIds, clearPendingFiles, currentUser]);
 
     const handleUploadClick = useCallback(() => {
         if (!selectedChannelId) { return; }

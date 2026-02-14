@@ -149,6 +149,17 @@ export interface MattermostPostData {
     isPinned: boolean;
     files?: MattermostFileInfoData[];
     linkPreviews?: MattermostLinkPreviewData[];
+    /** Client-only: true while message is being sent (optimistic) */
+    _pending?: boolean;
+    /** Client-only: error message if send failed */
+    _failedError?: string;
+    /** Client-only: original send params for retry */
+    _sendParams?: {
+        channelId: string;
+        message: string;
+        rootId?: string;
+        fileIds?: string[];
+    };
 }
 
 export interface MattermostUserData {
@@ -858,14 +869,15 @@ export class MattermostService {
     }
 
     /** List ALL channels (including DMs/Groups) the user is a member of in a team */
-    async getAllMyChannels(teamId: string): Promise<{
+    async getAllMyChannels(teamId: string, page = 0, perPage = 100): Promise<{
         channels: MattermostChannel[];
         dmChannels: MattermostChannel[];
         groupChannels: MattermostChannel[];
+        hasMore: boolean;
     }> {
         const raw = await this._request<MmApiChannel[]>(
             'GET',
-            `/users/me/teams/${teamId}/channels`,
+            `/users/me/teams/${teamId}/channels?page=${page}&per_page=${perPage}`,
         );
         const all = raw.map((c) => this._parseChannel(c));
         return {
@@ -878,6 +890,7 @@ export class MattermostService {
             groupChannels: all
                 .filter((c) => c.type === 'G')
                 .sort((a, b) => b.lastPostAt - a.lastPostAt),
+            hasMore: raw.length === perPage,
         };
     }
 

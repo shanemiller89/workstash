@@ -351,6 +351,11 @@ export const App: React.FC = () => {
                     mmStore.setLoadingChannels(false);
                     break;
                 }
+                case 'mattermostChannelsAppend': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.appendChannels(msg.payload as MattermostChannelData[]);
+                    break;
+                }
                 case 'mattermostChannelsLoading': {
                     const mmStore = useMattermostStore.getState();
                     mmStore.setLoadingChannels(true);
@@ -402,6 +407,24 @@ export const App: React.FC = () => {
                     mmStore.setSendingMessage(true);
                     break;
                 }
+                case 'mattermostPostConfirmed': {
+                    // Optimistic post confirmed by server — replace pending with real
+                    const mmStore = useMattermostStore.getState();
+                    if (msg.pendingId && msg.post) {
+                        mmStore.confirmPendingPost(msg.pendingId as string, msg.post as MattermostPostData);
+                    }
+                    mmStore.setSendingMessage(false);
+                    break;
+                }
+                case 'mattermostPostFailed': {
+                    // Optimistic post failed — mark as failed with error
+                    const mmStore = useMattermostStore.getState();
+                    if (msg.pendingId) {
+                        mmStore.failPendingPost(msg.pendingId as string, (msg.error as string) ?? 'Send failed');
+                    }
+                    mmStore.setSendingMessage(false);
+                    break;
+                }
                 case 'mattermostPostSent':
                 case 'mattermostPostCreated': {
                     const mmStore = useMattermostStore.getState();
@@ -437,24 +460,37 @@ export const App: React.FC = () => {
                     mmStore.setDmChannels(msg.payload as MattermostChannelData[]);
                     break;
                 }
+                case 'mattermostDmChannelsAppend': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.appendDmChannels(msg.payload as MattermostChannelData[]);
+                    break;
+                }
 
                 // ─── Mattermost WebSocket real-time events ───
                 case 'mattermostConnectionStatus': {
                     const mmStore = useMattermostStore.getState();
                     mmStore.setConnected(msg.connected as boolean);
+                    if (typeof msg.reconnectAttempt === 'number') {
+                        mmStore.setReconnectAttempt(msg.reconnectAttempt as number);
+                    }
                     break;
                 }
 
                 case 'mattermostNewPost': {
                     const mmStore = useMattermostStore.getState();
                     const newPost = msg.post as MattermostPostData;
+                    // Skip if we already have this post (e.g., from optimistic send)
+                    const alreadyExists = mmStore.posts.some((p) => p.id === newPost.id);
                     // Add to main channel feed if it belongs to the selected channel
-                    if (newPost.channelId === mmStore.selectedChannelId) {
+                    if (newPost.channelId === mmStore.selectedChannelId && !alreadyExists) {
                         mmStore.prependNewPost(newPost);
                     }
                     // Also add to thread panel if this is a reply in the active thread
                     if (newPost.rootId && newPost.rootId === mmStore.activeThreadRootId) {
-                        mmStore.appendThreadPost(newPost);
+                        const alreadyInThread = mmStore.threadPosts.some((p) => p.id === newPost.id);
+                        if (!alreadyInThread) {
+                            mmStore.appendThreadPost(newPost);
+                        }
                     }
                     break;
                 }
