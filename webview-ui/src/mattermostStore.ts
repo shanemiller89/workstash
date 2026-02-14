@@ -136,6 +136,9 @@ interface MattermostStore {
     // Emoji autocomplete results
     emojiSuggestions: MattermostEmojiData[];
 
+    // Custom emoji map: name → imageUrl (fetched from server)
+    customEmojis: Record<string, string>;
+
     // Reply-to mode: when set, main compose sends a threaded reply
     replyToPostId: string | null;
     replyToUsername: string | null;
@@ -200,6 +203,7 @@ interface MattermostStore {
 
     // Actions — emoji
     setEmojiSuggestions: (emojis: MattermostEmojiData[]) => void;
+    setCustomEmojis: (emojis: Record<string, string>) => void;
 
     // Actions — reply-to
     setReplyTo: (postId: string, username: string) => void;
@@ -242,6 +246,7 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     typingEntries: [],
     unreads: {},
     emojiSuggestions: EMPTY_EMOJIS,
+    customEmojis: {},
     replyToPostId: null,
     replyToUsername: null,
     isSearchingUsers: false,
@@ -437,6 +442,7 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
 
     // ─── Emoji ────────────────────────────────────────────────────
     setEmojiSuggestions: (emojiSuggestions) => set({ emojiSuggestions }),
+    setCustomEmojis: (customEmojis) => set({ customEmojis }),
 
     // ─── Reply-to ─────────────────────────────────────────────────
     setReplyTo: (postId, username) => set({ replyToPostId: postId, replyToUsername: username }),

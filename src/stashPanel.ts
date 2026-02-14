@@ -965,6 +965,11 @@ export class StashPanel {
                         me.id,
                     );
                     this._panel.webview.postMessage({ type: 'mattermostDmChannels', payload: dmPayload });
+
+                    // Fetch custom emoji list and send to webview (fire-and-forget)
+                    this._mattermostService.getCustomEmojis().then((customEmojis) => {
+                        this._panel.webview.postMessage({ type: 'mattermostCustomEmojis', payload: customEmojis });
+                    }).catch(() => { /* non-critical — custom emojis just won't render */ });
                 } catch (e: unknown) {
                     const m = e instanceof Error ? e.message : 'Unknown error';
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });

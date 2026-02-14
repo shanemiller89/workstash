@@ -20,6 +20,7 @@ import {
     Circle,
     X,
     Smile,
+    ExternalLink,
 } from 'lucide-react';
 
 function formatTime(iso: string): string {
@@ -53,8 +54,8 @@ function StatusDot({ userId }: { userId: string }) {
     if (!color) { return null; }
     return (
         <span
-            className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-[var(--vscode-editor-background)]"
-            style={{ backgroundColor: color }}
+            className="absolute bottom-px right-px w-2.5 h-2.5 rounded-full"
+            style={{ backgroundColor: color, boxShadow: '0 0 0 1.5px var(--vscode-editor-background)' }}
         />
     );
 }
@@ -79,20 +80,14 @@ function groupPostsByDate(posts: MattermostPostData[]): { date: string; posts: M
     return groups;
 }
 
-/** Count replies to a given root post */
-function countReplies(allPosts: MattermostPostData[], rootId: string): number {
-    return allPosts.filter((p) => p.rootId === rootId).length;
-}
-
 /** Individual message bubble */
 const MessageBubble: React.FC<{
     post: MattermostPostData;
     currentUsername: string | null;
     currentUserId: string | null;
-    allPosts: MattermostPostData[];
     onOpenThread: (rootId: string) => void;
     isThreadReply?: boolean;
-}> = ({ post, currentUsername, currentUserId, allPosts, onOpenThread, isThreadReply }) => {
+}> = ({ post, currentUsername, currentUserId, onOpenThread, isThreadReply }) => {
     const [copied, setCopied] = useState(false);
     const isOwn = currentUsername !== null && post.username === currentUsername;
 
@@ -113,12 +108,11 @@ const MessageBubble: React.FC<{
 
     // Reply detection (used for styling inline thread replies)
     const isReply = post.rootId && post.rootId !== '';
-    const replyCount = !isReply ? countReplies(allPosts, post.id) : 0;
 
     return (
         <div className={`group flex gap-2 px-3 py-1.5 hover:bg-[var(--vscode-list-hoverBackground)] ${isThreadReply ? 'ml-8 border-l-2 border-[var(--vscode-panel-border)] pl-2' : ''}`}>
             {/* Avatar with status dot */}
-            <div className="relative shrink-0">
+            <div className="relative shrink-0 w-8 h-8">
                 <div
                     className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
                         isOwn
@@ -170,16 +164,7 @@ const MessageBubble: React.FC<{
                 {/* Reaction bar */}
                 <ReactionBar postId={post.id} currentUserId={currentUserId} />
 
-                {/* Thread reply count (only shown on root posts, not inline replies) */}
-                {replyCount > 0 && !isReply && !isThreadReply && (
-                    <button
-                        onClick={() => onOpenThread(post.id)}
-                        className="mt-1 text-xs text-[var(--vscode-textLink-foreground)] hover:underline inline-flex items-center gap-1"
-                    >
-                        <MessageSquare size={11} />
-                        {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
-                    </button>
-                )}
+
             </div>
         </div>
     );
@@ -481,24 +466,32 @@ export const MattermostChat: React.FC<{
                                         post={root}
                                         currentUsername={currentUsername}
                                         currentUserId={currentUserId}
-                                        allPosts={posts}
                                         onOpenThread={handleOpenThread}
                                     />
 
                                     {/* Collapsible inline thread replies */}
                                     {replies.length > 0 && (
                                         <div className="ml-4">
-                                            <button
-                                                onClick={() => toggleThread(root.id)}
-                                                className="flex items-center gap-1 px-3 py-0.5 text-xs text-[var(--vscode-textLink-foreground)] hover:underline"
-                                            >
-                                                {expandedThreads.has(root.id) ? (
-                                                    <ChevronDown size={12} />
-                                                ) : (
-                                                    <ChevronRight size={12} />
-                                                )}
-                                                {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
-                                            </button>
+                                            <div className="flex items-center gap-1 px-3 py-0.5">
+                                                <button
+                                                    onClick={() => toggleThread(root.id)}
+                                                    className="flex items-center gap-1 text-xs text-[var(--vscode-textLink-foreground)] hover:underline"
+                                                >
+                                                    {expandedThreads.has(root.id) ? (
+                                                        <ChevronDown size={12} />
+                                                    ) : (
+                                                        <ChevronRight size={12} />
+                                                    )}
+                                                    {replies.length} {replies.length === 1 ? 'reply' : 'replies'}
+                                                </button>
+                                                <button
+                                                    onClick={() => handleOpenThread(root.id)}
+                                                    className="p-0.5 rounded hover:bg-[var(--vscode-toolbar-hoverBackground)] text-fg/40 hover:text-[var(--vscode-textLink-foreground)]"
+                                                    title="Open thread"
+                                                >
+                                                    <ExternalLink size={11} />
+                                                </button>
+                                            </div>
                                             {expandedThreads.has(root.id) && (
                                                 <div>
                                                     {replies.map((reply) => (
@@ -507,7 +500,6 @@ export const MattermostChat: React.FC<{
                                                             post={reply}
                                                             currentUsername={currentUsername}
                                                             currentUserId={currentUserId}
-                                                            allPosts={posts}
                                                             onOpenThread={handleOpenThread}
                                                             isThreadReply
                                                         />

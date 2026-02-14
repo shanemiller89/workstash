@@ -635,6 +635,27 @@ export class MattermostService {
         return token;
     }
 
+    /**
+     * Fetch a binary resource (image, file) using Bearer auth and return a data: URI.
+     * This avoids appending access_token as a query param, which Mattermost rejects
+     * for session (non-OAuth) tokens.
+     */
+    private async _fetchAsDataUri(apiPath: string): Promise<string> {
+        const token = await this._getTokenOrThrow();
+        const baseUrl = await this._getBaseUrl();
+        const url = `${baseUrl}${apiPath}`;
+        const response = await this._fetchFn(url, {
+            method: 'GET',
+            headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!response.ok) {
+            throw new Error(`Failed to fetch ${apiPath}: ${response.status}`);
+        }
+        const contentType = response.headers.get('content-type') ?? 'application/octet-stream';
+        const buf = Buffer.from(await response.arrayBuffer());
+        return `data:${contentType};base64,${buf.toString('base64')}`;
+    }
+
     private async _getBaseUrl(): Promise<string> {
         const url = await this.getServerUrl();
         if (!url) {
@@ -929,36 +950,29 @@ export class MattermostService {
         return this._parseFileInfo(raw);
     }
 
-    /** Build authenticated file URL for the webview to display */
+    /** Fetch file content as a data URI for the webview to display */
     async getFileUrl(fileId: string): Promise<string> {
-        const baseUrl = await this._getBaseUrl();
-        const token = await this._getTokenOrThrow();
-        // Mattermost file endpoint: GET /api/v4/files/{fileId}
-        // We append the auth token as a query param so the webview <img> can load it
-        return `${baseUrl}/files/${fileId}?access_token=${encodeURIComponent(token)}`;
+        return this._fetchAsDataUri(`/files/${fileId}`);
     }
 
-    /** Build authenticated thumbnail URL for image previews */
+    /** Fetch thumbnail as a data URI for image previews */
     async getFileThumbnailUrl(fileId: string): Promise<string> {
-        const baseUrl = await this._getBaseUrl();
-        const token = await this._getTokenOrThrow();
-        return `${baseUrl}/files/${fileId}/thumbnail?access_token=${encodeURIComponent(token)}`;
+        return this._fetchAsDataUri(`/files/${fileId}/thumbnail`);
     }
 
     /** Resolve file metadata + URLs for a list of file IDs */
     async resolveFileInfos(fileIds: string[]): Promise<MattermostFileInfoData[]> {
         if (fileIds.length === 0) { return []; }
         const results: MattermostFileInfoData[] = [];
-        const baseUrl = await this._getBaseUrl();
-        const token = await this._getTokenOrThrow();
         for (const fid of fileIds) {
             try {
                 const info = await this.getFileInfo(fid);
                 const isImage = info.mimeType.startsWith('image/');
-                // For images, use thumbnail if available; otherwise full file
-                const url = isImage && info.hasPreview
-                    ? `${baseUrl}/files/${fid}/preview?access_token=${encodeURIComponent(token)}`
-                    : `${baseUrl}/files/${fid}?access_token=${encodeURIComponent(token)}`;
+                // For images, use preview if available; otherwise full file
+                const apiPath = isImage && info.hasPreview
+                    ? `/files/${fid}/preview`
+                    : `/files/${fid}`;
+                const url = await this._fetchAsDataUri(apiPath);
                 results.push({
                     id: info.id,
                     name: info.name,
@@ -1087,10 +1101,43 @@ export class MattermostService {
         return raw.map((e) => ({ id: e.id, creatorId: e.creator_id, name: e.name }));
     }
 
-    /** Build the URL for a custom emoji image */
+    /** Fetch a custom emoji image as a data URI */
     async getCustomEmojiImageUrl(emojiId: string): Promise<string> {
-        const base = await this._getBaseUrl();
-        return `${base}/emoji/${emojiId}/image`;
+        return this._fetchAsDataUri(`/emoji/${emojiId}/image`);
+    }
+
+    /** Fetch all custom emojis from the server, returning name→dataUri map */
+    async getCustomEmojis(): Promise<Record<string, string>> {
+        const result: Record<string, string> = {};
+        let page = 0;
+        const perPage = 200;
+        const allEmojis: MmApiEmoji[] = [];
+        while (true) {
+            const batch = await this._request<MmApiEmoji[]>(
+                'GET',
+                `/emoji?page=${page}&per_page=${perPage}`,
+            );
+            allEmojis.push(...batch);
+            if (batch.length < perPage) { break; }
+            page++;
+        }
+        // Fetch images in parallel (batches of 10 to avoid overwhelming the server)
+        const batchSize = 10;
+        for (let i = 0; i < allEmojis.length; i += batchSize) {
+            const chunk = allEmojis.slice(i, i + batchSize);
+            const settled = await Promise.allSettled(
+                chunk.map(async (e) => {
+                    const dataUri = await this._fetchAsDataUri(`/emoji/${e.id}/image`);
+                    return { name: e.name, dataUri };
+                }),
+            );
+            for (const s of settled) {
+                if (s.status === 'fulfilled') {
+                    result[s.value.name] = s.value.dataUri;
+                }
+            }
+        }
+        return result;
     }
 
     // ─── Parsers ──────────────────────────────────────────────────

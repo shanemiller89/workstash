@@ -275,3 +275,20 @@ body {
 .markdown-body .hljs-meta {
     color: var(--vscode-descriptionForeground, #888);
 }
+
+/* ─── Inline emoji images (custom Mattermost emoji) ─── */
+.inline-emoji {
+    display: inline;
+    height: 1.2em;
+    width: auto;
+    vertical-align: text-bottom;
+    margin: 0 1px;
+}
+
+/* Unicode emoji rendered via span.emoji — ensure consistent sizing */
+.emoji {
+    font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif;
+    font-size: 1em;
+    line-height: 1;
+    vertical-align: text-bottom;
+}

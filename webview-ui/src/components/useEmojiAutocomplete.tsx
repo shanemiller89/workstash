@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useMattermostStore, type MattermostEmojiData } from '../mattermostStore';
 import { postMessage } from '../vscode';
+import { emojiFromShortcode } from '../emojiMap';
 
 /**
  * Hook that provides `:shortcode:` autocomplete for a textarea.
@@ -174,6 +175,12 @@ export const EmojiAutocompleteDropdown: React.FC<{
                             : 'hover:bg-[var(--vscode-list-hoverBackground)]'
                     }`}
                 >
+                    {(() => {
+                        const unicode = emojiFromShortcode(emoji.name);
+                        if (unicode) { return <span className="text-sm w-5 text-center">{unicode}</span>; }
+                        if (emoji.imageUrl) { return <img src={emoji.imageUrl} alt={emoji.name} className="w-4 h-4 object-contain" />; }
+                        return <span className="w-5 text-center text-fg/30">•</span>;
+                    })()}
                     <span className="font-mono text-fg/60">:{emoji.name}:</span>
                 </button>
             ))}

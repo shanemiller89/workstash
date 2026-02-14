@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useMattermostStore, type MattermostEmojiData } from '../mattermostStore';
 import { postMessage } from '../vscode';
+import { emojiFromShortcode } from '../emojiMap';
 import { X, Search, Smile } from 'lucide-react';
 
 /** Common system emoji shortcuts (no API call needed) */
@@ -159,16 +160,26 @@ export const EmojiPicker: React.FC<EmojiPickerProps> = ({ postId, onClose }) => 
                             Custom & More
                         </div>
                         <div className="space-y-0.5">
-                            {serverSuggestions.map((emoji) => (
-                                <button
-                                    key={emoji.name}
-                                    onClick={() => handleSelectEmoji(emoji.name)}
-                                    className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
-                                        hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
-                                >
-                                    <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
-                                </button>
-                            ))}
+                            {serverSuggestions.map((emoji) => {
+                                const unicode = emojiFromShortcode(emoji.name);
+                                return (
+                                    <button
+                                        key={emoji.name}
+                                        onClick={() => handleSelectEmoji(emoji.name)}
+                                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
+                                            hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+                                    >
+                                        {unicode ? (
+                                            <span className="text-sm w-5 text-center">{unicode}</span>
+                                        ) : emoji.imageUrl ? (
+                                            <img src={emoji.imageUrl} alt={emoji.name} className="w-5 h-5 object-contain" />
+                                        ) : (
+                                            <span className="w-5 text-center text-fg/30">•</span>
+                                        )}
+                                        <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </>
                 )}
@@ -324,16 +335,26 @@ export const ComposeEmojiPicker: React.FC<{
                             Custom & More
                         </div>
                         <div className="space-y-0.5">
-                            {serverSuggestions.map((emoji) => (
-                                <button
-                                    key={emoji.name}
-                                    onClick={() => handleSelectEmoji(emoji.name)}
-                                    className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
-                                        hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
-                                >
-                                    <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
-                                </button>
-                            ))}
+                            {serverSuggestions.map((emoji) => {
+                                const unicode = emojiFromShortcode(emoji.name);
+                                return (
+                                    <button
+                                        key={emoji.name}
+                                        onClick={() => handleSelectEmoji(emoji.name)}
+                                        className="w-full flex items-center gap-2 px-2 py-1 rounded text-left
+                                            hover:bg-[var(--vscode-list-hoverBackground)] transition-colors"
+                                    >
+                                        {unicode ? (
+                                            <span className="text-sm w-5 text-center">{unicode}</span>
+                                        ) : emoji.imageUrl ? (
+                                            <img src={emoji.imageUrl} alt={emoji.name} className="w-5 h-5 object-contain" />
+                                        ) : (
+                                            <span className="w-5 text-center text-fg/30">•</span>
+                                        )}
+                                        <span className="text-xs font-mono text-fg/60">:{emoji.name}:</span>
+                                    </button>
+                                );
+                            })}
                         </div>
                     </>
                 )}

@@ -592,6 +592,13 @@ export const App: React.FC = () => {
                     break;
                 }
 
+                // ─── Mattermost Custom Emoji list ───
+                case 'mattermostCustomEmojis': {
+                    const mmStore = useMattermostStore.getState();
+                    mmStore.setCustomEmojis(msg.payload as Record<string, string>);
+                    break;
+                }
+
                 // ─── Deep-link: open a specific Mattermost channel ───
                 case 'openChannel':
                     appStore.setActiveTab('mattermost');
