@@ -120,6 +120,18 @@
                     "default": false,
                     "description": "Include direct messages and group messages from Mattermost when gathering AI context. When disabled, only public and private channel posts are shared with the language model."
                 },
+                "workstash.ai.provider": {
+                    "type": "string",
+                    "default": "auto",
+                    "enum": ["auto", "copilot", "gemini"],
+                    "enumDescriptions": [
+                        "Auto — use Copilot when available, fall back to Gemini",
+                        "Copilot — always use GitHub Copilot (requires Copilot extension)",
+                        "Gemini — always use Gemini API (requires API key)"
+                    ],
+                    "description": "Which AI provider to use. 'auto' prefers Copilot when available and falls back to Gemini.",
+                    "order": 0
+                },
                 "workstash.ai.geminiApiKey": {
                     "type": "string",
                     "default": "",

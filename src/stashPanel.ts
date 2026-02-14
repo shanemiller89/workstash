@@ -2063,6 +2063,7 @@ export class StashPanel {
                         includePrivateMessages: workstash.get<boolean>('ai.includePrivateMessages', false),
                         // AI Provider
                         aiProvider: AiService.activeProvider(),
+                        providerPreference: workstash.get<string>('ai.provider', 'auto'),
                         geminiApiKey: workstash.get<string>('ai.geminiApiKey', ''),
                         geminiModel: workstash.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
                     },
@@ -2089,6 +2090,7 @@ export class StashPanel {
                     mattermostServerUrl: { section: 'workstash.mattermost', key: 'serverUrl' },
                     includeSecretGists: { section: 'workstash.ai', key: 'includeSecretGists' },
                     includePrivateMessages: { section: 'workstash.ai', key: 'includePrivateMessages' },
+                    providerPreference: { section: 'workstash.ai', key: 'provider' },
                     geminiApiKey: { section: 'workstash.ai', key: 'geminiApiKey' },
                     geminiModel: { section: 'workstash.ai', key: 'geminiModel' },
                 };
@@ -2099,8 +2101,8 @@ export class StashPanel {
                         .getConfiguration(mapping.section)
                         .update(mapping.key, settingValue, vscode.ConfigurationTarget.Global);
 
-                    // If AI key or model changed, re-send AI availability
-                    if (settingKey === 'geminiApiKey' || settingKey === 'geminiModel') {
+                    // If AI provider/key/model changed, re-send AI availability
+                    if (settingKey === 'providerPreference' || settingKey === 'geminiApiKey' || settingKey === 'geminiModel') {
                         this._panel.webview.postMessage({
                             type: 'aiAvailable',
                             available: AiService.isAvailable(),

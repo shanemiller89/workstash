@@ -49,6 +49,7 @@ export interface SettingsData {
     includePrivateMessages: boolean;
     // AI Provider
     aiProvider: 'copilot' | 'gemini' | 'none';
+    providerPreference: 'auto' | 'copilot' | 'gemini';
     geminiApiKey: string;
     geminiModel: string;
 }
@@ -216,9 +217,33 @@ export const SettingsTab: React.FC = () => {
                     title="AI Provider"
                 >
                     <div className="space-y-3">
-                        {/* Current status */}
+                        {/* Provider preference selector */}
+                        <SettingRow
+                            label="Preferred Provider"
+                            description="Choose which AI backend to use. 'Auto' prefers Copilot and falls back to Gemini."
+                        >
+                            <Select
+                                value={settings.providerPreference}
+                                onValueChange={(v) => {
+                                    if (v) {
+                                        updateSetting('providerPreference', v);
+                                    }
+                                }}
+                            >
+                                <SelectTrigger className="w-[160px] h-7 text-[11px]">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="auto">Auto</SelectItem>
+                                    <SelectItem value="copilot">GitHub Copilot</SelectItem>
+                                    <SelectItem value="gemini">Gemini</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </SettingRow>
+
+                        {/* Active status */}
                         <div className="flex items-center gap-2 py-1">
-                            <span className="text-[11px] text-fg/60">Active provider:</span>
+                            <span className="text-[11px] text-fg/60">Active:</span>
                             {aiProvider === 'copilot' ? (
                                 <Badge variant="default" className="text-[10px]">
                                     <CheckCircle2 size={10} className="mr-1" />
@@ -235,12 +260,14 @@ export const SettingsTab: React.FC = () => {
                                     None
                                 </Badge>
                             )}
+                            {settings.providerPreference !== 'auto' && aiProvider === 'none' && (
+                                <span className="text-[10px] text-destructive">
+                                    {settings.providerPreference === 'copilot'
+                                        ? 'Copilot not available in this editor'
+                                        : 'Gemini API key not configured'}
+                                </span>
+                            )}
                         </div>
-
-                        <p className="text-[10.5px] text-fg/40 leading-snug">
-                            GitHub Copilot is used automatically when available. Configure a Gemini API key as a fallback
-                            for editors without Copilot (Cursor, Windsurf, etc.).
-                        </p>
 
                         <Separator className="my-1" />
 

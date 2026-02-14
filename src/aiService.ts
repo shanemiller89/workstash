@@ -63,8 +63,20 @@ export class AiService {
         return AiService.isCopilotAvailable() || GeminiService.isConfigured();
     }
 
-    /** Determine which provider is active. */
+    /** Determine which provider is active, respecting the user's preference. */
     static activeProvider(): AiProvider {
+        const preference = vscode.workspace
+            .getConfiguration('workstash.ai')
+            .get<string>('provider', 'auto');
+
+        if (preference === 'copilot') {
+            return AiService.isCopilotAvailable() ? 'copilot' : 'none';
+        }
+        if (preference === 'gemini') {
+            return GeminiService.isConfigured() ? 'gemini' : 'none';
+        }
+
+        // 'auto': prefer Copilot, fall back to Gemini
         if (AiService.isCopilotAvailable()) { return 'copilot'; }
         if (GeminiService.isConfigured()) { return 'gemini'; }
         return 'none';
