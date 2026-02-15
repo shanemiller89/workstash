@@ -134,10 +134,10 @@ suite('StashFileItem Tests', () => {
         assert.strictEqual(item.contextValue, 'stashFileItem');
     });
 
-    test('command is wired to mystash.showFile', () => {
+    test('command is wired to superprompt-forge.showFile', () => {
         const item = new StashFileItem('file.ts', 0);
         assert.ok(item.command);
-        assert.strictEqual(item.command!.command, 'mystash.showFile');
+        assert.strictEqual(item.command!.command, 'superprompt-forge.showFile');
     });
 
     test('collapsibleState is None', () => {
@@ -185,7 +185,7 @@ suite('StashFileItem Tests', () => {
     test('resourceUri is set for FileDecorationProvider', () => {
         const item = new StashFileItem('src/app.ts', 1, 'A');
         assert.ok(item.resourceUri);
-        assert.strictEqual(item.resourceUri!.scheme, 'mystash-file');
+        assert.strictEqual(item.resourceUri!.scheme, 'superprompt-forge-file');
     });
 
     test('decorationUri encodes status in query', () => {

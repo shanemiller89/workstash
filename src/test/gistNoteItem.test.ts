@@ -17,7 +17,7 @@ function makeNote(overrides: Partial<GistNote> = {}): GistNote {
         createdAt: new Date('2026-02-10T14:00:00Z'),
         updatedAt: new Date('2026-02-10T15:00:00Z'),
         htmlUrl: 'https://gist.github.com/gist-abc',
-        description: '[CoreNexus] Test Note',
+        description: '[Superprompt Forge] Test Note',
         ...overrides,
     };
 }
@@ -90,7 +90,7 @@ suite('GistNoteItem Tests', () => {
     test('command opens note in webview', () => {
         const item = new GistNoteItem(makeNote());
         assert.ok(item.command);
-        assert.strictEqual(item.command!.command, 'corenexus.notes.open');
+        assert.strictEqual(item.command!.command, 'superprompt-forge.notes.open');
         assert.deepStrictEqual(item.command!.arguments, [item]);
     });
 

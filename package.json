@@ -1,6 +1,6 @@
 {
-    "name": "corenexus",
-    "displayName": "CoreNexus",
+    "name": "superprompt-forge",
+    "displayName": "Superprompt Forge",
     "description": "Git Stash Management & Gist Notes for VS Code",
     "version": "0.1.0",
     "publisher": "shanemiller89",
@@ -12,11 +12,11 @@
     },
     "repository": {
         "type": "git",
-        "url": "https://github.com/shanemiller89/corenexus"
+        "url": "https://github.com/shanemiller89/superprompt-forge"
     },
-    "homepage": "https://github.com/shanemiller89/corenexus#readme",
+    "homepage": "https://github.com/shanemiller89/superprompt-forge#readme",
     "bugs": {
-        "url": "https://github.com/shanemiller89/corenexus/issues"
+        "url": "https://github.com/shanemiller89/superprompt-forge/issues"
     },
     "engines": {
         "vscode": "^1.106.0"
@@ -40,34 +40,34 @@
     "main": "./dist/extension.js",
     "contributes": {
         "configuration": {
-            "title": "CoreNexus",
+            "title": "Superprompt Forge",
             "properties": {
-                "mystash.autoRefresh": {
+                "superprompt-forge.autoRefresh": {
                     "type": "boolean",
                     "default": true,
                     "description": "Automatically refresh the stash list when git changes are detected or the window regains focus."
                 },
-                "mystash.confirmOnDrop": {
+                "superprompt-forge.confirmOnDrop": {
                     "type": "boolean",
                     "default": true,
                     "description": "Show a confirmation dialog before dropping a stash."
                 },
-                "mystash.confirmOnClear": {
+                "superprompt-forge.confirmOnClear": {
                     "type": "boolean",
                     "default": true,
                     "description": "Show a confirmation dialog before clearing all stashes."
                 },
-                "mystash.showFileStatus": {
+                "superprompt-forge.showFileStatus": {
                     "type": "boolean",
                     "default": true,
                     "description": "Show M/A/D status indicators on file items in the stash tree."
                 },
-                "mystash.defaultIncludeUntracked": {
+                "superprompt-forge.defaultIncludeUntracked": {
                     "type": "boolean",
                     "default": false,
                     "description": "Default to including untracked files when creating a stash."
                 },
-                "mystash.sortOrder": {
+                "superprompt-forge.sortOrder": {
                     "type": "string",
                     "default": "newest",
                     "enum": [
@@ -80,19 +80,19 @@
                     ],
                     "description": "Sort order for the stash list."
                 },
-                "mystash.showBranchInDescription": {
+                "superprompt-forge.showBranchInDescription": {
                     "type": "boolean",
                     "default": true,
                     "description": "Show the branch name in the stash item description."
                 },
-                "corenexus.notes.autosaveDelay": {
+                "superprompt-forge.notes.autosaveDelay": {
                     "type": "number",
                     "default": 30,
                     "minimum": 5,
                     "maximum": 300,
                     "description": "Autosave delay in seconds for note editing. Set to 0 to disable autosave."
                 },
-                "corenexus.notes.defaultVisibility": {
+                "superprompt-forge.notes.defaultVisibility": {
                     "type": "string",
                     "default": "secret",
                     "enum": [
@@ -105,32 +105,32 @@
                     ],
                     "description": "Default visibility for newly created notes."
                 },
-                "corenexus.mattermost.serverUrl": {
+                "superprompt-forge.mattermost.serverUrl": {
                     "type": "string",
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 },
-                "corenexus.google.clientId": {
+                "superprompt-forge.google.clientId": {
                     "type": "string",
                     "default": "",
                     "description": "Google OAuth 2.0 Client ID for Google Drive integration. Create one at https://console.cloud.google.com/apis/credentials"
                 },
-                "corenexus.google.clientSecret": {
+                "superprompt-forge.google.clientSecret": {
                     "type": "string",
                     "default": "",
                     "description": "Google OAuth 2.0 Client Secret. Required alongside Client ID for Google Drive authentication."
                 },
-                "corenexus.ai.includeSecretGists": {
+                "superprompt-forge.ai.includeSecretGists": {
                     "type": "boolean",
                     "default": false,
                     "description": "Include secret Gist note content when gathering AI context for summaries, chat, and agent analysis. When disabled, only public notes are shared with the language model."
                 },
-                "corenexus.ai.includePrivateMessages": {
+                "superprompt-forge.ai.includePrivateMessages": {
                     "type": "boolean",
                     "default": false,
                     "description": "Include direct messages and group messages from Mattermost when gathering AI context. When disabled, only public and private channel posts are shared with the language model."
                 },
-                "corenexus.ai.provider": {
+                "superprompt-forge.ai.provider": {
                     "type": "string",
                     "default": "auto",
                     "enum": ["auto", "copilot", "gemini"],
@@ -142,13 +142,13 @@
                     "description": "Which AI provider to use. 'auto' prefers Copilot when available and falls back to Gemini.",
                     "order": 0
                 },
-                "corenexus.ai.geminiApiKey": {
+                "superprompt-forge.ai.geminiApiKey": {
                     "type": "string",
                     "default": "",
                     "description": "Google Gemini API key for AI features (summaries, chat, agent). Required when GitHub Copilot is not available (e.g. in Cursor, Windsurf, or Antigravity). Get a free key at https://aistudio.google.com/apikey",
                     "order": 1
                 },
-                "corenexus.ai.geminiModel": {
+                "superprompt-forge.ai.geminiModel": {
                     "type": "string",
                     "default": "gemini-2.5-flash",
                     "enum": [
@@ -166,19 +166,19 @@
                     "description": "Default Gemini model to use when the Gemini provider is active.",
                     "order": 2
                 },
-                "corenexus.ai.modelOverride.summary": {
+                "superprompt-forge.ai.modelOverride.summary": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI summaries. Leave empty to use the provider default.",
                     "order": 3
                 },
-                "corenexus.ai.modelOverride.chat": {
+                "superprompt-forge.ai.modelOverride.chat": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI chat. Leave empty to use the provider default.",
                     "order": 4
                 },
-                "corenexus.ai.modelOverride.agent": {
+                "superprompt-forge.ai.modelOverride.agent": {
                     "type": "string",
                     "default": "",
                     "description": "Override model for AI agent analysis. Leave empty to use the provider default.",
@@ -188,1109 +188,1109 @@
         },
         "authenticationProviders": [
             {
-                "id": "corenexus-google",
-                "label": "Google (CoreNexus)"
+                "id": "superprompt-forge-google",
+                "label": "Google (Superprompt Forge)"
             }
         ],
         "viewsContainers": {
             "activitybar": [
                 {
-                    "id": "mystash-container",
-                    "title": "CoreNexus",
+                    "id": "superprompt-forge-container",
+                    "title": "Superprompt Forge",
                     "icon": "$(archive)"
                 }
             ]
         },
         "views": {
-            "mystash-container": [
+            "superprompt-forge-container": [
                 {
-                    "id": "mystashView",
+                    "id": "superprompt-forge-view",
                     "name": "Git Stashes",
                     "icon": "$(archive)",
-                    "contextualTitle": "CoreNexus"
+                    "contextualTitle": "Superprompt Forge"
                 },
                 {
                     "id": "gistNotesView",
                     "name": "Gist Notes",
                     "icon": "$(note)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 },
                 {
                     "id": "pullRequestsView",
                     "name": "Pull Requests",
                     "icon": "$(git-pull-request)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 },
                 {
                     "id": "issuesView",
                     "name": "Issues",
                     "icon": "$(issues)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 },
                 {
                     "id": "projectsView",
                     "name": "Projects",
                     "icon": "$(layout)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 },
                 {
                     "id": "mattermostView",
                     "name": "Mattermost",
                     "icon": "$(comment-discussion)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 },
                 {
                     "id": "googleDriveView",
                     "name": "Google Drive",
                     "icon": "$(cloud)",
-                    "contextualTitle": "CoreNexus",
+                    "contextualTitle": "Superprompt Forge",
                     "visibility": "visible"
                 }
             ]
         },
         "viewsWelcome": [
             {
-                "view": "mystashView",
+                "view": "superprompt-forge-view",
                 "contents": "No workspace folder open.\n[Open Folder](command:vscode.openFolder)",
                 "when": "!workspaceFolderCount"
             },
             {
-                "view": "mystashView",
+                "view": "superprompt-forge-view",
                 "contents": "Not a git repository.\nInitialize a repository to start using stashes.\n[Initialize Repository](command:git.init)",
-                "when": "workspaceFolderCount && !mystash.isGitRepo"
+                "when": "workspaceFolderCount && !superprompt-forge.isGitRepo"
             },
             {
-                "view": "mystashView",
-                "contents": "No stashes yet.\nStash your changes to save them for later.\n[Create Stash](command:mystash.stash)",
-                "when": "mystash.isGitRepo && !mystash.hasStashes"
-            },
-            {
-                "view": "gistNotesView",
-                "contents": "Sign in to GitHub to sync your notes as Gists.\n[Sign In to GitHub](command:corenexus.notes.signIn)",
-                "when": "!corenexus.isAuthenticated"
+                "view": "superprompt-forge-view",
+                "contents": "No stashes yet.\nStash your changes to save them for later.\n[Create Stash](command:superprompt-forge.stash)",
+                "when": "superprompt-forge.isGitRepo && !superprompt-forge.hasStashes"
             },
             {
                 "view": "gistNotesView",
-                "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:corenexus.notes.create)",
-                "when": "corenexus.isAuthenticated && !corenexus.hasNotes"
+                "contents": "Sign in to GitHub to sync your notes as Gists.\n[Sign In to GitHub](command:superprompt-forge.notes.signIn)",
+                "when": "!superprompt-forge.isAuthenticated"
+            },
+            {
+                "view": "gistNotesView",
+                "contents": "No notes yet.\nCreate a note to get started.\n[Create Note](command:superprompt-forge.notes.create)",
+                "when": "superprompt-forge.isAuthenticated && !superprompt-forge.hasNotes"
             },
             {
                 "view": "pullRequestsView",
-                "contents": "Sign in to GitHub to see your pull requests.\n[Sign In to GitHub](command:corenexus.prs.signIn)",
-                "when": "!corenexus.isAuthenticated"
+                "contents": "Sign in to GitHub to see your pull requests.\n[Sign In to GitHub](command:superprompt-forge.prs.signIn)",
+                "when": "!superprompt-forge.isAuthenticated"
             },
             {
                 "view": "pullRequestsView",
                 "contents": "Not a GitHub repository.\nPull requests require a GitHub remote.",
-                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
+                "when": "superprompt-forge.isAuthenticated && !superprompt-forge.isGitHubRepo"
             },
             {
                 "view": "pullRequestsView",
-                "contents": "No pull requests found.\n[Refresh](command:corenexus.prs.refresh)",
-                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasPRs"
+                "contents": "No pull requests found.\n[Refresh](command:superprompt-forge.prs.refresh)",
+                "when": "superprompt-forge.isAuthenticated && superprompt-forge.isGitHubRepo && !superprompt-forge.hasPRs"
             },
             {
                 "view": "issuesView",
-                "contents": "Sign in to GitHub to see issues.\n[Sign In to GitHub](command:corenexus.issues.signIn)",
-                "when": "!corenexus.isAuthenticated"
+                "contents": "Sign in to GitHub to see issues.\n[Sign In to GitHub](command:superprompt-forge.issues.signIn)",
+                "when": "!superprompt-forge.isAuthenticated"
             },
             {
                 "view": "issuesView",
                 "contents": "Not a GitHub repository.\nIssues require a GitHub remote.",
-                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
+                "when": "superprompt-forge.isAuthenticated && !superprompt-forge.isGitHubRepo"
             },
             {
                 "view": "issuesView",
-                "contents": "No issues found.\n[Refresh](command:corenexus.issues.refresh)",
-                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasIssues"
+                "contents": "No issues found.\n[Refresh](command:superprompt-forge.issues.refresh)",
+                "when": "superprompt-forge.isAuthenticated && superprompt-forge.isGitHubRepo && !superprompt-forge.hasIssues"
             },
             {
                 "view": "projectsView",
-                "contents": "Sign in to GitHub to see projects.\n[Sign In to GitHub](command:corenexus.projects.signIn)",
-                "when": "!corenexus.isAuthenticated"
+                "contents": "Sign in to GitHub to see projects.\n[Sign In to GitHub](command:superprompt-forge.projects.signIn)",
+                "when": "!superprompt-forge.isAuthenticated"
             },
             {
                 "view": "projectsView",
                 "contents": "Not a GitHub repository.\nProjects require a GitHub remote.",
-                "when": "corenexus.isAuthenticated && !corenexus.isGitHubRepo"
+                "when": "superprompt-forge.isAuthenticated && !superprompt-forge.isGitHubRepo"
             },
             {
                 "view": "projectsView",
-                "contents": "No projects found.\n[Refresh](command:corenexus.projects.refresh)",
-                "when": "corenexus.isAuthenticated && corenexus.isGitHubRepo && !corenexus.hasProjects"
+                "contents": "No projects found.\n[Refresh](command:superprompt-forge.projects.refresh)",
+                "when": "superprompt-forge.isAuthenticated && superprompt-forge.isGitHubRepo && !superprompt-forge.hasProjects"
             },
             {
                 "view": "mattermostView",
-                "contents": "No Mattermost server configured.\nSet the server URL in settings to get started.\n[Configure Server](command:corenexus.mattermost.configure)",
-                "when": "!corenexus.isMattermostConfigured"
+                "contents": "No Mattermost server configured.\nSet the server URL in settings to get started.\n[Configure Server](command:superprompt-forge.mattermost.configure)",
+                "when": "!superprompt-forge.isMattermostConfigured"
             },
             {
                 "view": "mattermostView",
-                "contents": "Sign in to Mattermost to view your channels.\n[Sign In](command:corenexus.mattermost.signIn)",
-                "when": "corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated"
+                "contents": "Sign in to Mattermost to view your channels.\n[Sign In](command:superprompt-forge.mattermost.signIn)",
+                "when": "superprompt-forge.isMattermostConfigured && !superprompt-forge.isMattermostAuthenticated"
             },
             {
                 "view": "mattermostView",
-                "contents": "No teams found.\n[Refresh](command:corenexus.mattermost.refresh)",
-                "when": "corenexus.isMattermostAuthenticated && !corenexus.hasMattermostTeams"
+                "contents": "No teams found.\n[Refresh](command:superprompt-forge.mattermost.refresh)",
+                "when": "superprompt-forge.isMattermostAuthenticated && !superprompt-forge.hasMattermostTeams"
             },
             {
                 "view": "googleDriveView",
-                "contents": "Google Drive is not configured.\nSet your Google OAuth Client ID in settings to get started.\n[Configure Google Drive](command:corenexus.drive.configure)",
-                "when": "!corenexus.isGoogleConfigured"
+                "contents": "Google Drive is not configured.\nSet your Google OAuth Client ID in settings to get started.\n[Configure Google Drive](command:superprompt-forge.drive.configure)",
+                "when": "!superprompt-forge.isGoogleConfigured"
             },
             {
                 "view": "googleDriveView",
-                "contents": "Sign in to Google to browse your Drive files.\n[Sign In to Google](command:corenexus.drive.signIn)",
-                "when": "corenexus.isGoogleConfigured && !corenexus.isGoogleAuthenticated"
+                "contents": "Sign in to Google to browse your Drive files.\n[Sign In to Google](command:superprompt-forge.drive.signIn)",
+                "when": "superprompt-forge.isGoogleConfigured && !superprompt-forge.isGoogleAuthenticated"
             },
             {
                 "view": "googleDriveView",
-                "contents": "No files found.\n[Refresh](command:corenexus.drive.refresh)",
-                "when": "corenexus.isGoogleAuthenticated"
+                "contents": "No files found.\n[Refresh](command:superprompt-forge.drive.refresh)",
+                "when": "superprompt-forge.isGoogleAuthenticated"
             }
         ],
         "commands": [
             {
-                "command": "mystash.refresh",
+                "command": "superprompt-forge.refresh",
                 "title": "Refresh Stash List",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "mystash.stash",
+                "command": "superprompt-forge.stash",
                 "title": "Create New Stash",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(add)"
             },
             {
-                "command": "mystash.apply",
+                "command": "superprompt-forge.apply",
                 "title": "Apply Stash",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(check)"
             },
             {
-                "command": "mystash.pop",
+                "command": "superprompt-forge.pop",
                 "title": "Pop Stash",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(arrow-up)"
             },
             {
-                "command": "mystash.drop",
+                "command": "superprompt-forge.drop",
                 "title": "Drop Stash",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(trash)"
             },
             {
-                "command": "mystash.show",
+                "command": "superprompt-forge.show",
                 "title": "Show Stash Contents",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(eye)"
             },
             {
-                "command": "mystash.clear",
+                "command": "superprompt-forge.clear",
                 "title": "Clear All Stashes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(clear-all)"
             },
             {
-                "command": "mystash.showFile",
+                "command": "superprompt-forge.showFile",
                 "title": "Show File Diff",
-                "category": "CoreNexus"
+                "category": "Superprompt Forge"
             },
             {
-                "command": "mystash.openPanel",
+                "command": "superprompt-forge.openPanel",
                 "title": "Open Stash Panel",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(open-preview)"
             },
             {
-                "command": "mystash.showStats",
+                "command": "superprompt-forge.showStats",
                 "title": "Show Stash Stats",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(graph)"
             },
             {
-                "command": "mystash.search",
+                "command": "superprompt-forge.search",
                 "title": "Search Stashes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "mystash.clearSearch",
+                "command": "superprompt-forge.clearSearch",
                 "title": "Clear Stash Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "mystash.applySelected",
+                "command": "superprompt-forge.applySelected",
                 "title": "Apply Selected Stashes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(check-all)"
             },
             {
-                "command": "mystash.dropSelected",
+                "command": "superprompt-forge.dropSelected",
                 "title": "Drop Selected Stashes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(trash)"
             },
             {
-                "command": "corenexus.notes.signIn",
+                "command": "superprompt-forge.notes.signIn",
                 "title": "Sign In to GitHub",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.notes.signOut",
+                "command": "superprompt-forge.notes.signOut",
                 "title": "Sign Out of GitHub",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "corenexus.notes.create",
+                "command": "superprompt-forge.notes.create",
                 "title": "Create Note",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(add)"
             },
             {
-                "command": "corenexus.notes.open",
+                "command": "superprompt-forge.notes.open",
                 "title": "Open Note",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "corenexus.notes.delete",
+                "command": "superprompt-forge.notes.delete",
                 "title": "Delete Note",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(trash)"
             },
             {
-                "command": "corenexus.notes.copyLink",
+                "command": "superprompt-forge.notes.copyLink",
                 "title": "Copy Gist Link",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(link)"
             },
             {
-                "command": "corenexus.notes.toggleVisibility",
+                "command": "superprompt-forge.notes.toggleVisibility",
                 "title": "Toggle Note Visibility",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(eye)"
             },
             {
-                "command": "corenexus.notes.refresh",
+                "command": "superprompt-forge.notes.refresh",
                 "title": "Refresh Notes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.notes.search",
+                "command": "superprompt-forge.notes.search",
                 "title": "Search Notes",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "corenexus.notes.clearSearch",
+                "command": "superprompt-forge.notes.clearSearch",
                 "title": "Clear Notes Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "corenexus.prs.refresh",
+                "command": "superprompt-forge.prs.refresh",
                 "title": "Refresh Pull Requests",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.prs.open",
+                "command": "superprompt-forge.prs.open",
                 "title": "Open Pull Request",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "corenexus.prs.openInBrowser",
+                "command": "superprompt-forge.prs.openInBrowser",
                 "title": "Open PR in Browser",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(link-external)"
             },
             {
-                "command": "corenexus.prs.signIn",
+                "command": "superprompt-forge.prs.signIn",
                 "title": "Sign In for Pull Requests",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.prs.filter",
+                "command": "superprompt-forge.prs.filter",
                 "title": "Filter Pull Requests",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(filter)"
             },
             {
-                "command": "corenexus.prs.search",
+                "command": "superprompt-forge.prs.search",
                 "title": "Search Pull Requests",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "corenexus.prs.clearSearch",
+                "command": "superprompt-forge.prs.clearSearch",
                 "title": "Clear PR Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "corenexus.issues.refresh",
+                "command": "superprompt-forge.issues.refresh",
                 "title": "Refresh Issues",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.issues.open",
+                "command": "superprompt-forge.issues.open",
                 "title": "Open Issue",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "corenexus.issues.openInBrowser",
+                "command": "superprompt-forge.issues.openInBrowser",
                 "title": "Open Issue in Browser",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(link-external)"
             },
             {
-                "command": "corenexus.issues.signIn",
+                "command": "superprompt-forge.issues.signIn",
                 "title": "Sign In for Issues",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.issues.filter",
+                "command": "superprompt-forge.issues.filter",
                 "title": "Filter Issues",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(filter)"
             },
             {
-                "command": "corenexus.issues.search",
+                "command": "superprompt-forge.issues.search",
                 "title": "Search Issues",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "corenexus.issues.clearSearch",
+                "command": "superprompt-forge.issues.clearSearch",
                 "title": "Clear Issue Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "corenexus.projects.refresh",
+                "command": "superprompt-forge.projects.refresh",
                 "title": "Refresh Projects",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.projects.openItem",
+                "command": "superprompt-forge.projects.openItem",
                 "title": "Open Project Item",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(go-to-file)"
             },
             {
-                "command": "corenexus.projects.openInBrowser",
+                "command": "superprompt-forge.projects.openInBrowser",
                 "title": "Open in Browser",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(link-external)"
             },
             {
-                "command": "corenexus.projects.signIn",
+                "command": "superprompt-forge.projects.signIn",
                 "title": "Sign In for Projects",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.projects.signOut",
+                "command": "superprompt-forge.projects.signOut",
                 "title": "Sign Out of Projects",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "corenexus.projects.filter",
+                "command": "superprompt-forge.projects.filter",
                 "title": "Filter Project Items",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(filter)"
             },
             {
-                "command": "corenexus.projects.search",
+                "command": "superprompt-forge.projects.search",
                 "title": "Search Project Items",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "corenexus.projects.clearSearch",
+                "command": "superprompt-forge.projects.clearSearch",
                 "title": "Clear Project Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "corenexus.mattermost.refresh",
+                "command": "superprompt-forge.mattermost.refresh",
                 "title": "Refresh Mattermost",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.mattermost.signIn",
+                "command": "superprompt-forge.mattermost.signIn",
                 "title": "Sign In to Mattermost",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.mattermost.signOut",
+                "command": "superprompt-forge.mattermost.signOut",
                 "title": "Sign Out of Mattermost",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "corenexus.mattermost.openChannel",
+                "command": "superprompt-forge.mattermost.openChannel",
                 "title": "Open Channel",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(comment-discussion)"
             },
             {
-                "command": "corenexus.mattermost.search",
+                "command": "superprompt-forge.mattermost.search",
                 "title": "Search Channels",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(search)"
             },
             {
-                "command": "corenexus.mattermost.clearSearch",
+                "command": "superprompt-forge.mattermost.clearSearch",
                 "title": "Clear Channel Search",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(close)"
             },
             {
-                "command": "corenexus.mattermost.configure",
+                "command": "superprompt-forge.mattermost.configure",
                 "title": "Configure Mattermost Server",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(gear)"
             },
             {
-                "command": "corenexus.drive.refresh",
+                "command": "superprompt-forge.drive.refresh",
                 "title": "Refresh Google Drive",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(refresh)"
             },
             {
-                "command": "corenexus.drive.signIn",
+                "command": "superprompt-forge.drive.signIn",
                 "title": "Sign In to Google",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-in)"
             },
             {
-                "command": "corenexus.drive.signOut",
+                "command": "superprompt-forge.drive.signOut",
                 "title": "Sign Out of Google",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(sign-out)"
             },
             {
-                "command": "corenexus.drive.openFile",
+                "command": "superprompt-forge.drive.openFile",
                 "title": "Open in Browser",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(link-external)"
             },
             {
-                "command": "corenexus.drive.configure",
+                "command": "superprompt-forge.drive.configure",
                 "title": "Configure Google Drive",
-                "category": "CoreNexus",
+                "category": "Superprompt Forge",
                 "icon": "$(gear)"
             }
         ],
         "menus": {
             "view/title": [
                 {
-                    "command": "mystash.refresh",
-                    "when": "view == mystashView",
+                    "command": "superprompt-forge.refresh",
+                    "when": "view == superprompt-forge-view",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.stash",
-                    "when": "view == mystashView",
+                    "command": "superprompt-forge.stash",
+                    "when": "view == superprompt-forge-view",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
-                    "when": "view == mystashView",
+                    "command": "superprompt-forge.openPanel",
+                    "when": "view == superprompt-forge-view",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.search",
-                    "when": "view == mystashView && !mystash.isSearching",
+                    "command": "superprompt-forge.search",
+                    "when": "view == superprompt-forge-view && !superprompt-forge.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.clearSearch",
-                    "when": "view == mystashView && mystash.isSearching",
+                    "command": "superprompt-forge.clearSearch",
+                    "when": "view == superprompt-forge-view && superprompt-forge.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.clear",
-                    "when": "view == mystashView"
+                    "command": "superprompt-forge.clear",
+                    "when": "view == superprompt-forge-view"
                 },
                 {
-                    "command": "corenexus.notes.refresh",
+                    "command": "superprompt-forge.notes.refresh",
                     "when": "view == gistNotesView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == gistNotesView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.notes.create",
-                    "when": "view == gistNotesView && corenexus.isAuthenticated",
+                    "command": "superprompt-forge.notes.create",
+                    "when": "view == gistNotesView && superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.notes.search",
-                    "when": "view == gistNotesView && !corenexus.notes.isSearching",
+                    "command": "superprompt-forge.notes.search",
+                    "when": "view == gistNotesView && !superprompt-forge.notes.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.notes.clearSearch",
-                    "when": "view == gistNotesView && corenexus.notes.isSearching",
+                    "command": "superprompt-forge.notes.clearSearch",
+                    "when": "view == gistNotesView && superprompt-forge.notes.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.notes.signIn",
-                    "when": "view == gistNotesView && !corenexus.isAuthenticated",
+                    "command": "superprompt-forge.notes.signIn",
+                    "when": "view == gistNotesView && !superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.notes.signOut",
-                    "when": "view == gistNotesView && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.signOut",
+                    "when": "view == gistNotesView && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.prs.refresh",
+                    "command": "superprompt-forge.prs.refresh",
                     "when": "view == pullRequestsView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == pullRequestsView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.prs.filter",
-                    "when": "view == pullRequestsView && corenexus.isAuthenticated",
+                    "command": "superprompt-forge.prs.filter",
+                    "when": "view == pullRequestsView && superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.prs.search",
-                    "when": "view == pullRequestsView && !corenexus.prs.isSearching",
+                    "command": "superprompt-forge.prs.search",
+                    "when": "view == pullRequestsView && !superprompt-forge.prs.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.prs.clearSearch",
-                    "when": "view == pullRequestsView && corenexus.prs.isSearching",
+                    "command": "superprompt-forge.prs.clearSearch",
+                    "when": "view == pullRequestsView && superprompt-forge.prs.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.prs.signIn",
-                    "when": "view == pullRequestsView && !corenexus.isAuthenticated",
+                    "command": "superprompt-forge.prs.signIn",
+                    "when": "view == pullRequestsView && !superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.issues.refresh",
+                    "command": "superprompt-forge.issues.refresh",
                     "when": "view == issuesView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == issuesView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.issues.filter",
-                    "when": "view == issuesView && corenexus.isAuthenticated",
+                    "command": "superprompt-forge.issues.filter",
+                    "when": "view == issuesView && superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.issues.search",
-                    "when": "view == issuesView && !corenexus.issues.isSearching",
+                    "command": "superprompt-forge.issues.search",
+                    "when": "view == issuesView && !superprompt-forge.issues.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.issues.clearSearch",
-                    "when": "view == issuesView && corenexus.issues.isSearching",
+                    "command": "superprompt-forge.issues.clearSearch",
+                    "when": "view == issuesView && superprompt-forge.issues.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.issues.signIn",
-                    "when": "view == issuesView && !corenexus.isAuthenticated",
+                    "command": "superprompt-forge.issues.signIn",
+                    "when": "view == issuesView && !superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.projects.refresh",
+                    "command": "superprompt-forge.projects.refresh",
                     "when": "view == projectsView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == projectsView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.projects.filter",
-                    "when": "view == projectsView && corenexus.isAuthenticated",
+                    "command": "superprompt-forge.projects.filter",
+                    "when": "view == projectsView && superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.projects.search",
-                    "when": "view == projectsView && !corenexus.projects.isSearching",
+                    "command": "superprompt-forge.projects.search",
+                    "when": "view == projectsView && !superprompt-forge.projects.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.projects.clearSearch",
-                    "when": "view == projectsView && corenexus.projects.isSearching",
+                    "command": "superprompt-forge.projects.clearSearch",
+                    "when": "view == projectsView && superprompt-forge.projects.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.projects.signIn",
-                    "when": "view == projectsView && !corenexus.isAuthenticated",
+                    "command": "superprompt-forge.projects.signIn",
+                    "when": "view == projectsView && !superprompt-forge.isAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.mattermost.refresh",
+                    "command": "superprompt-forge.mattermost.refresh",
                     "when": "view == mattermostView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == mattermostView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.mattermost.search",
-                    "when": "view == mattermostView && corenexus.isMattermostAuthenticated && !corenexus.mattermost.isSearching",
+                    "command": "superprompt-forge.mattermost.search",
+                    "when": "view == mattermostView && superprompt-forge.isMattermostAuthenticated && !superprompt-forge.mattermost.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.mattermost.clearSearch",
-                    "when": "view == mattermostView && corenexus.mattermost.isSearching",
+                    "command": "superprompt-forge.mattermost.clearSearch",
+                    "when": "view == mattermostView && superprompt-forge.mattermost.isSearching",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.mattermost.signIn",
-                    "when": "view == mattermostView && corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated",
+                    "command": "superprompt-forge.mattermost.signIn",
+                    "when": "view == mattermostView && superprompt-forge.isMattermostConfigured && !superprompt-forge.isMattermostAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.mattermost.signOut",
-                    "when": "view == mattermostView && corenexus.isMattermostAuthenticated"
+                    "command": "superprompt-forge.mattermost.signOut",
+                    "when": "view == mattermostView && superprompt-forge.isMattermostAuthenticated"
                 },
                 {
-                    "command": "corenexus.mattermost.configure",
+                    "command": "superprompt-forge.mattermost.configure",
                     "when": "view == mattermostView"
                 },
                 {
-                    "command": "corenexus.drive.refresh",
+                    "command": "superprompt-forge.drive.refresh",
                     "when": "view == googleDriveView",
                     "group": "navigation"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "view == googleDriveView",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.drive.signIn",
-                    "when": "view == googleDriveView && corenexus.isGoogleConfigured && !corenexus.isGoogleAuthenticated",
+                    "command": "superprompt-forge.drive.signIn",
+                    "when": "view == googleDriveView && superprompt-forge.isGoogleConfigured && !superprompt-forge.isGoogleAuthenticated",
                     "group": "navigation"
                 },
                 {
-                    "command": "corenexus.drive.signOut",
-                    "when": "view == googleDriveView && corenexus.isGoogleAuthenticated"
+                    "command": "superprompt-forge.drive.signOut",
+                    "when": "view == googleDriveView && superprompt-forge.isGoogleAuthenticated"
                 },
                 {
-                    "command": "corenexus.drive.configure",
+                    "command": "superprompt-forge.drive.configure",
                     "when": "view == googleDriveView"
                 }
             ],
             "view/item/context": [
                 {
-                    "command": "mystash.apply",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.apply",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "inline@1"
                 },
                 {
-                    "command": "mystash.pop",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.pop",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "inline@2"
                 },
                 {
-                    "command": "mystash.drop",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.drop",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "inline@3"
                 },
                 {
-                    "command": "mystash.show",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.show",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "inline@4"
                 },
                 {
-                    "command": "mystash.apply",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.apply",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "1_stash@1"
                 },
                 {
-                    "command": "mystash.pop",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.pop",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "1_stash@2"
                 },
                 {
-                    "command": "mystash.show",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.show",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "1_stash@3"
                 },
                 {
-                    "command": "mystash.showStats",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.showStats",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "1_stash@4"
                 },
                 {
-                    "command": "mystash.drop",
-                    "when": "view == mystashView && viewItem == stashItem",
+                    "command": "superprompt-forge.drop",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem",
                     "group": "2_destructive"
                 },
                 {
-                    "command": "mystash.applySelected",
-                    "when": "view == mystashView && viewItem == stashItem && listMultiSelection",
+                    "command": "superprompt-forge.applySelected",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem && listMultiSelection",
                     "group": "3_batch@1"
                 },
                 {
-                    "command": "mystash.dropSelected",
-                    "when": "view == mystashView && viewItem == stashItem && listMultiSelection",
+                    "command": "superprompt-forge.dropSelected",
+                    "when": "view == superprompt-forge-view && viewItem == stashItem && listMultiSelection",
                     "group": "3_batch@2"
                 },
                 {
-                    "command": "corenexus.notes.open",
+                    "command": "superprompt-forge.notes.open",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "corenexus.notes.copyLink",
+                    "command": "superprompt-forge.notes.copyLink",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "corenexus.notes.delete",
+                    "command": "superprompt-forge.notes.delete",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "inline@3"
                 },
                 {
-                    "command": "corenexus.notes.open",
+                    "command": "superprompt-forge.notes.open",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@1"
                 },
                 {
-                    "command": "corenexus.notes.copyLink",
+                    "command": "superprompt-forge.notes.copyLink",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@2"
                 },
                 {
-                    "command": "corenexus.notes.toggleVisibility",
+                    "command": "superprompt-forge.notes.toggleVisibility",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "1_note@3"
                 },
                 {
-                    "command": "corenexus.notes.delete",
+                    "command": "superprompt-forge.notes.delete",
                     "when": "view == gistNotesView && viewItem =~ /^gistNote/",
                     "group": "2_destructive"
                 },
                 {
-                    "command": "corenexus.prs.open",
+                    "command": "superprompt-forge.prs.open",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "corenexus.prs.openInBrowser",
+                    "command": "superprompt-forge.prs.openInBrowser",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "corenexus.prs.open",
+                    "command": "superprompt-forge.prs.open",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "1_pr@1"
                 },
                 {
-                    "command": "corenexus.prs.openInBrowser",
+                    "command": "superprompt-forge.prs.openInBrowser",
                     "when": "view == pullRequestsView && viewItem =~ /^prItem/",
                     "group": "1_pr@2"
                 },
                 {
-                    "command": "corenexus.issues.open",
+                    "command": "superprompt-forge.issues.open",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "corenexus.issues.openInBrowser",
+                    "command": "superprompt-forge.issues.openInBrowser",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "corenexus.issues.open",
+                    "command": "superprompt-forge.issues.open",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "1_issue@1"
                 },
                 {
-                    "command": "corenexus.issues.openInBrowser",
+                    "command": "superprompt-forge.issues.openInBrowser",
                     "when": "view == issuesView && viewItem =~ /^issueItem/",
                     "group": "1_issue@2"
                 },
                 {
-                    "command": "corenexus.projects.openItem",
+                    "command": "superprompt-forge.projects.openItem",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "inline@1"
                 },
                 {
-                    "command": "corenexus.projects.openInBrowser",
+                    "command": "superprompt-forge.projects.openInBrowser",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "inline@2"
                 },
                 {
-                    "command": "corenexus.projects.openItem",
+                    "command": "superprompt-forge.projects.openItem",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "1_project@1"
                 },
                 {
-                    "command": "corenexus.projects.openInBrowser",
+                    "command": "superprompt-forge.projects.openInBrowser",
                     "when": "view == projectsView && viewItem =~ /^projectItem/",
                     "group": "1_project@2"
                 },
                 {
-                    "command": "corenexus.mattermost.openChannel",
+                    "command": "superprompt-forge.mattermost.openChannel",
                     "when": "view == mattermostView && viewItem =~ /^mattermostChannel/",
                     "group": "inline@1"
                 }
             ],
             "commandPalette": [
                 {
-                    "command": "mystash.refresh",
+                    "command": "superprompt-forge.refresh",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.stash",
+                    "command": "superprompt-forge.stash",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.apply",
+                    "command": "superprompt-forge.apply",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.pop",
+                    "command": "superprompt-forge.pop",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.drop",
+                    "command": "superprompt-forge.drop",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.show",
+                    "command": "superprompt-forge.show",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.clear",
+                    "command": "superprompt-forge.clear",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.showFile",
+                    "command": "superprompt-forge.showFile",
                     "when": "false"
                 },
                 {
-                    "command": "mystash.openPanel",
+                    "command": "superprompt-forge.openPanel",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.showStats",
+                    "command": "superprompt-forge.showStats",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.search",
+                    "command": "superprompt-forge.search",
                     "when": "workspaceFolderCount > 0"
                 },
                 {
-                    "command": "mystash.clearSearch",
-                    "when": "workspaceFolderCount > 0 && mystash.isSearching"
+                    "command": "superprompt-forge.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isSearching"
                 },
                 {
-                    "command": "mystash.applySelected",
+                    "command": "superprompt-forge.applySelected",
                     "when": "false"
                 },
                 {
-                    "command": "mystash.dropSelected",
+                    "command": "superprompt-forge.dropSelected",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.notes.signIn",
-                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.signIn",
+                    "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.notes.signOut",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.signOut",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.notes.create",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.create",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.notes.open",
+                    "command": "superprompt-forge.notes.open",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.notes.delete",
+                    "command": "superprompt-forge.notes.delete",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.notes.copyLink",
+                    "command": "superprompt-forge.notes.copyLink",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.notes.toggleVisibility",
+                    "command": "superprompt-forge.notes.toggleVisibility",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.notes.refresh",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.refresh",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.notes.search",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.notes.search",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.notes.clearSearch",
-                    "when": "workspaceFolderCount > 0 && corenexus.notes.isSearching"
+                    "command": "superprompt-forge.notes.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.notes.isSearching"
                 },
                 {
-                    "command": "corenexus.prs.refresh",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.prs.refresh",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.prs.open",
+                    "command": "superprompt-forge.prs.open",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.prs.openInBrowser",
+                    "command": "superprompt-forge.prs.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.prs.signIn",
-                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
+                    "command": "superprompt-forge.prs.signIn",
+                    "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.prs.filter",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.prs.filter",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.prs.search",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.prs.search",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.prs.clearSearch",
-                    "when": "workspaceFolderCount > 0 && corenexus.prs.isSearching"
+                    "command": "superprompt-forge.prs.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.prs.isSearching"
                 },
                 {
-                    "command": "corenexus.issues.refresh",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.issues.refresh",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.issues.open",
+                    "command": "superprompt-forge.issues.open",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.issues.openInBrowser",
+                    "command": "superprompt-forge.issues.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.issues.signIn",
-                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
+                    "command": "superprompt-forge.issues.signIn",
+                    "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.issues.filter",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.issues.filter",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.issues.search",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.issues.search",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.issues.clearSearch",
-                    "when": "workspaceFolderCount > 0 && corenexus.issues.isSearching"
+                    "command": "superprompt-forge.issues.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.issues.isSearching"
                 },
                 {
-                    "command": "corenexus.projects.refresh",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.projects.refresh",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.projects.openItem",
+                    "command": "superprompt-forge.projects.openItem",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.projects.openInBrowser",
+                    "command": "superprompt-forge.projects.openInBrowser",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.projects.signIn",
-                    "when": "workspaceFolderCount > 0 && !corenexus.isAuthenticated"
+                    "command": "superprompt-forge.projects.signIn",
+                    "when": "workspaceFolderCount > 0 && !superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.projects.signOut",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.projects.signOut",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.projects.filter",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.projects.filter",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.projects.search",
-                    "when": "workspaceFolderCount > 0 && corenexus.isAuthenticated"
+                    "command": "superprompt-forge.projects.search",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isAuthenticated"
                 },
                 {
-                    "command": "corenexus.projects.clearSearch",
-                    "when": "workspaceFolderCount > 0 && corenexus.projects.isSearching"
+                    "command": "superprompt-forge.projects.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.projects.isSearching"
                 },
                 {
-                    "command": "corenexus.mattermost.refresh",
-                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
+                    "command": "superprompt-forge.mattermost.refresh",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isMattermostAuthenticated"
                 },
                 {
-                    "command": "corenexus.mattermost.signIn",
-                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostConfigured && !corenexus.isMattermostAuthenticated"
+                    "command": "superprompt-forge.mattermost.signIn",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isMattermostConfigured && !superprompt-forge.isMattermostAuthenticated"
                 },
                 {
-                    "command": "corenexus.mattermost.signOut",
-                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
+                    "command": "superprompt-forge.mattermost.signOut",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isMattermostAuthenticated"
                 },
                 {
-                    "command": "corenexus.mattermost.openChannel",
+                    "command": "superprompt-forge.mattermost.openChannel",
                     "when": "false"
                 },
                 {
-                    "command": "corenexus.mattermost.search",
-                    "when": "workspaceFolderCount > 0 && corenexus.isMattermostAuthenticated"
+                    "command": "superprompt-forge.mattermost.search",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.isMattermostAuthenticated"
                 },
                 {
-                    "command": "corenexus.mattermost.clearSearch",
-                    "when": "workspaceFolderCount > 0 && corenexus.mattermost.isSearching"
+                    "command": "superprompt-forge.mattermost.clearSearch",
+                    "when": "workspaceFolderCount > 0 && superprompt-forge.mattermost.isSearching"
                 },
                 {
-                    "command": "corenexus.mattermost.configure",
+                    "command": "superprompt-forge.mattermost.configure",
                     "when": "workspaceFolderCount > 0"
                 }
             ]
         },
         "keybindings": [
             {
-                "command": "mystash.stash",
+                "command": "superprompt-forge.stash",
                 "key": "ctrl+shift+s",
                 "mac": "cmd+shift+s",
                 "when": "workspaceFolderCount > 0"

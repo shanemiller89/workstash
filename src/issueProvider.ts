@@ -127,10 +127,10 @@ export class IssueProvider implements vscode.TreeDataProvider<IssueItem>, vscode
         try {
             // Check auth status
             const isAuth = await this._authService.isAuthenticated();
-            await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.isAuthenticated', isAuth);
 
             if (!isAuth) {
-                await vscode.commands.executeCommand('setContext', 'corenexus.hasIssues', false);
+                await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasIssues', false);
                 this._cachedIssues = [];
                 this._updateTreeChrome(0);
                 return [];
@@ -140,7 +140,7 @@ export class IssueProvider implements vscode.TreeDataProvider<IssueItem>, vscode
             if (!this._owner || !this._repo) {
                 const ghRepo = await this._gitService.getGitHubRepo();
                 if (!ghRepo) {
-                    await vscode.commands.executeCommand('setContext', 'corenexus.hasIssues', false);
+                    await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasIssues', false);
                     this._cachedIssues = [];
                     this._updateTreeChrome(0);
                     return [];
@@ -158,7 +158,7 @@ export class IssueProvider implements vscode.TreeDataProvider<IssueItem>, vscode
             this._cachedIssues = issues;
 
             const hasIssues = issues.length > 0;
-            await vscode.commands.executeCommand('setContext', 'corenexus.hasIssues', hasIssues);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasIssues', hasIssues);
 
             // Filter by search query
             const query = this._searchQuery.trim().toLowerCase();

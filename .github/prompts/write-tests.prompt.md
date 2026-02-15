@@ -1,7 +1,7 @@
 # Write Tests for a Module
 
 ## Context
-You are writing tests for the MyStash VS Code extension. The project uses **Mocha** + **assert** (Node built-in). No Chai, no Jest.
+You are writing tests for the Superprompt Forge VS Code extension. The project uses **Mocha** + **assert** (Node built-in). No Chai, no Jest.
 
 ## Test Types
 

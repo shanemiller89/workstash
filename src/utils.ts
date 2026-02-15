@@ -51,8 +51,8 @@ export function formatRelativeTime(date: Date): string {
 }
 
 /**
- * Read a MyStash configuration value with type safety.
+ * Read a Superprompt Forge configuration value with type safety.
  */
 export function getConfig<T>(key: string, defaultValue: T): T {
-    return vscode.workspace.getConfiguration('mystash').get<T>(key, defaultValue);
+    return vscode.workspace.getConfiguration('superprompt-forge').get<T>(key, defaultValue);
 }

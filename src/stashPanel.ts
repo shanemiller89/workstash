@@ -12,11 +12,11 @@ import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
 /**
- * Manages the CoreNexus webview panel — a rich, interactive stash explorer
+ * Manages the Superprompt Forge webview panel — a rich, interactive stash explorer
  * that opens as an editor tab, powered by a React + Zustand + Tailwind UI.
  */
 export class StashPanel {
-    public static readonly viewType = 'mystash.panel';
+    public static readonly viewType = 'superprompt-forge.panel';
 
     private static _instance: StashPanel | undefined;
     private readonly _panel: vscode.WebviewPanel;
@@ -135,7 +135,7 @@ export class StashPanel {
             return StashPanel._instance;
         }
 
-        const panel = vscode.window.createWebviewPanel(StashPanel.viewType, 'CoreNexus', column, {
+        const panel = vscode.window.createWebviewPanel(StashPanel.viewType, 'Superprompt Forge', column, {
             enableScripts: true,
             retainContextWhenHidden: true,
             localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
@@ -242,10 +242,10 @@ export class StashPanel {
             this._panel.webview.postMessage({ type: 'stashData', payload });
 
             // 8b-vi: Update panel title with stash count
-            this._panel.title = stashes.length > 0 ? `CoreNexus (${stashes.length})` : 'CoreNexus';
+            this._panel.title = stashes.length > 0 ? `Superprompt Forge (${stashes.length})` : 'Superprompt Forge';
         } catch {
             this._panel.webview.postMessage({ type: 'stashData', payload: [] });
-            this._panel.title = 'CoreNexus';
+            this._panel.title = 'Superprompt Forge';
         }
     }
 
@@ -476,10 +476,10 @@ export class StashPanel {
                 if (msg.index !== undefined && msg.filePath) {
                     const fileName = msg.filePath.split('/').pop() ?? msg.filePath;
                     const parentUri = vscode.Uri.parse(
-                        `mystash:/${msg.filePath}?ref=parent&index=${msg.index}`,
+                        `superprompt-forge:/${msg.filePath}?ref=parent&index=${msg.index}`,
                     );
                     const stashUri = vscode.Uri.parse(
-                        `mystash:/${msg.filePath}?ref=stash&index=${msg.index}`,
+                        `superprompt-forge:/${msg.filePath}?ref=stash&index=${msg.index}`,
                     );
                     try {
                         await vscode.commands.executeCommand(
@@ -521,7 +521,7 @@ export class StashPanel {
                 break;
 
             case 'createStash':
-                await vscode.commands.executeCommand('mystash.stash');
+                await vscode.commands.executeCommand('superprompt-forge.stash');
                 await this._refresh();
                 break;
 
@@ -545,20 +545,20 @@ export class StashPanel {
             }
 
             case 'clearStashes':
-                await vscode.commands.executeCommand('mystash.clear');
+                await vscode.commands.executeCommand('superprompt-forge.clear');
                 await this._refresh();
                 break;
 
             // ─── Notes messages from webview ───
 
             case 'notes.signIn':
-                await vscode.commands.executeCommand('corenexus.notes.signIn');
+                await vscode.commands.executeCommand('superprompt-forge.notes.signIn');
                 await this._sendAuthStatus();
                 await this._refreshNotes();
                 break;
 
             case 'notes.signOut':
-                await vscode.commands.executeCommand('corenexus.notes.signOut');
+                await vscode.commands.executeCommand('superprompt-forge.notes.signOut');
                 await this._sendAuthStatus();
                 break;
 
@@ -724,7 +724,7 @@ export class StashPanel {
                 break;
 
             case 'prs.signIn':
-                await vscode.commands.executeCommand('corenexus.prs.signIn');
+                await vscode.commands.executeCommand('superprompt-forge.prs.signIn');
                 await this._sendAuthStatus();
                 await this._refreshPRs();
                 break;
@@ -938,7 +938,7 @@ export class StashPanel {
                 break;
 
             case 'issues.signIn':
-                await vscode.commands.executeCommand('corenexus.issues.signIn');
+                await vscode.commands.executeCommand('superprompt-forge.issues.signIn');
                 await this._sendAuthStatus();
                 await this._refreshIssues();
                 break;
@@ -2048,7 +2048,7 @@ export class StashPanel {
                 // Open the settings UI focused on the Gemini API key setting
                 await vscode.commands.executeCommand(
                     'workbench.action.openSettings',
-                    'corenexus.ai.geminiApiKey',
+                    'superprompt-forge.ai.geminiApiKey',
                 );
                 break;
             }
@@ -2056,32 +2056,31 @@ export class StashPanel {
             // ─── Settings Tab ──────────────────────────────────────────
 
             case 'settings.getSettings': {
-                const mystash = vscode.workspace.getConfiguration('mystash');
-                const corenexus = vscode.workspace.getConfiguration('corenexus');
+                const config = vscode.workspace.getConfiguration('superprompt-forge');
                 this._panel.webview.postMessage({
                     type: 'settingsData',
                     settings: {
                         // Stash
-                        autoRefresh: mystash.get<boolean>('autoRefresh', true),
-                        confirmOnDrop: mystash.get<boolean>('confirmOnDrop', true),
-                        confirmOnClear: mystash.get<boolean>('confirmOnClear', true),
-                        showFileStatus: mystash.get<boolean>('showFileStatus', true),
-                        defaultIncludeUntracked: mystash.get<boolean>('defaultIncludeUntracked', false),
-                        sortOrder: mystash.get<string>('sortOrder', 'newest'),
-                        showBranchInDescription: mystash.get<boolean>('showBranchInDescription', true),
+                        autoRefresh: config.get<boolean>('autoRefresh', true),
+                        confirmOnDrop: config.get<boolean>('confirmOnDrop', true),
+                        confirmOnClear: config.get<boolean>('confirmOnClear', true),
+                        showFileStatus: config.get<boolean>('showFileStatus', true),
+                        defaultIncludeUntracked: config.get<boolean>('defaultIncludeUntracked', false),
+                        sortOrder: config.get<string>('sortOrder', 'newest'),
+                        showBranchInDescription: config.get<boolean>('showBranchInDescription', true),
                         // Notes
-                        autosaveDelay: corenexus.get<number>('notes.autosaveDelay', 30),
-                        defaultVisibility: corenexus.get<string>('notes.defaultVisibility', 'secret'),
+                        autosaveDelay: config.get<number>('notes.autosaveDelay', 30),
+                        defaultVisibility: config.get<string>('notes.defaultVisibility', 'secret'),
                         // Mattermost
-                        mattermostServerUrl: corenexus.get<string>('mattermost.serverUrl', ''),
+                        mattermostServerUrl: config.get<string>('mattermost.serverUrl', ''),
                         // AI Privacy
-                        includeSecretGists: corenexus.get<boolean>('ai.includeSecretGists', false),
-                        includePrivateMessages: corenexus.get<boolean>('ai.includePrivateMessages', false),
+                        includeSecretGists: config.get<boolean>('ai.includeSecretGists', false),
+                        includePrivateMessages: config.get<boolean>('ai.includePrivateMessages', false),
                         // AI Provider
                         aiProvider: AiService.activeProvider(),
-                        providerPreference: corenexus.get<string>('ai.provider', 'auto'),
-                        geminiApiKey: corenexus.get<string>('ai.geminiApiKey', ''),
-                        geminiModel: corenexus.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
+                        providerPreference: config.get<string>('ai.provider', 'auto'),
+                        geminiApiKey: config.get<string>('ai.geminiApiKey', ''),
+                        geminiModel: config.get<string>('ai.geminiModel', 'gemini-2.5-flash'),
                     },
                 });
                 break;
@@ -2094,21 +2093,21 @@ export class StashPanel {
 
                 // Map setting keys to their VS Code configuration paths
                 const SETTING_MAP: Record<string, { section: string; key: string }> = {
-                    autoRefresh: { section: 'mystash', key: 'autoRefresh' },
-                    confirmOnDrop: { section: 'mystash', key: 'confirmOnDrop' },
-                    confirmOnClear: { section: 'mystash', key: 'confirmOnClear' },
-                    showFileStatus: { section: 'mystash', key: 'showFileStatus' },
-                    defaultIncludeUntracked: { section: 'mystash', key: 'defaultIncludeUntracked' },
-                    sortOrder: { section: 'mystash', key: 'sortOrder' },
-                    showBranchInDescription: { section: 'mystash', key: 'showBranchInDescription' },
-                    autosaveDelay: { section: 'corenexus.notes', key: 'autosaveDelay' },
-                    defaultVisibility: { section: 'corenexus.notes', key: 'defaultVisibility' },
-                    mattermostServerUrl: { section: 'corenexus.mattermost', key: 'serverUrl' },
-                    includeSecretGists: { section: 'corenexus.ai', key: 'includeSecretGists' },
-                    includePrivateMessages: { section: 'corenexus.ai', key: 'includePrivateMessages' },
-                    providerPreference: { section: 'corenexus.ai', key: 'provider' },
-                    geminiApiKey: { section: 'corenexus.ai', key: 'geminiApiKey' },
-                    geminiModel: { section: 'corenexus.ai', key: 'geminiModel' },
+                    autoRefresh: { section: 'superprompt-forge', key: 'autoRefresh' },
+                    confirmOnDrop: { section: 'superprompt-forge', key: 'confirmOnDrop' },
+                    confirmOnClear: { section: 'superprompt-forge', key: 'confirmOnClear' },
+                    showFileStatus: { section: 'superprompt-forge', key: 'showFileStatus' },
+                    defaultIncludeUntracked: { section: 'superprompt-forge', key: 'defaultIncludeUntracked' },
+                    sortOrder: { section: 'superprompt-forge', key: 'sortOrder' },
+                    showBranchInDescription: { section: 'superprompt-forge', key: 'showBranchInDescription' },
+                    autosaveDelay: { section: 'superprompt-forge.notes', key: 'autosaveDelay' },
+                    defaultVisibility: { section: 'superprompt-forge.notes', key: 'defaultVisibility' },
+                    mattermostServerUrl: { section: 'superprompt-forge.mattermost', key: 'serverUrl' },
+                    includeSecretGists: { section: 'superprompt-forge.ai', key: 'includeSecretGists' },
+                    includePrivateMessages: { section: 'superprompt-forge.ai', key: 'includePrivateMessages' },
+                    providerPreference: { section: 'superprompt-forge.ai', key: 'provider' },
+                    geminiApiKey: { section: 'superprompt-forge.ai', key: 'geminiApiKey' },
+                    geminiModel: { section: 'superprompt-forge.ai', key: 'geminiModel' },
                 };
 
                 const mapping = SETTING_MAP[settingKey];
@@ -2137,7 +2136,7 @@ export class StashPanel {
             }
 
             case 'settings.openInVSCode': {
-                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.corenexus');
+                vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.superprompt-forge');
                 break;
             }
 
@@ -2454,7 +2453,7 @@ export class StashPanel {
         const shouldInclude = (key: string) => !tabKey || tabKey === key;
 
         // Read AI privacy settings
-        const aiConfig = vscode.workspace.getConfiguration('corenexus.ai');
+        const aiConfig = vscode.workspace.getConfiguration('superprompt-forge.ai');
         const includeSecretGists = aiConfig.get<boolean>('includeSecretGists', false);
         const includePrivateMessages = aiConfig.get<boolean>('includePrivateMessages', false);
 
@@ -2700,7 +2699,7 @@ export class StashPanel {
             const isAuth = await this._driveService.isAuthenticated();
             let email: string | null = null;
             if (isAuth) {
-                const session = await vscode.authentication.getSession('corenexus-google', [], { createIfNone: false });
+                const session = await vscode.authentication.getSession('superprompt-forge-google', [], { createIfNone: false });
                 email = session?.account?.label ?? null;
             }
             this._panel.webview.postMessage({
@@ -3308,7 +3307,7 @@ export class StashPanel {
     <meta http-equiv="Content-Security-Policy"
         content="default-src 'none'; img-src https: http: data: ${webview.cspSource}; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; connect-src https: http:;">
     <link rel="stylesheet" href="${styleUri}">
-    <title>CoreNexus</title>
+    <title>Superprompt Forge</title>
 </head>
 <body>
     <div id="root"></div>

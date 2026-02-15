@@ -101,7 +101,7 @@ const DEFAULT_GEOMETRY: PanelGeometry = { x: -1, y: -1, width: 380, height: 480 
 
 function getPersistedGeometry(): PanelGeometry {
     try {
-        const raw = localStorage.getItem('corenexus-chat-geometry');
+        const raw = localStorage.getItem('superprompt-forge-chat-geometry');
         if (raw) {
             return JSON.parse(raw) as PanelGeometry;
         }
@@ -111,7 +111,7 @@ function getPersistedGeometry(): PanelGeometry {
 
 function persistGeometry(geo: PanelGeometry): void {
     try {
-        localStorage.setItem('corenexus-chat-geometry', JSON.stringify(geo));
+        localStorage.setItem('superprompt-forge-chat-geometry', JSON.stringify(geo));
     } catch { /* ignore */ }
 }
 

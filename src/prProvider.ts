@@ -129,10 +129,10 @@ export class PrProvider implements vscode.TreeDataProvider<PrItem>, vscode.Dispo
         try {
             // Check auth status
             const isAuth = await this._authService.isAuthenticated();
-            await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.isAuthenticated', isAuth);
 
             if (!isAuth) {
-                await vscode.commands.executeCommand('setContext', 'corenexus.hasPRs', false);
+                await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasPRs', false);
                 this._cachedPRs = [];
                 this._updateTreeChrome(0);
                 return [];
@@ -142,7 +142,7 @@ export class PrProvider implements vscode.TreeDataProvider<PrItem>, vscode.Dispo
             if (!this._owner || !this._repo) {
                 const ghRepo = await this._gitService.getGitHubRepo();
                 if (!ghRepo) {
-                    await vscode.commands.executeCommand('setContext', 'corenexus.hasPRs', false);
+                    await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasPRs', false);
                     this._cachedPRs = [];
                     this._updateTreeChrome(0);
                     return [];
@@ -170,7 +170,7 @@ export class PrProvider implements vscode.TreeDataProvider<PrItem>, vscode.Dispo
             this._cachedPRs = prs;
 
             const hasPRs = prs.length > 0;
-            await vscode.commands.executeCommand('setContext', 'corenexus.hasPRs', hasPRs);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasPRs', hasPRs);
 
             // Filter by search query
             const query = this._searchQuery.trim().toLowerCase();

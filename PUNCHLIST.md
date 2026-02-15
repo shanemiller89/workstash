@@ -1,12 +1,12 @@
-# MyStash — Development Punch List
+# Superprompt Forge — Development Punch List
 
-> Feature tracker for the MyStash VS Code extension.
+> Feature tracker for the Superprompt Forge VS Code extension.
 > ✅ = done, 🔲 = todo. Check off items as they are completed.
 >
 > **Architecture decisions (locked):**
 >
 > - `execGit()` returns `{ stdout, stderr, exitCode }` (structured result, not throw-on-error)
-> - Diff viewing uses `TextDocumentContentProvider` with `mystash:` URI scheme (no temp files)
+> - Diff viewing uses `TextDocumentContentProvider` with `superprompt-forge:` URI scheme (no temp files)
 > - Multi-root workspace is Phase 2 but design placeholders (`// TODO: multi-root`) are added now
 > - Extract `pickStash()` helper to eliminate QuickPick boilerplate duplication
 > - Both unit tests (mocked exec) and integration tests (extension host)
@@ -17,13 +17,13 @@
 ## Current File Inventory
 
 ```
-MyStash/
+Superprompt Forge/
 ├── src/
 │   ├── extension.ts            # activate/deactivate, command registration, wiring
 │   ├── gitService.ts           # GitService class — all git CLI operations
 │   ├── stashProvider.ts        # TreeDataProvider for the stash list view
 │   ├── stashItem.ts            # StashItem & StashFileItem tree item models
-│   ├── stashContentProvider.ts # TextDocumentContentProvider (mystash: URI scheme)
+│   ├── stashContentProvider.ts # TextDocumentContentProvider (superprompt-forge: URI scheme)
 │   ├── stashPanel.ts           # WebviewPanel — loads React app, handles messages
 │   ├── uiUtils.ts              # pickStash() QuickPick helper
 │   ├── utils.ts                # formatRelativeTime(), getConfig()
@@ -58,7 +58,7 @@ MyStash/
 > All foundational changes are done.
 
 - [x] **0a.** `GitResult` interface + `execGit()` structured return (never throws)
-- [x] **0b.** Output channel (`MyStash`) — git commands logged, refresh reasons logged
+- [x] **0b.** Output channel (`Superprompt Forge`) — git commands logged, refresh reasons logged
 - [x] **0c.** `pickStash()` helper in `uiUtils.ts` — replaces 4 duplicated QuickPick blocks
 
 ---
@@ -92,7 +92,7 @@ MyStash/
         - `All Changes` — no extra flags
         - `Staged Only` — `--staged` (git 2.35+)
         - `Include Untracked` — `--include-untracked`
-    - Pre-select based on `mystash.defaultIncludeUntracked` setting
+    - Pre-select based on `superprompt-forge.defaultIncludeUntracked` setting
     - `createStash()` now accepts `mode: StashMode` (`'all' | 'staged' | 'untracked'`)
     - 📁 `extension.ts`, `gitService.ts`
 
@@ -161,12 +161,12 @@ MyStash/
 
 - [x] **6a.** Show full stash diff (`git stash show -p` → diff editor tab)
 - [x] **6b.** Show from command palette (via `pickStash()`)
-- [x] **6c.** `mystash.showFile` command — per-file diff (hidden from palette)
-- [x] **6d.** `StashContentProvider` — `mystash:` URI scheme, `?ref=parent|stash&index=N`
+- [x] **6c.** `superprompt-forge.showFile` command — per-file diff (hidden from palette)
+- [x] **6d.** `StashContentProvider` — `superprompt-forge:` URI scheme, `?ref=parent|stash&index=N`
 - [x] **6e.** Side-by-side diff view using `vscode.diff` (parent ↔ stash version)
 
 - [x] **6f. Show stash summary (stat view)**
-    - `mystash.showStats` command shows `git stash show --stat` in a plaintext editor with header
+    - `superprompt-forge.showStats` command shows `git stash show --stat` in a plaintext editor with header
     - Registered in package.json commands, context menu, and command palette
     - 📁 `extension.ts`, `package.json`
 
@@ -246,7 +246,7 @@ MyStash/
     - 📁 `webview-ui/src/components/StashList.tsx`, `webview-ui/src/components/StashCard.tsx`
 
 - [x] **8b-vi. Webview panel icon & title**
-    - Show stash count in panel title: `MyStash (3)`
+    - Show stash count in panel title: `Superprompt Forge (3)`
     - Updated on each refresh
     - 📁 `src/stashPanel.ts`
 
@@ -276,13 +276,13 @@ MyStash/
     - 📁 `stashProvider.ts`
 
 - [x] **9a-iv. Listen for setting changes**
-    - `vscode.workspace.onDidChangeConfiguration` → refresh on `mystash.*` change
+    - `vscode.workspace.onDidChangeConfiguration` → refresh on `superprompt-forge.*` change
     - 📁 `extension.ts`
 
 ### 9B. Visual Indicators
 
 - [x] **9b-i. Status bar item**
-    - `$(archive) N` in the status bar, click → `mystashView.focus`
+    - `$(archive) N` in the status bar, click → `superprompt-forge-view.focus`
     - Updated in StashProvider.getChildren() on every refresh, hidden when count is 0
     - `setStatusBarItem()` method added to StashProvider
     - 📁 `extension.ts`, `stashProvider.ts`
@@ -295,7 +295,7 @@ MyStash/
 ### 9C. Keyboard Shortcuts
 
 - [x] **9c-i. Default keybinding**
-    - `Cmd+Shift+S` (Mac) / `Ctrl+Shift+S` (Win/Linux) → `mystash.stash`
+    - `Cmd+Shift+S` (Mac) / `Ctrl+Shift+S` (Win/Linux) → `superprompt-forge.stash`
     - `when: workspaceFolderCount > 0`
     - 📁 `package.json`
 
@@ -367,7 +367,7 @@ MyStash/
     - 📁 `src/test/extension.test.ts`
 
 - [x] **10c-iii. Command execution smoke tests**
-    - `mystash.refresh` doesNotReject smoke test
+    - `superprompt-forge.refresh` doesNotReject smoke test
     - 📁 `src/test/extension.test.ts`
 
 ---
@@ -417,7 +417,7 @@ MyStash/
 
 - [x] **12a-iii. `getParent()` + `reveal()`**
     - `getParent()` returns parent `StashItem` for `StashFileItem` (cached in `_parentMap`)
-    - Reveal-after-create: auto-scrolls to and expands the new stash after `mystash.stash`
+    - Reveal-after-create: auto-scrolls to and expands the new stash after `superprompt-forge.stash`
     - 📁 `src/stashProvider.ts`, `src/extension.ts`
 
 ### 12B. TreeView Chrome
@@ -435,7 +435,7 @@ MyStash/
 
 ### 12C. Search & Filter
 
-- [x] **12c-i. `mystash.search` command**
+- [x] **12c-i. `superprompt-forge.search` command**
     - InputBox prompt, filters stashes by message/branch/name
     - Filtered count shown in tree message
     - 📁 `src/extension.ts`, `package.json`
@@ -445,9 +445,9 @@ MyStash/
     - Case-insensitive, all occurrences highlighted
     - 📁 `src/stashItem.ts`
 
-- [x] **12c-iii. `mystash.clearSearch` command**
+- [x] **12c-iii. `superprompt-forge.clearSearch` command**
     - Clears search query, restores full stash list
-    - Toggle icon in title bar via `mystash.isSearching` context key
+    - Toggle icon in title bar via `superprompt-forge.isSearching` context key
     - 📁 `src/extension.ts`, `package.json`
 
 ### 12D. Multi-Select Batch Operations
@@ -456,13 +456,13 @@ MyStash/
     - Enabled on TreeView options, allows Cmd-click / Shift-click selection
     - 📁 `src/extension.ts`
 
-- [x] **12d-ii. `mystash.applySelected` command**
+- [x] **12d-ii. `superprompt-forge.applySelected` command**
     - Batch apply with confirmation, progress, per-stash conflict tracking
     - Summary message: "Batch apply: 2 applied, 1 with conflicts"
     - Only visible in context menu when `listMultiSelection` is true
     - 📁 `src/extension.ts`, `package.json`
 
-- [x] **12d-iii. `mystash.dropSelected` command**
+- [x] **12d-iii. `superprompt-forge.dropSelected` command**
     - Batch drop with modal confirmation, drops in reverse index order to avoid shifting
     - Progress indicator per stash, summary message
     - 📁 `src/extension.ts`, `package.json`
@@ -470,9 +470,9 @@ MyStash/
 ### 12E. FileDecorationProvider
 
 - [x] **12e-i. `StashFileDecorationProvider`**
-    - Registered for `mystash-file:` URI scheme
+    - Registered for `superprompt-forge-file:` URI scheme
     - Provides colored letter badges (M/A/D/R/C) matching VS Code SCM style
-    - `StashFileItem.resourceUri` set to `mystash-file:///path?status=M`
+    - `StashFileItem.resourceUri` set to `superprompt-forge-file:///path?status=M`
     - 📁 `src/stashProvider.ts`, `src/stashItem.ts`, `src/extension.ts`
 
 ### 12F. Drag & Drop
@@ -580,18 +580,17 @@ MyStash/
 
 ---
 
-## 14. 🔄 Rebrand — MyStash → CoreNexus
+## 14. 🔄 Rebrand — Superprompt Forge
 
-> The extension broadens from stash-only to a general workspace toolkit. User-facing strings change; internal command/setting IDs stay for backward compatibility. New features use `corenexus.*` prefix.
+> The extension uses the `superprompt-forge` prefix for all commands, settings, and context keys.
 
 - [x] **14a. User-facing rebrand**
-    - `package.json`: `displayName` → `"CoreNexus"`, `description` → `"Git Stash Management & Gist Notes for VS Code"`
-    - Activity bar container title → `"CoreNexus"`
-    - Panel title → `"CoreNexus"` (dynamic: `"CoreNexus (3)"` when stashes loaded)
-    - Status bar tooltip → `"CoreNexus — N stashes"`
-    - **Keep** `"name": "mystash"` (npm/marketplace ID — breaking if changed)
-    - **Keep** all `mystash.*` commands, settings, context keys (backward compatible)
-    - New features use `corenexus.notes.*` prefix
+    - `package.json`: `displayName` → `"Superprompt Forge"`, `description` → `"Git Stash Management & Gist Notes for VS Code"`
+    - Activity bar container title → `"Superprompt Forge"`
+    - Panel title → `"Superprompt Forge"` (dynamic: `"Superprompt Forge (3)"` when stashes loaded)
+    - Status bar tooltip → `"Superprompt Forge — N stashes"`
+    - `"name": "superprompt-forge"` (npm/marketplace ID)
+    - All commands, settings, context keys use `superprompt-forge.*` prefix
     - 📁 `package.json`, `src/stashPanel.ts`, `src/stashProvider.ts`, `src/extension.ts`
 
 - [x] **14b. README & CHANGELOG update**
@@ -619,13 +618,13 @@ MyStash/
     - 📁 `src/authService.ts`
 
 - [x] **15b. Auth event wiring**
-    - `vscode.authentication.onDidChangeSessions` listener → update context key `corenexus.isAuthenticated`
+    - `vscode.authentication.onDidChangeSessions` listener → update context key `superprompt-forge.isAuthenticated`
     - Context key drives welcome view and tree view states
     - 📁 `src/extension.ts`, `src/authService.ts`
 
 - [x] **15c. Sign-in command**
-    - `corenexus.notes.signIn` — triggers interactive GitHub login
-    - `corenexus.notes.signOut` — clears session
+    - `superprompt-forge.notes.signIn` — triggers interactive GitHub login
+    - `superprompt-forge.notes.signOut` — clears session
     - Registered in command palette, also callable from webview
     - 📁 `src/extension.ts`, `package.json`
 
@@ -651,17 +650,17 @@ MyStash/
           createdAt: Date;
           updatedAt: Date;
           htmlUrl: string; // Gist URL for sharing
-          description: string; // Gist description (contains "[CoreNexus]" marker)
+          description: string; // Gist description (contains "[Superprompt Forge]" marker)
       }
       ```
     - 📁 `src/gistService.ts`
 
 - [x] **16c. Convention: note identification**
-    - Each note gist has description prefixed with `[CoreNexus] ` followed by the note title
+    - Each note gist has description prefixed with `[Superprompt Forge] ` followed by the note title
     - Each note gist contains two files:
         - `{title}.md` — the Markdown content
-        - `.corenexus-note` — empty marker file for discovery
-    - Discovery: `GET /gists` → filter by gists containing `.corenexus-note` file
+        - `.superprompt-forge-note` — empty marker file for discovery
+    - Discovery: `GET /gists` → filter by gists containing `.superprompt-forge-note` file
     - 📁 `src/gistService.ts`
 
 - [x] **16d. CRUD methods**
@@ -689,15 +688,15 @@ MyStash/
 
 ## 17. ✅ Gist Notes Tree View
 
-> A second tree view in the CoreNexus sidebar, below the stash tree. Shows a flat list of notes with metadata.
+> A second tree view in the Superprompt Forge sidebar, below the stash tree. Shows a flat list of notes with metadata.
 
 - [x] **17a. Package.json: register tree view**
-    - Add `gistNotesView` to `views.mystash-container[]`
+    - Add `gistNotesView` to `views.superprompt-forge-container[]`
     - Title: `"Gist Notes"`
     - Icon: `$(note)`
     - Welcome views:
-        - Not authenticated: `"Sign in to GitHub to sync your notes.\n[Sign In](command:corenexus.notes.signIn)"`
-        - Authenticated, no notes: `"No notes yet.\n[Create Note](command:corenexus.notes.create)"`
+        - Not authenticated: `"Sign in to GitHub to sync your notes.\n[Sign In](command:superprompt-forge.notes.signIn)"`
+        - Authenticated, no notes: `"No notes yet.\n[Create Note](command:superprompt-forge.notes.create)"`
     - 📁 `package.json`
 
 - [x] **17b. GistNoteItem tree item**
@@ -709,7 +708,7 @@ MyStash/
         - `iconPath`: `ThemeIcon('note')` — or `ThemeIcon('globe')` if public
         - `contextValue`: `'gistNote'` (for menus) or `'gistNotePublic'`
         - `id`: `gist-note-{gistId}` (stable)
-        - `command`: click → opens note in webview (`corenexus.notes.open`)
+        - `command`: click → opens note in webview (`superprompt-forge.notes.open`)
     - 📁 `src/gistNoteItem.ts`
 
 - [x] **17c. GistNotesProvider (TreeDataProvider)**
@@ -723,20 +722,20 @@ MyStash/
     - 📁 `src/gistNotesProvider.ts`
 
 - [x] **17d. Tree view commands**
-    - `corenexus.notes.create` — create new note (title prompt → opens in webview)
-    - `corenexus.notes.open` — open note in webview panel Notes tab
-    - `corenexus.notes.delete` — delete note with confirmation modal
-    - `corenexus.notes.copyLink` — copy gist HTML URL to clipboard
-    - `corenexus.notes.toggleVisibility` — toggle public/secret
-    - `corenexus.notes.refresh` — manual refresh
+    - `superprompt-forge.notes.create` — create new note (title prompt → opens in webview)
+    - `superprompt-forge.notes.open` — open note in webview panel Notes tab
+    - `superprompt-forge.notes.delete` — delete note with confirmation modal
+    - `superprompt-forge.notes.copyLink` — copy gist HTML URL to clipboard
+    - `superprompt-forge.notes.toggleVisibility` — toggle public/secret
+    - `superprompt-forge.notes.refresh` — manual refresh
     - Menus: inline (open, copyLink), context (delete, toggleVisibility), title bar (create, refresh)
     - 📁 `package.json`, `src/extension.ts`
 
 - [x] **17e. Tree view registration & wiring**
     - Register `GistNotesProvider` with `createTreeView('gistNotesView', ...)`
     - Wire `AuthService.onDidChangeSession` → refresh tree on login/logout
-    - Set context key `corenexus.isAuthenticated` for welcome view `when` clauses
-    - Set context key `corenexus.hasNotes` for empty state
+    - Set context key `superprompt-forge.isAuthenticated` for welcome view `when` clauses
+    - Set context key `superprompt-forge.hasNotes` for empty state
     - 📁 `src/extension.ts`
 
 ---
@@ -761,7 +760,7 @@ MyStash/
     - 📁 `webview-ui/src/App.tsx`
 
 - [x] **18c. Deep-link from tree view**
-    - When `corenexus.notes.open` is invoked from the tree:
+    - When `superprompt-forge.notes.open` is invoked from the tree:
         - Open/reveal the webview panel
         - Post message `{ type: 'openNote', noteId: '...' }` to the webview
         - Webview switches to Notes tab and selects the note
@@ -839,9 +838,9 @@ MyStash/
     - 📁 (protocol, implemented across `src/stashPanel.ts` and webview stores)
 
 - [x] **19b-iii. StashPanel message handler expansion**
-    - Add all `corenexus.notes.*` message cases to `_handleMessage()` switch block
+    - Add all `superprompt-forge.notes.*` message cases to `_handleMessage()` switch block
     - Inject `GistService` + `AuthService` into `StashPanel` constructor
-    - (Consider renaming `StashPanel` → `CoreNexusPanel` in a follow-up, keep `StashPanel` name for now)
+    - (Consider renaming `StashPanel` → `Superprompt ForgePanel` in a follow-up, keep `StashPanel` name for now)
     - ⚠️ Depends on: 16d, 15a
     - 📁 `src/stashPanel.ts`
 
@@ -940,8 +939,8 @@ MyStash/
 ### 21B. Integration Tests
 
 - [x] **21b-i. Auth flow integration**
-    - Verify `corenexus.notes.signIn` command registered
-    - Verify context key `corenexus.isAuthenticated` updates
+    - Verify `superprompt-forge.notes.signIn` command registered
+    - Verify context key `superprompt-forge.isAuthenticated` updates
     - 📁 `src/test/extension.test.ts`
 
 - [x] **21b-ii. Tree view registration**
@@ -958,7 +957,7 @@ MyStash/
     - 📁 `.vscodeignore`
 
 - [x] **22b. CHANGELOG v0.2.0**
-    - Rebrand to CoreNexus
+    - Rebrand to Superprompt Forge
     - Gist Notes feature (auth, CRUD, webview, tree view, Markdown, sharing)
     - 📁 `CHANGELOG.md`
 
@@ -1019,8 +1018,8 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Setting                             | Type   | Default  | Description                              |
 | ----------------------------------- | ------ | -------- | ---------------------------------------- |
-| `corenexus.notes.autosaveDelay`     | number | `30`     | Autosave delay in seconds (0 to disable) |
-| `corenexus.notes.defaultVisibility` | enum   | `secret` | Default visibility: `secret` / `public`  |
+| `superprompt-forge.notes.autosaveDelay`     | number | `30`     | Autosave delay in seconds (0 to disable) |
+| `superprompt-forge.notes.defaultVisibility` | enum   | `secret` | Default visibility: `secret` / `public`  |
 
 ---
 
@@ -1028,14 +1027,14 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Command                            | Description                | Palette | Tree View |
 | ---------------------------------- | -------------------------- | ------- | --------- |
-| `corenexus.notes.signIn`           | Sign in to GitHub          | ✅      | Welcome   |
-| `corenexus.notes.signOut`          | Sign out of GitHub         | ✅      | —         |
-| `corenexus.notes.create`           | Create a new note          | ✅      | Title bar |
-| `corenexus.notes.open`             | Open note in webview       | Hidden  | Inline    |
-| `corenexus.notes.delete`           | Delete a note              | ✅      | Context   |
-| `corenexus.notes.copyLink`         | Copy gist URL to clipboard | ✅      | Inline    |
-| `corenexus.notes.toggleVisibility` | Toggle note public/secret  | ✅      | Context   |
-| `corenexus.notes.refresh`          | Refresh notes list         | ✅      | Title bar |
+| `superprompt-forge.notes.signIn`           | Sign in to GitHub          | ✅      | Welcome   |
+| `superprompt-forge.notes.signOut`          | Sign out of GitHub         | ✅      | —         |
+| `superprompt-forge.notes.create`           | Create a new note          | ✅      | Title bar |
+| `superprompt-forge.notes.open`             | Open note in webview       | Hidden  | Inline    |
+| `superprompt-forge.notes.delete`           | Delete a note              | ✅      | Context   |
+| `superprompt-forge.notes.copyLink`         | Copy gist URL to clipboard | ✅      | Inline    |
+| `superprompt-forge.notes.toggleVisibility` | Toggle note public/secret  | ✅      | Context   |
+| `superprompt-forge.notes.refresh`          | Refresh notes list         | ✅      | Title bar |
 
 ---
 
@@ -1043,8 +1042,8 @@ package.json                 # Rebrand displayName, add notes commands/views/set
 
 | Key                         | Type    | Description                   |
 | --------------------------- | ------- | ----------------------------- |
-| `corenexus.isAuthenticated` | boolean | GitHub session active         |
-| `corenexus.hasNotes`        | boolean | At least one gist note exists |
+| `superprompt-forge.isAuthenticated` | boolean | GitHub session active         |
+| `superprompt-forge.hasNotes`        | boolean | At least one gist note exists |
 
 ---
 
@@ -1109,7 +1108,7 @@ All features          ──→ 22d (build verification)
 | 11. Packaging & Release       | 5         | 5       | 0         |
 | 12. TreeView Advanced UX      | 12        | 12      | 0         |
 | 13. Stash Detail Pane         | 7         | 7       | 0         |
-| 14. Rebrand → CoreNexus       | 2         | 2       | 0         |
+| 14. Rebrand → Superprompt Forge       | 2         | 2       | 0         |
 | 15. GitHub Authentication     | 3         | 3       | 0         |
 | 16. Gist Service              | 5         | 5       | 0         |
 | 17. Gist Notes Tree View      | 5         | 5       | 0         |

@@ -174,15 +174,15 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
         // 1c-v: No toasts — let welcome view handle messaging via context keys
         // TODO: multi-root — group stashes by workspace folder, add RepoItem parent level
         if (!vscode.workspace.workspaceFolders) {
-            await vscode.commands.executeCommand('setContext', 'mystash.isGitRepo', false);
-            await vscode.commands.executeCommand('setContext', 'mystash.hasStashes', false);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.isGitRepo', false);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasStashes', false);
             return [];
         }
 
         const isGitRepo = await this.gitService.isGitRepository();
-        await vscode.commands.executeCommand('setContext', 'mystash.isGitRepo', isGitRepo);
+        await vscode.commands.executeCommand('setContext', 'superprompt-forge.isGitRepo', isGitRepo);
         if (!isGitRepo) {
-            await vscode.commands.executeCommand('setContext', 'mystash.hasStashes', false);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasStashes', false);
             return [];
         }
 
@@ -226,7 +226,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
         try {
             const stashes = await this.gitService.getStashList();
             const hasStashes = stashes.length > 0;
-            await vscode.commands.executeCommand('setContext', 'mystash.hasStashes', hasStashes);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasStashes', hasStashes);
 
             // 9a-iii: Sort order — git returns newest-first by default
             const sortOrder = getConfig<string>('sortOrder', 'newest');
@@ -278,7 +278,7 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
             if (this._statusBarItem) {
                 if (hasStashes) {
                     this._statusBarItem.text = `$(archive) ${stashes.length}`;
-                    this._statusBarItem.tooltip = `CoreNexus — ${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`;
+                    this._statusBarItem.tooltip = `Superprompt Forge — ${stashes.length} stash${stashes.length !== 1 ? 'es' : ''}`;
                     this._statusBarItem.show();
                 } else {
                     this._statusBarItem.hide();
@@ -303,11 +303,11 @@ export class StashProvider implements vscode.TreeDataProvider<StashItem | StashF
     }
 }
 
-// --- FileDecorationProvider for mystash-file: URIs ---
+// --- FileDecorationProvider for superprompt-forge-file: URIs ---
 
 /**
  * Provides SCM-style colored letter badges on StashFileItems.
- * Registered for the `mystash-file` URI scheme.
+ * Registered for the `superprompt-forge-file` URI scheme.
  */
 export class StashFileDecorationProvider implements vscode.FileDecorationProvider {
     private _onDidChangeFileDecorations = new vscode.EventEmitter<
@@ -319,7 +319,7 @@ export class StashFileDecorationProvider implements vscode.FileDecorationProvide
         uri: vscode.Uri,
         _token: vscode.CancellationToken,
     ): vscode.FileDecoration | undefined {
-        if (uri.scheme !== 'mystash-file') {
+        if (uri.scheme !== 'superprompt-forge-file') {
             return undefined;
         }
 
@@ -376,9 +376,9 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
     StashItem | StashFileItem
 > {
     // Accept drops from our own tree
-    readonly dropMimeTypes = ['application/vnd.code.tree.mystashview'];
+    readonly dropMimeTypes = ['application/vnd.code.tree.superprompt-forge-view'];
     // Provide text/uri-list for dragging into editor, and our own tree mime
-    readonly dragMimeTypes = ['text/uri-list', 'application/vnd.code.tree.mystashview'];
+    readonly dragMimeTypes = ['text/uri-list', 'application/vnd.code.tree.superprompt-forge-view'];
 
     constructor(private _outputChannel?: vscode.OutputChannel) {}
 
@@ -391,8 +391,8 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
         const fileItems = source.filter((s): s is StashFileItem => s instanceof StashFileItem);
         if (fileItems.length > 0) {
             const uris = fileItems.map((fi) => {
-                // Build mystash: URI that will open in the diff viewer
-                return `mystash:///${fi.filePath}?ref=stash&index=${fi.stashIndex}`;
+                // Build superprompt-forge: URI that will open in the diff viewer
+                return `superprompt-forge:///${fi.filePath}?ref=stash&index=${fi.stashIndex}`;
             });
             dataTransfer.set('text/uri-list', new vscode.DataTransferItem(uris.join('\r\n')));
         }
@@ -402,7 +402,7 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
         if (stashItems.length > 0) {
             const indices = stashItems.map((s) => s.stashEntry.index);
             dataTransfer.set(
-                'application/vnd.code.tree.mystashview',
+                'application/vnd.code.tree.superprompt-forge-view',
                 new vscode.DataTransferItem(JSON.stringify(indices)),
             );
         }
@@ -415,7 +415,7 @@ export class StashDragAndDropController implements vscode.TreeDragAndDropControl
     ): Promise<void> {
         // Visual reorder feedback — git doesn't support true reorder,
         // but we log the intent for potential future implementation
-        const treeData = dataTransfer.get('application/vnd.code.tree.mystashview');
+        const treeData = dataTransfer.get('application/vnd.code.tree.superprompt-forge-view');
         if (treeData && target instanceof StashItem) {
             const sourceIndices = JSON.parse(await treeData.asString()) as number[];
             this._outputChannel?.appendLine(

@@ -58,7 +58,7 @@ export class GeminiService {
 
     /** Read the API key from settings. Returns empty string if not set. */
     static getApiKey(): string {
-        return vscode.workspace.getConfiguration('corenexus.ai').get<string>('geminiApiKey', '');
+        return vscode.workspace.getConfiguration('superprompt-forge.ai').get<string>('geminiApiKey', '');
     }
 
     /** Whether a Gemini API key is configured. */
@@ -81,7 +81,7 @@ export class GeminiService {
     ): Promise<string> {
         const apiKey = GeminiService.getApiKey();
         if (!apiKey) {
-            throw new Error('Gemini API key not configured. Set it in Settings → CoreNexus → AI → Gemini API Key.');
+            throw new Error('Gemini API key not configured. Set it in Settings → Superprompt Forge → AI → Gemini API Key.');
         }
 
         const contents: GeminiContent[] = messages.map((m) => ({
@@ -139,7 +139,7 @@ export class GeminiService {
     ): Promise<string> {
         const apiKey = GeminiService.getApiKey();
         if (!apiKey) {
-            throw new Error('Gemini API key not configured. Set it in Settings → CoreNexus → AI → Gemini API Key.');
+            throw new Error('Gemini API key not configured. Set it in Settings → Superprompt Forge → AI → Gemini API Key.');
         }
 
         const contents: GeminiContent[] = messages.map((m) => ({

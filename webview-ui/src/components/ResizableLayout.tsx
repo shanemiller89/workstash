@@ -113,7 +113,7 @@ export const ResizableLayout: React.FC<ResizableLayoutProps> = ({
     return (
         <div ref={containerRef} className="h-full bg-bg text-fg text-[13px]">
             <Group
-                id={`corenexus-${storageKey}`}
+                id={`superprompt-forge-${storageKey}`}
                 orientation="horizontal"
                 onLayoutChanged={handleLayoutChanged}
             >

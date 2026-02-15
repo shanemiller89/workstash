@@ -1,7 +1,7 @@
 # Fix a Bug
 
 ## Context
-You are fixing a bug in the MyStash VS Code extension.
+You are fixing a bug in the Superprompt Forge VS Code extension.
 
 ## Approach
 1. **Reproduce** — Understand exactly what the bug is and when it occurs.
@@ -18,7 +18,7 @@ You are fixing a bug in the MyStash VS Code extension.
 
 ## Error Handling Patterns
 - **User-facing**: `vscode.window.showErrorMessage()` with context
-- **Diagnostics**: Log to `OutputChannel('MyStash')`
+- **Diagnostics**: Log to `OutputChannel('Superprompt Forge')`
 - **Tree view**: Return `[]`, never toast from `getChildren()`
 - **Conflicts**: `exitCode !== 0` + `stderr.includes('CONFLICT')` = partial success, not error
 

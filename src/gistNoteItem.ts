@@ -39,7 +39,7 @@ export class GistNoteItem extends vscode.TreeItem {
 
         // Click → open note in webview
         this.command = {
-            command: 'corenexus.notes.open',
+            command: 'superprompt-forge.notes.open',
             title: 'Open Note',
             arguments: [this],
         };

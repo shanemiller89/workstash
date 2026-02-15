@@ -70,7 +70,7 @@ const LIST_FIELDS = `nextPageToken,files(${FILE_FIELDS})`;
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
 /** GlobalState key for pinned workspace docs */
-const PINNED_DOCS_KEY = 'corenexus.drive.pinnedDocs';
+const PINNED_DOCS_KEY = 'superprompt-forge.drive.pinnedDocs';
 
 // ─── Service ──────────────────────────────────────────────────────
 
@@ -262,7 +262,7 @@ export class GoogleDriveService {
         const token = await this._getToken();
 
         // Use multipart upload
-        const boundary = '----CoreNexusBoundary' + Date.now();
+        const boundary = '----SuperpromptForgeBoundary' + Date.now();
         const metadata = JSON.stringify({
             name: fileName,
             parents: [parentFolderId],

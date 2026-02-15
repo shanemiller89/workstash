@@ -2,12 +2,12 @@ import * as vscode from 'vscode';
 import { GitService } from './gitService';
 
 /**
- * URI scheme: mystash:/stash@{index}/filepath?ref=stash|parent
+ * URI scheme: superprompt-forge:/stash@{index}/filepath?ref=stash|parent
  *
  * - ref=stash  → file content from the stash commit
  * - ref=parent → file content from the stash's parent commit (the base)
  *
- * Example: mystash:/stash@{0}/src/app.ts?ref=stash
+ * Example: superprompt-forge:/stash@{0}/src/app.ts?ref=stash
  */
 export class StashContentProvider implements vscode.TextDocumentContentProvider {
     private _onDidChange = new vscode.EventEmitter<vscode.Uri>();

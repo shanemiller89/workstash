@@ -107,10 +107,10 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
         try {
             // Check auth status
             const isAuth = await this._authService.isAuthenticated();
-            await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.isAuthenticated', isAuth);
 
             if (!isAuth) {
-                await vscode.commands.executeCommand('setContext', 'corenexus.hasNotes', false);
+                await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasNotes', false);
                 this._cachedNotes = [];
                 this._updateTreeChrome(0);
                 return [];
@@ -121,7 +121,7 @@ export class GistNotesProvider implements vscode.TreeDataProvider<GistNoteItem> 
             this._cachedNotes = notes;
 
             const hasNotes = notes.length > 0;
-            await vscode.commands.executeCommand('setContext', 'corenexus.hasNotes', hasNotes);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasNotes', hasNotes);
 
             // Sort by updatedAt descending (most recent first)
             notes.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());

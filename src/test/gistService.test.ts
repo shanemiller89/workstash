@@ -42,7 +42,7 @@ function mockOutputChannel() {
     };
 }
 
-/** Build a GitHub Gist API response for a CoreNexus note */
+/** Build a GitHub Gist API response for a Superprompt Forge note */
 function makeGist(
     overrides: {
         id?: string;
@@ -57,13 +57,13 @@ function makeGist(
     const content = overrides.content ?? '# Test Note\n\nHello world.';
     return {
         id: overrides.id ?? 'gist123',
-        description: `[CoreNexus] ${title}`,
+        description: `[Superprompt Forge] ${title}`,
         public: overrides.isPublic ?? false,
         html_url: `https://gist.github.com/${overrides.id ?? 'gist123'}`,
         created_at: overrides.createdAt ?? '2026-02-10T14:00:00Z',
         updated_at: overrides.updatedAt ?? '2026-02-10T15:00:00Z',
         files: {
-            '.corenexus-note': { filename: '.corenexus-note', content: '{"v":1}' },
+            '.superprompt-forge-note': { filename: '.superprompt-forge-note', content: '{"v":1}' },
             'Test-Note.md': { filename: 'Test-Note.md', content },
         },
     };
@@ -121,10 +121,10 @@ suite('GistService Unit Tests', () => {
             assert.strictEqual(notes.length, 0);
         });
 
-        test('parses CoreNexus notes from gist list', async () => {
+        test('parses Superprompt Forge notes from gist list', async () => {
             const gist1 = makeGist({ id: 'a1', title: 'First Note' });
             const gist2 = makeGist({ id: 'a2', title: 'Second Note', isPublic: true });
-            // Non-corenexus gist (no marker file)
+            // Non-superprompt-forge gist (no marker file)
             const regularGist = {
                 id: 'other',
                 description: 'Random',
@@ -187,10 +187,10 @@ suite('GistService Unit Tests', () => {
             assert.ok(fetch.calls[0].url.includes('/gists/abc'));
         });
 
-        test('throws if gist is not a CoreNexus note', async () => {
+        test('throws if gist is not a Superprompt Forge note', async () => {
             const regularGist = {
                 id: 'xyz',
-                description: 'Not CoreNexus',
+                description: 'Not Superprompt Forge',
                 public: true,
                 html_url: 'https://gist.github.com/xyz',
                 created_at: '2026-01-01T00:00:00Z',
@@ -200,7 +200,7 @@ suite('GistService Unit Tests', () => {
             const fetch = mockFetch([{ status: 200, body: regularGist }]);
             const svc = createService(fetch);
 
-            await assert.rejects(() => svc.getNote('xyz'), /not a CoreNexus note/i);
+            await assert.rejects(() => svc.getNote('xyz'), /not a Superprompt Forge note/i);
         });
     });
 
@@ -218,9 +218,9 @@ suite('GistService Unit Tests', () => {
 
             // Verify POST body
             const body = JSON.parse(fetch.calls[0].init.body as string);
-            assert.strictEqual(body.description, '[CoreNexus] Brand New');
+            assert.strictEqual(body.description, '[Superprompt Forge] Brand New');
             assert.strictEqual(body.public, false);
-            assert.ok(body.files['.corenexus-note']);
+            assert.ok(body.files['.superprompt-forge-note']);
             assert.ok(body.files['Brand-New.md']);
         });
 
@@ -266,7 +266,7 @@ suite('GistService Unit Tests', () => {
 
             // Verify PATCH
             const patchBody = JSON.parse(fetch.calls[1].init.body as string);
-            assert.strictEqual(patchBody.description, '[CoreNexus] New Title');
+            assert.strictEqual(patchBody.description, '[Superprompt Forge] New Title');
             assert.strictEqual(fetch.calls[1].init.method, 'PATCH');
         });
 
@@ -338,7 +338,7 @@ suite('GistService Unit Tests', () => {
                 createdAt: new Date('2026-02-10T14:00:00Z'),
                 updatedAt: new Date('2026-02-10T15:00:00Z'),
                 htmlUrl: 'https://gist.github.com/td1',
-                description: '[CoreNexus] Data Test',
+                description: '[Superprompt Forge] Data Test',
             };
             const data = GistService.toData(note);
 

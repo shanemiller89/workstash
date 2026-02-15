@@ -37,7 +37,7 @@ export class PrItem extends vscode.TreeItem {
 
         // Click → open PR in webview
         this.command = {
-            command: 'corenexus.prs.open',
+            command: 'superprompt-forge.prs.open',
             title: 'Open Pull Request',
             arguments: [this],
         };

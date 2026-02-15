@@ -1,16 +1,16 @@
 # Add a New Command
 
 ## Context
-You are adding a new command to the MyStash VS Code extension.
+You are adding a new command to the Superprompt Forge VS Code extension.
 
 ## Checklist — Every new command needs:
 
 ### 1. `package.json` — Declare the command
 ```json
 {
-  "command": "mystash.commandName",
+  "command": "superprompt-forge.commandName",
   "title": "Human-Readable Title",
-  "category": "MyStash",
+  "category": "Superprompt Forge",
   "icon": "$(icon-name)"
 }
 ```
@@ -23,7 +23,7 @@ You are adding a new command to the MyStash VS Code extension.
 ### 3. `extension.ts` — Register the command
 ```ts
 context.subscriptions.push(
-  vscode.commands.registerCommand('mystash.commandName', async (item?: StashItem) => {
+  vscode.commands.registerCommand('superprompt-forge.commandName', async (item?: StashItem) => {
     if (!item) { item = await pickStash(gitService, 'Select a stash'); }
     if (!item) { return; }
     // ... implementation
@@ -40,4 +40,4 @@ context.subscriptions.push(
 - Run `npm run compile` to verify no errors
 
 ## What to add
-<!-- e.g.: "Add mystash.showFile command (task 6c)" -->
+<!-- e.g.: "Add superprompt-forge.showFile command (task 6c)" -->

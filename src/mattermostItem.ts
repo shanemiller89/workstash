@@ -71,7 +71,7 @@ export class MattermostChannelItem extends vscode.TreeItem {
 
         // Click → open channel in webview
         this.command = {
-            command: 'corenexus.mattermost.openChannel',
+            command: 'superprompt-forge.mattermost.openChannel',
             title: 'Open Channel',
             arguments: [this],
         };

@@ -62,7 +62,7 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
     return (
         <Group
-            id="corenexus-mattermost-thread"
+            id="superprompt-forge-mattermost-thread"
             orientation="horizontal"
             onLayoutChanged={handleThreadLayoutChanged}
         >
@@ -155,7 +155,7 @@ export const MattermostTab: React.FC = () => {
         <TabWithSummary tabKey="mattermost">
             <div ref={containerRef} className="h-full flex flex-col bg-bg text-fg text-[13px]">
                 <Group
-                    id="corenexus-mattermost"
+                    id="superprompt-forge-mattermost"
                     orientation="horizontal"
                     onLayoutChanged={handleLayoutChanged}
                 >

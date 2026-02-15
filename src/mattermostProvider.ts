@@ -97,7 +97,7 @@ export class MattermostProvider
         this._searchQuery = query;
         void vscode.commands.executeCommand(
             'setContext',
-            'corenexus.mattermost.isSearching',
+            'superprompt-forge.mattermost.isSearching',
             query.length > 0,
         );
         this.refresh('search');
@@ -107,7 +107,7 @@ export class MattermostProvider
         this._searchQuery = '';
         void vscode.commands.executeCommand(
             'setContext',
-            'corenexus.mattermost.isSearching',
+            'superprompt-forge.mattermost.isSearching',
             false,
         );
         this.refresh('clear-search');
@@ -124,11 +124,11 @@ export class MattermostProvider
 
         if (!isConfigured) {
             this._updateChrome(0);
-            void vscode.commands.executeCommand('setContext', 'corenexus.isMattermostConfigured', false);
+            void vscode.commands.executeCommand('setContext', 'superprompt-forge.isMattermostConfigured', false);
             return [];
         }
 
-        void vscode.commands.executeCommand('setContext', 'corenexus.isMattermostConfigured', true);
+        void vscode.commands.executeCommand('setContext', 'superprompt-forge.isMattermostConfigured', true);
 
         // Root level: teams
         if (!element) {
@@ -172,7 +172,7 @@ export class MattermostProvider
             const totalTeams = this._cachedTeams.length;
             void vscode.commands.executeCommand(
                 'setContext',
-                'corenexus.hasMattermostTeams',
+                'superprompt-forge.hasMattermostTeams',
                 totalTeams > 0,
             );
             this._updateChrome(totalTeams);

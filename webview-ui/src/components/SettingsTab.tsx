@@ -194,7 +194,7 @@ export const SettingsTab: React.FC = () => {
                         <div>
                             <h2 className="text-[14px] font-semibold text-fg">Settings</h2>
                             <p className="text-[11px] text-fg/40">
-                                Configure CoreNexus preferences
+                                Configure Superprompt Forge preferences
                             </p>
                         </div>
                     </div>

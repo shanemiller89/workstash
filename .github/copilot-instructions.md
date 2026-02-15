@@ -1,15 +1,15 @@
 <!-- Workspace-specific instructions for GitHub Copilot. -->
 <!-- Docs: https://code.visualstudio.com/docs/copilot/copilot-customization#_use-a-githubcopilotinstructionsmd-file -->
 
-# CoreNexus — VS Code Extension for Developer Workflow
+# Superprompt Forge — VS Code Extension for Developer Workflow
 
 ## Project Overview
 
-CoreNexus is a VS Code extension that provides a unified sidebar for managing git stashes, GitHub Issues & PRs, Gist-backed notes, and Mattermost team chat — all from a single webview panel with a tabbed React UI.
+Superprompt Forge is a VS Code extension that provides a unified sidebar for managing git stashes, GitHub Issues & PRs, Gist-backed notes, and Mattermost team chat — all from a single webview panel with a tabbed React UI.
 
-- **Repository**: `shanemiller89/corenexus` on GitHub
+- **Repository**: `shanemiller89/superprompt-forge` on GitHub
 - **Branch strategy**: `main` (single branch for now)
-- **Package name**: `corenexus` (npm/vsix), display name "CoreNexus"
+- **Package name**: `superprompt-forge` (npm/vsix), display name "Superprompt Forge"
 
 ## Technology Stack
 
@@ -48,7 +48,7 @@ The extension host handles all backend logic — git CLI, GitHub API, Mattermost
 | `gitService.ts`         | GitService class — all git CLI operations                |
 | `stashProvider.ts`      | TreeDataProvider for sidebar stash tree view              |
 | `stashItem.ts`          | StashItem & StashFileItem tree item models               |
-| `stashContentProvider.ts` | TextDocumentContentProvider (`mystash:` URI scheme)     |
+| `stashContentProvider.ts` | TextDocumentContentProvider (`superprompt-forge:` URI scheme)     |
 | `stashPanel.ts`         | WebviewViewProvider — hosts the React webview panel      |
 | `prService.ts`          | GitHub PR API operations                                 |
 | `prProvider.ts`         | TreeDataProvider for PRs (sidebar)                       |
@@ -156,7 +156,7 @@ All 26 components use VS Code CSS variable theming. Built on `@base-ui/react` (h
 These are final. Do not deviate without explicit user approval.
 
 1. **`execGit()` returns structured `GitResult`** — `{ stdout, stderr, exitCode }`. Callers decide what exit codes mean. Do NOT throw on non-zero exit.
-2. **Diff viewing uses `TextDocumentContentProvider`** with `mystash:` URI scheme. No temp files.
+2. **Diff viewing uses `TextDocumentContentProvider`** with `superprompt-forge:` URI scheme. No temp files.
 3. **Multi-root workspace is Phase 2** — design for it (accept `workspaceRoot` as a parameter, add `// TODO: multi-root` comments) but don't implement it yet.
 4. **Webview is a single React SPA** — all tabs (Stashes, PRs, Issues, Notes, Mattermost) live in one webview panel.
 5. **Extension ↔ Webview communication** uses `postMessage` / `onDidReceiveMessage` — no direct API calls from the webview.
@@ -167,13 +167,13 @@ These are final. Do not deviate without explicit user approval.
 ## Full Project Structure
 
 ```
-MyStash/
+Superprompt Forge/
 ├── src/
 │   ├── extension.ts              # activate/deactivate, command registration, wiring
 │   ├── gitService.ts             # GitService — all git CLI operations
 │   ├── stashProvider.ts          # TreeDataProvider for stash list
 │   ├── stashItem.ts              # StashItem & StashFileItem models
-│   ├── stashContentProvider.ts   # TextDocumentContentProvider (mystash: URI)
+│   ├── stashContentProvider.ts   # TextDocumentContentProvider (superprompt-forge: URI)
 │   ├── stashPanel.ts             # WebviewViewProvider for React panel
 │   ├── prService.ts              # GitHub PR API
 │   ├── prProvider.ts             # PR tree data provider
@@ -281,7 +281,7 @@ postMessage('apply', { index: stash.index });
 
 ### Error Handling Pattern
 - **User-facing errors**: `vscode.window.showErrorMessage()` with clear context
-- **Diagnostics**: Log to `OutputChannel('CoreNexus')` — git commands, exit codes, stderr
+- **Diagnostics**: Log to `OutputChannel('Superprompt Forge')` — git commands, exit codes, stderr
 - **Tree view errors**: Return empty array + let welcome view handle messaging
 - **Conflict detection**: Check `exitCode !== 0` AND `stderr.includes('CONFLICT')`
 
@@ -306,7 +306,7 @@ postMessage('apply', { index: stash.index });
 ### VS Code Extension API
 - Push all disposables to `context.subscriptions`.
 - Use `vscode.ThemeIcon` for icons — not file paths.
-- Use `vscode.workspace.getConfiguration('mystash')` or `('corenexus')` for settings.
+- Use `vscode.workspace.getConfiguration('superprompt-forge')` or `('superprompt-forge')` for settings.
 - Use `vscode.commands.executeCommand('setContext', key, value)` for `when` clause keys.
 - Use `vscode.window.withProgress()` for operations > 500ms.
 
@@ -319,9 +319,9 @@ postMessage('apply', { index: stash.index });
 - Classes: `PascalCase` — `GitService`, `StashProvider`
 - Interfaces: `PascalCase` — `StashEntry`, `GitResult`
 - React Components: `PascalCase` — `StashCard`, `PRDetail`
-- Commands: `mystash.verbNoun` — `mystash.showFile`, `mystash.refresh`
-- Settings: `mystash.camelCase` or `corenexus.feature.setting`
-- Context keys: `mystash.camelCase`
+- Commands: `superprompt-forge.verbNoun` — `superprompt-forge.showFile`, `superprompt-forge.refresh`
+- Settings: `superprompt-forge.camelCase` or `superprompt-forge.feature.setting`
+- Context keys: `superprompt-forge.camelCase`
 - Stores: `use[Domain]Store` — `useStashStore`, `usePRStore`
 
 ## Build & Development
@@ -345,26 +345,26 @@ npm test
 
 | Command              | Description                    | Palette | Tree/Webview |
 |----------------------|--------------------------------|---------|--------------|
-| `mystash.refresh`    | Refresh the stash list         | ✅      | Title bar    |
-| `mystash.stash`      | Create a new stash             | ✅      | Title bar    |
-| `mystash.apply`      | Apply a stash (keep in list)   | ✅      | Inline       |
-| `mystash.pop`        | Pop a stash (apply + remove)   | ✅      | Context      |
-| `mystash.drop`       | Drop a stash permanently       | ✅      | Context      |
-| `mystash.show`       | Show full stash diff           | ✅      | Inline       |
-| `mystash.clear`      | Clear all stashes              | ✅      | Title bar    |
-| `mystash.showFile`   | Show per-file diff             | Hidden  | File click   |
+| `superprompt-forge.refresh`    | Refresh the stash list         | ✅      | Title bar    |
+| `superprompt-forge.stash`      | Create a new stash             | ✅      | Title bar    |
+| `superprompt-forge.apply`      | Apply a stash (keep in list)   | ✅      | Inline       |
+| `superprompt-forge.pop`        | Pop a stash (apply + remove)   | ✅      | Context      |
+| `superprompt-forge.drop`       | Drop a stash permanently       | ✅      | Context      |
+| `superprompt-forge.show`       | Show full stash diff           | ✅      | Inline       |
+| `superprompt-forge.clear`      | Clear all stashes              | ✅      | Title bar    |
+| `superprompt-forge.showFile`   | Show per-file diff             | Hidden  | File click   |
 
 ## Settings
 
 | Setting                             | Type    | Default   | Description                          |
 |-------------------------------------|---------|-----------|--------------------------------------|
-| `mystash.autoRefresh`               | bool    | `true`    | Auto-refresh on git changes / focus  |
-| `mystash.confirmOnDrop`             | bool    | `true`    | Confirm before dropping a stash      |
-| `mystash.confirmOnClear`            | bool    | `true`    | Confirm before clearing all stashes  |
-| `mystash.showFileStatus`            | bool    | `true`    | Show M/A/D indicators on file items  |
-| `mystash.defaultIncludeUntracked`   | bool    | `false`   | Default include untracked on create  |
-| `mystash.sortOrder`                 | enum    | `newest`  | Stash list sort: `newest` / `oldest` |
-| `mystash.showBranchInDescription`   | bool    | `true`    | Show branch name in tree item desc   |
-| `corenexus.notes.autosaveDelay`     | number  | `30`      | Autosave delay in seconds (0=off)    |
-| `corenexus.notes.defaultVisibility` | enum    | `secret`  | Default note visibility              |
-| `corenexus.mattermost.serverUrl`    | string  | `""`      | Mattermost server URL                |
+| `superprompt-forge.autoRefresh`               | bool    | `true`    | Auto-refresh on git changes / focus  |
+| `superprompt-forge.confirmOnDrop`             | bool    | `true`    | Confirm before dropping a stash      |
+| `superprompt-forge.confirmOnClear`            | bool    | `true`    | Confirm before clearing all stashes  |
+| `superprompt-forge.showFileStatus`            | bool    | `true`    | Show M/A/D indicators on file items  |
+| `superprompt-forge.defaultIncludeUntracked`   | bool    | `false`   | Default include untracked on create  |
+| `superprompt-forge.sortOrder`                 | enum    | `newest`  | Stash list sort: `newest` / `oldest` |
+| `superprompt-forge.showBranchInDescription`   | bool    | `true`    | Show branch name in tree item desc   |
+| `superprompt-forge.notes.autosaveDelay`     | number  | `30`      | Autosave delay in seconds (0=off)    |
+| `superprompt-forge.notes.defaultVisibility` | enum    | `secret`  | Default note visibility              |
+| `superprompt-forge.mattermost.serverUrl`    | string  | `""`      | Mattermost server URL                |

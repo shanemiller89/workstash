@@ -18,7 +18,7 @@ import {
 
 // ─── Default system prompt (mirrors aiService.ts) ─────────────────
 
-const DEFAULT_SYSTEM_PROMPT = `You are a concise development assistant embedded in a VS Code extension called CoreNexus. 
+const DEFAULT_SYSTEM_PROMPT = `You are a concise development assistant embedded in a VS Code extension called Superprompt Forge. 
 Your job is to summarize workspace data into a brief, actionable card (3-5 bullet points max).
 Use short, scannable phrases — not full sentences. Use emoji sparingly for visual cues.
 Focus on what's actionable: what needs attention, what changed recently, key stats.

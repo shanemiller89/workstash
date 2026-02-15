@@ -32,10 +32,10 @@ import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
 export function activate(context: vscode.ExtensionContext) {
-    console.log('CoreNexus extension is now active!');
+    console.log('Superprompt Forge extension is now active!');
 
     // 0b-i: Create output channel for diagnostics
-    const outputChannel = vscode.window.createOutputChannel('CoreNexus');
+    const outputChannel = vscode.window.createOutputChannel('Superprompt Forge');
     context.subscriptions.push(outputChannel);
 
     const gitService = new GitService(
@@ -50,8 +50,8 @@ export function activate(context: vscode.ExtensionContext) {
     // 15b: Update context key when auth state changes
     const updateAuthContext = async () => {
         const isAuth = await authService.isAuthenticated();
-        await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
-        outputChannel.appendLine(`[Auth] corenexus.isAuthenticated = ${isAuth}`);
+        await vscode.commands.executeCommand('setContext', 'superprompt-forge.isAuthenticated', isAuth);
+        outputChannel.appendLine(`[Auth] superprompt-forge.isAuthenticated = ${isAuth}`);
     };
     context.subscriptions.push(authService.onDidChangeAuthentication(() => updateAuthContext()));
     // Set initial auth state on activation
@@ -101,7 +101,7 @@ export function activate(context: vscode.ExtensionContext) {
     // Set isGitHubRepo context key
     const updateGitHubRepoContext = async () => {
         const ghRepo = await gitService.getGitHubRepo();
-        await vscode.commands.executeCommand('setContext', 'corenexus.isGitHubRepo', !!ghRepo);
+        await vscode.commands.executeCommand('setContext', 'superprompt-forge.isGitHubRepo', !!ghRepo);
     };
     updateGitHubRepoContext();
 
@@ -212,20 +212,20 @@ export function activate(context: vscode.ExtensionContext) {
     // Update context key for Google Drive auth state
     const updateGoogleAuthContext = async () => {
         const isGoogleAuth = await driveService.isAuthenticated();
-        await vscode.commands.executeCommand('setContext', 'corenexus.isGoogleAuthenticated', isGoogleAuth);
+        await vscode.commands.executeCommand('setContext', 'superprompt-forge.isGoogleAuthenticated', isGoogleAuth);
     };
 
     // Update context key for Google Drive configured state
     const updateGoogleConfiguredContext = () => {
-        const clientId = vscode.workspace.getConfiguration('corenexus').get<string>('google.clientId', '');
-        void vscode.commands.executeCommand('setContext', 'corenexus.isGoogleConfigured', !!clientId);
+        const clientId = vscode.workspace.getConfiguration('superprompt-forge').get<string>('google.clientId', '');
+        void vscode.commands.executeCommand('setContext', 'superprompt-forge.isGoogleConfigured', !!clientId);
     };
     updateGoogleConfiguredContext();
 
     // Watch for settings changes to keep configured context in sync
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration((e) => {
-            if (e.affectsConfiguration('corenexus.google.clientId')) {
+            if (e.affectsConfiguration('superprompt-forge.google.clientId')) {
                 updateGoogleConfiguredContext();
             }
         }),
@@ -239,15 +239,15 @@ export function activate(context: vscode.ExtensionContext) {
     );
     updateGoogleAuthContext();
 
-    // Register mystash: URI scheme for side-by-side diff viewing
+    // Register superprompt-forge: URI scheme for side-by-side diff viewing
     const contentProvider = new StashContentProvider(gitService);
     context.subscriptions.push(
-        vscode.workspace.registerTextDocumentContentProvider('mystash', contentProvider),
+        vscode.workspace.registerTextDocumentContentProvider('superprompt-forge', contentProvider),
     );
 
     const stashProvider = new StashProvider(gitService, outputChannel);
 
-    // Register FileDecorationProvider for mystash-file: URIs (SCM-style badges)
+    // Register FileDecorationProvider for superprompt-forge-file: URIs (SCM-style badges)
     const fileDecorationProvider = new StashFileDecorationProvider();
     context.subscriptions.push(
         vscode.window.registerFileDecorationProvider(fileDecorationProvider),
@@ -255,8 +255,8 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 9b-i: Status bar item — shows stash count, click → focus tree view
     const statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, 50);
-    statusBarItem.command = 'mystashView.focus';
-    statusBarItem.tooltip = 'CoreNexus — Click to view stashes';
+    statusBarItem.command = 'superprompt-forge-view.focus';
+    statusBarItem.tooltip = 'Superprompt Forge — Click to view stashes';
     context.subscriptions.push(statusBarItem);
     stashProvider.setStatusBarItem(statusBarItem);
 
@@ -264,7 +264,7 @@ export function activate(context: vscode.ExtensionContext) {
     const dndController = new StashDragAndDropController(outputChannel);
 
     // Register the tree view with multi-select and drag & drop
-    const treeView = vscode.window.createTreeView('mystashView', {
+    const treeView = vscode.window.createTreeView('superprompt-forge-view', {
         treeDataProvider: stashProvider,
         showCollapseAll: true,
         canSelectMany: true,
@@ -300,10 +300,10 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
-    // 9a-iv: Refresh when mystash settings change
+    // 9a-iv: Refresh when superprompt-forge settings change
     context.subscriptions.push(
         vscode.workspace.onDidChangeConfiguration((e) => {
-            if (e.affectsConfiguration('mystash')) {
+            if (e.affectsConfiguration('superprompt-forge')) {
                 stashProvider.refresh('settings-changed');
             }
         }),
@@ -311,13 +311,13 @@ export function activate(context: vscode.ExtensionContext) {
 
     // Register commands
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.refresh', () => {
             stashProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.stash', async () => {
+        vscode.commands.registerCommand('superprompt-forge.stash', async () => {
             // 2c: Guard — no changes means nothing to stash
             const hasChanges = await gitService.hasChanges();
             if (!hasChanges) {
@@ -445,7 +445,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.apply', async (item?: StashItem) => {
+        vscode.commands.registerCommand('superprompt-forge.apply', async (item?: StashItem) => {
             if (!item) {
                 const entry = await pickStash(gitService, 'Select a stash to apply');
                 if (!entry) {
@@ -483,7 +483,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.pop', async (item?: StashItem) => {
+        vscode.commands.registerCommand('superprompt-forge.pop', async (item?: StashItem) => {
             if (!item) {
                 const entry = await pickStash(gitService, 'Select a stash to pop');
                 if (!entry) {
@@ -519,7 +519,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.drop', async (item?: StashItem) => {
+        vscode.commands.registerCommand('superprompt-forge.drop', async (item?: StashItem) => {
             if (!item) {
                 const entry = await pickStash(gitService, 'Select a stash to drop');
                 if (!entry) {
@@ -553,7 +553,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.show', async (item?: StashItem) => {
+        vscode.commands.registerCommand('superprompt-forge.show', async (item?: StashItem) => {
             if (!item) {
                 const entry = await pickStash(gitService, 'Select a stash to show');
                 if (!entry) {
@@ -577,7 +577,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     // 6c: Per-file diff command — opens side-by-side diff editor
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.showFile', async (fileItem?: StashFileItem) => {
+        vscode.commands.registerCommand('superprompt-forge.showFile', async (fileItem?: StashFileItem) => {
             if (!fileItem) {
                 return;
             }
@@ -587,8 +587,8 @@ export function activate(context: vscode.ExtensionContext) {
             const fileName = filePath.split('/').pop() ?? filePath;
 
             // Build URIs for the parent (before) and stash (after) versions
-            const parentUri = vscode.Uri.parse(`mystash:/${filePath}?ref=parent&index=${index}`);
-            const stashUri = vscode.Uri.parse(`mystash:/${filePath}?ref=stash&index=${index}`);
+            const parentUri = vscode.Uri.parse(`superprompt-forge:/${filePath}?ref=parent&index=${index}`);
+            const stashUri = vscode.Uri.parse(`superprompt-forge:/${filePath}?ref=stash&index=${index}`);
 
             const title = `${fileName} (stash@{${index}})`;
 
@@ -604,14 +604,14 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.openPanel', () => {
+        vscode.commands.registerCommand('superprompt-forge.openPanel', () => {
             StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
         }),
     );
 
     // 6f: Show stash summary (stat view)
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.showStats', async (item?: StashItem) => {
+        vscode.commands.registerCommand('superprompt-forge.showStats', async (item?: StashItem) => {
             if (!item) {
                 const entry = await pickStash(gitService, 'Select a stash to show stats for');
                 if (!entry) {
@@ -642,7 +642,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.clear', async () => {
+        vscode.commands.registerCommand('superprompt-forge.clear', async () => {
             const stashes = await gitService.getStashList();
             if (stashes.length === 0) {
                 vscode.window.showInformationMessage('No stashes to clear');
@@ -676,7 +676,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- Search commands ---
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search stashes by message, branch, or name',
                 placeHolder: 'e.g. login, feature/auth, stash@{2}',
@@ -688,16 +688,16 @@ export function activate(context: vscode.ExtensionContext) {
             stashProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'mystash.isSearching',
+                'superprompt-forge.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('mystash.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.clearSearch', () => {
             stashProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'mystash.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'superprompt-forge.isSearching', false);
         }),
     );
 
@@ -705,7 +705,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            'mystash.applySelected',
+            'superprompt-forge.applySelected',
             async (_item?: StashItem, allItems?: StashItem[]) => {
                 const items =
                     allItems && allItems.length > 0
@@ -776,7 +776,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- 15c: Notes auth commands ---
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -787,7 +787,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.signOut', async () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.signOut', async () => {
             await authService.signOut();
             vscode.window.showInformationMessage('Signed out of GitHub');
         }),
@@ -796,7 +796,7 @@ export function activate(context: vscode.ExtensionContext) {
     // --- 16-17: Notes CRUD commands ---
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.create', async () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.create', async () => {
             const title = await vscode.window.showInputBox({
                 prompt: 'Note title',
                 placeHolder: 'My new note',
@@ -807,7 +807,7 @@ export function activate(context: vscode.ExtensionContext) {
             }
 
             const defaultVisibility = vscode.workspace
-                .getConfiguration('corenexus.notes')
+                .getConfiguration('superprompt-forge.notes')
                 .get<string>('defaultVisibility', 'secret');
             const isPublic = defaultVisibility === 'public';
 
@@ -832,7 +832,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.open', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('superprompt-forge.notes.open', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -843,7 +843,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.delete', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('superprompt-forge.notes.delete', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -879,7 +879,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.copyLink', async (item?: GistNoteItem) => {
+        vscode.commands.registerCommand('superprompt-forge.notes.copyLink', async (item?: GistNoteItem) => {
             if (!item) {
                 return;
             }
@@ -890,7 +890,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            'corenexus.notes.toggleVisibility',
+            'superprompt-forge.notes.toggleVisibility',
             async (item?: GistNoteItem) => {
                 if (!item) {
                     return;
@@ -931,13 +931,13 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.refresh', () => {
             gistNotesProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search notes by title or content',
                 placeHolder: 'e.g. meeting notes, TODO',
@@ -949,22 +949,22 @@ export function activate(context: vscode.ExtensionContext) {
             gistNotesProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'corenexus.notes.isSearching',
+                'superprompt-forge.notes.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.notes.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.notes.clearSearch', () => {
             gistNotesProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'corenexus.notes.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'superprompt-forge.notes.isSearching', false);
         }),
     );
 
     context.subscriptions.push(
         vscode.commands.registerCommand(
-            'mystash.dropSelected',
+            'superprompt-forge.dropSelected',
             async (_item?: StashItem, allItems?: StashItem[]) => {
                 const items =
                     allItems && allItems.length > 0
@@ -1025,13 +1025,13 @@ export function activate(context: vscode.ExtensionContext) {
     // ─── PR commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.prs.refresh', () => {
             prProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.open', async (item?: PrItem) => {
+        vscode.commands.registerCommand('superprompt-forge.prs.open', async (item?: PrItem) => {
             if (!item) {
                 return;
             }
@@ -1042,7 +1042,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.openInBrowser', async (item?: PrItem) => {
+        vscode.commands.registerCommand('superprompt-forge.prs.openInBrowser', async (item?: PrItem) => {
             if (!item) {
                 return;
             }
@@ -1051,7 +1051,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.prs.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -1062,7 +1062,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.filter', async () => {
+        vscode.commands.registerCommand('superprompt-forge.prs.filter', async () => {
             const current = prProvider.stateFilter;
             const items: vscode.QuickPickItem[] = [
                 { label: 'Open', description: current === 'open' ? '(current)' : '' },
@@ -1087,7 +1087,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.prs.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search pull requests by title, number, or branch',
                 placeHolder: 'e.g. fix, #42, feature/auth',
@@ -1099,29 +1099,29 @@ export function activate(context: vscode.ExtensionContext) {
             prProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'corenexus.prs.isSearching',
+                'superprompt-forge.prs.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.prs.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.prs.clearSearch', () => {
             prProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'corenexus.prs.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'superprompt-forge.prs.isSearching', false);
         }),
     );
 
     // ─── Issue commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.issues.refresh', () => {
             issueProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.open', async (item?: IssueItem) => {
+        vscode.commands.registerCommand('superprompt-forge.issues.open', async (item?: IssueItem) => {
             if (!item) {
                 return;
             }
@@ -1132,7 +1132,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.openInBrowser', async (item?: IssueItem) => {
+        vscode.commands.registerCommand('superprompt-forge.issues.openInBrowser', async (item?: IssueItem) => {
             if (!item) {
                 return;
             }
@@ -1141,7 +1141,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.issues.signIn', async () => {
             const session = await authService.signIn();
             if (session) {
                 vscode.window.showInformationMessage(
@@ -1152,7 +1152,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.filter', async () => {
+        vscode.commands.registerCommand('superprompt-forge.issues.filter', async () => {
             const current = issueProvider.stateFilter;
             const items: vscode.QuickPickItem[] = [
                 { label: 'Open', description: current === 'open' ? '(current)' : '' },
@@ -1175,7 +1175,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.issues.search', async () => {
             const query = await vscode.window.showInputBox({
                 prompt: 'Search issues by title, number, or label',
                 placeHolder: 'e.g. bug, #15, enhancement',
@@ -1187,29 +1187,29 @@ export function activate(context: vscode.ExtensionContext) {
             issueProvider.setSearchQuery(query);
             await vscode.commands.executeCommand(
                 'setContext',
-                'corenexus.issues.isSearching',
+                'superprompt-forge.issues.isSearching',
                 query.length > 0,
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.issues.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.issues.clearSearch', () => {
             issueProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'corenexus.issues.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'superprompt-forge.issues.isSearching', false);
         }),
     );
 
     // ─── Mattermost commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.refresh', () => {
             mattermostProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.signIn', async () => {
             const success = await mattermostService.signIn();
             if (success) {
                 mattermostProvider.refresh('sign-in');
@@ -1218,14 +1218,14 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.signOut', async () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.signOut', async () => {
             await mattermostService.signOut();
             mattermostProvider.refresh('sign-out');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.openChannel', async (item?: MattermostChannelItem) => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.openChannel', async (item?: MattermostChannelItem) => {
             if (!item) {
                 return;
             }
@@ -1236,22 +1236,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.search', async () => {
             await mattermostProvider.search();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.clearSearch', () => {
             mattermostProvider.clearSearch();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.mattermost.configure', () => {
+        vscode.commands.registerCommand('superprompt-forge.mattermost.configure', () => {
             vscode.commands.executeCommand(
                 'workbench.action.openSettings',
-                'corenexus.mattermost.serverUrl',
+                'superprompt-forge.mattermost.serverUrl',
             );
         }),
     );
@@ -1259,25 +1259,25 @@ export function activate(context: vscode.ExtensionContext) {
     // ─── Projects commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.refresh', () => {
             projectProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.signIn', async () => {
             await authService.signIn();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.signOut', async () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.signOut', async () => {
             await authService.signOut();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.openItem', async (item?: ProjectItemTreeItem) => {
+        vscode.commands.registerCommand('superprompt-forge.projects.openItem', async (item?: ProjectItemTreeItem) => {
             if (!item) {
                 return;
             }
@@ -1288,7 +1288,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.openInBrowser', async (item?: ProjectItemTreeItem) => {
+        vscode.commands.registerCommand('superprompt-forge.projects.openInBrowser', async (item?: ProjectItemTreeItem) => {
             if (!item) {
                 return;
             }
@@ -1300,7 +1300,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.filter', async () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.filter', async () => {
             const options = projectProvider.getStatusOptions();
             if (options.length === 0) {
                 vscode.window.showInformationMessage('No status options available. Select a project first.');
@@ -1320,7 +1320,7 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.search', async () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.search', async () => {
             const query = await vscode.window.showInputBox({
                 placeHolder: 'Search project items…',
                 prompt: 'Enter a search term to filter project items',
@@ -1329,7 +1329,7 @@ export function activate(context: vscode.ExtensionContext) {
                 projectProvider.setSearchQuery(query);
                 vscode.commands.executeCommand(
                     'setContext',
-                    'corenexus.projects.isSearching',
+                    'superprompt-forge.projects.isSearching',
                     query.length > 0,
                 );
             }
@@ -1337,22 +1337,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.projects.clearSearch', () => {
+        vscode.commands.registerCommand('superprompt-forge.projects.clearSearch', () => {
             projectProvider.setSearchQuery('');
-            vscode.commands.executeCommand('setContext', 'corenexus.projects.isSearching', false);
+            vscode.commands.executeCommand('setContext', 'superprompt-forge.projects.isSearching', false);
         }),
     );
 
     // ─── Google Drive commands ───
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.drive.refresh', () => {
+        vscode.commands.registerCommand('superprompt-forge.drive.refresh', () => {
             driveProvider.refresh('manual');
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.drive.signIn', async () => {
+        vscode.commands.registerCommand('superprompt-forge.drive.signIn', async () => {
             try {
                 await driveService.signIn();
             } catch (e: unknown) {
@@ -1364,22 +1364,22 @@ export function activate(context: vscode.ExtensionContext) {
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.drive.signOut', async () => {
+        vscode.commands.registerCommand('superprompt-forge.drive.signOut', async () => {
             await driveService.signOut();
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.drive.configure', () => {
+        vscode.commands.registerCommand('superprompt-forge.drive.configure', () => {
             vscode.commands.executeCommand(
                 'workbench.action.openSettings',
-                'corenexus.google.clientId',
+                'superprompt-forge.google.clientId',
             );
         }),
     );
 
     context.subscriptions.push(
-        vscode.commands.registerCommand('corenexus.drive.openFile', async (item?: DriveFileItem) => {
+        vscode.commands.registerCommand('superprompt-forge.drive.openFile', async (item?: DriveFileItem) => {
             if (!item?.webViewLink) {
                 return;
             }

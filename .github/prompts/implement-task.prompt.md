@@ -1,7 +1,7 @@
 # Implement a PUNCHLIST Task
 
 ## Context
-You are implementing a feature task from `PUNCHLIST.md` for the MyStash VS Code extension.
+You are implementing a feature task from `PUNCHLIST.md` for the Superprompt Forge VS Code extension.
 
 ## Instructions
 
@@ -11,7 +11,7 @@ You are implementing a feature task from `PUNCHLIST.md` for the MyStash VS Code 
 4. **Implement** — Follow the patterns in `.github/copilot-instructions.md`:
    - `execGit()` returns `GitResult` — don't throw on non-zero exit
    - Push disposables to `context.subscriptions`
-   - Use `ThemeIcon`, `MarkdownString`, `getConfiguration('mystash')`
+   - Use `ThemeIcon`, `MarkdownString`, `getConfiguration('superprompt-forge')`
    - Async/await only, no `.then()` chains
    - `const` by default, `let` only on reassignment
    - No `any` — use `unknown` if truly needed

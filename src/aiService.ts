@@ -35,7 +35,7 @@ export class AiService {
         this._geminiService = new GeminiService(outputChannel);
 
         // Load persisted model overrides from VS Code settings
-        const aiConfig = vscode.workspace.getConfiguration('corenexus.ai');
+        const aiConfig = vscode.workspace.getConfiguration('superprompt-forge.ai');
         for (const purpose of ['summary', 'chat', 'agent'] as const) {
             const saved = aiConfig.get<string>(`modelOverride.${purpose}`, '');
             if (saved) {
@@ -66,7 +66,7 @@ export class AiService {
     /** Determine which provider is active, respecting the user's preference. */
     static activeProvider(): AiProvider {
         const preference = vscode.workspace
-            .getConfiguration('corenexus.ai')
+            .getConfiguration('superprompt-forge.ai')
             .get<string>('provider', 'auto');
 
         if (preference === 'copilot') {
@@ -128,7 +128,7 @@ export class AiService {
         }
         // Persist to VS Code settings
         vscode.workspace
-            .getConfiguration('corenexus.ai')
+            .getConfiguration('superprompt-forge.ai')
             .update(`modelOverride.${purpose}`, modelId || undefined, vscode.ConfigurationTarget.Global);
     }
 
@@ -144,7 +144,7 @@ export class AiService {
             return overrideId;
         }
         // Fall back to the user's configured default, then 'gemini-2.5-flash'
-        return vscode.workspace.getConfiguration('corenexus.ai').get<string>('geminiModel', 'gemini-2.5-flash');
+        return vscode.workspace.getConfiguration('superprompt-forge.ai').get<string>('geminiModel', 'gemini-2.5-flash');
     }
 
     /**
@@ -227,7 +227,7 @@ export class AiService {
         }
 
         const systemPrompt = customSystemPrompt?.trim() ||
-            `You are a concise development assistant embedded in a VS Code extension called CoreNexus. 
+            `You are a concise development assistant embedded in a VS Code extension called Superprompt Forge. 
 Your job is to summarize workspace data into a brief, actionable status card.
 Use short, scannable bullet points — not full sentences. Use emoji sparingly for visual cues.
 Focus on what's actionable: what needs attention, what changed recently, key stats.
@@ -292,7 +292,7 @@ Do NOT use markdown headers (##) in brief summaries.`;
             throw new Error('No AI provider available. Install GitHub Copilot or configure a Gemini API key.');
         }
 
-        const systemPrompt = `You are a helpful development assistant embedded in a VS Code extension called CoreNexus.
+        const systemPrompt = `You are a helpful development assistant embedded in a VS Code extension called Superprompt Forge.
 You have access to the user's workspace data: git stashes, GitHub PRs, Issues, Projects, Gist notes, and Mattermost chat.
 Answer questions about this data concisely and accurately. Reference specific items by number/name when relevant.
 If the data doesn't contain the answer, say so. Use markdown formatting for readability.

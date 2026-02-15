@@ -24,7 +24,7 @@ export class DriveFileItem extends vscode.TreeItem {
 
         if (!isFolder) {
             this.command = {
-                command: 'corenexus.drive.openFile',
+                command: 'superprompt-forge.drive.openFile',
                 title: 'Open in Browser',
                 arguments: [this],
             };

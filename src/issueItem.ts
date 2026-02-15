@@ -40,7 +40,7 @@ export class IssueItem extends vscode.TreeItem {
 
         // Click → open issue in webview
         this.command = {
-            command: 'corenexus.issues.open',
+            command: 'superprompt-forge.issues.open',
             title: 'Open Issue',
             arguments: [this],
         };

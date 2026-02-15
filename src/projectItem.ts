@@ -43,7 +43,7 @@ export class ProjectItemTreeItem extends vscode.TreeItem {
 
         // Click → open item in webview
         this.command = {
-            command: 'corenexus.projects.openItem',
+            command: 'superprompt-forge.projects.openItem',
             title: 'Open Project Item',
             arguments: [this],
         };

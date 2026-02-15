@@ -4,8 +4,8 @@ import * as crypto from 'crypto';
 
 // ─── Constants ────────────────────────────────────────────────────
 
-const PROVIDER_ID = 'corenexus-google';
-const PROVIDER_LABEL = 'Google (CoreNexus)';
+const PROVIDER_ID = 'superprompt-forge-google';
+const PROVIDER_LABEL = 'Google (Superprompt Forge)';
 
 /** Google OAuth 2.0 endpoints */
 const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -24,10 +24,10 @@ const LOCALHOST_REDIRECT = 'http://localhost';
 const CALLBACK_PORT_RANGE = [32100, 32200] as const;
 
 // Secret storage keys
-const SECRET_ACCESS_TOKEN = 'corenexus.google.accessToken';
-const SECRET_REFRESH_TOKEN = 'corenexus.google.refreshToken';
-const SECRET_ACCOUNT = 'corenexus.google.account';
-const SECRET_EXPIRY = 'corenexus.google.expiry';
+const SECRET_ACCESS_TOKEN = 'superprompt-forge.google.accessToken';
+const SECRET_REFRESH_TOKEN = 'superprompt-forge.google.refreshToken';
+const SECRET_ACCOUNT = 'superprompt-forge.google.account';
+const SECRET_EXPIRY = 'superprompt-forge.google.expiry';
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -54,8 +54,8 @@ interface GoogleUserInfo {
  * Uses a localhost redirect (PKCE / authorization code flow) to obtain
  * access + refresh tokens, stored in VS Code SecretStorage.
  *
- * The user must configure `corenexus.google.clientId` and optionally
- * `corenexus.google.clientSecret` in settings, pointing to their own
+ * The user must configure `superprompt-forge.google.clientId` and optionally
+ * `superprompt-forge.google.clientSecret` in settings, pointing to their own
  * Google Cloud project OAuth credentials.
  */
 export class GoogleAuthProvider implements vscode.AuthenticationProvider, vscode.Disposable {
@@ -106,7 +106,7 @@ export class GoogleAuthProvider implements vscode.AuthenticationProvider, vscode
         const clientId = this._getClientId();
         if (!clientId) {
             throw new Error(
-                'Google OAuth client ID not configured. Set corenexus.google.clientId in settings.',
+                'Google OAuth client ID not configured. Set superprompt-forge.google.clientId in settings.',
             );
         }
 
@@ -270,14 +270,14 @@ export class GoogleAuthProvider implements vscode.AuthenticationProvider, vscode
 
     private _getClientId(): string | undefined {
         return vscode.workspace
-            .getConfiguration('corenexus.google')
+            .getConfiguration('superprompt-forge.google')
             .get<string>('clientId', '')
             .trim() || undefined;
     }
 
     private _getClientSecret(): string | undefined {
         return vscode.workspace
-            .getConfiguration('corenexus.google')
+            .getConfiguration('superprompt-forge.google')
             .get<string>('clientSecret', '')
             .trim() || undefined;
     }

@@ -127,7 +127,7 @@ function fileStatusLabel(status: FileStatus): string {
 export class StashFileItem extends vscode.TreeItem {
     /**
      * Custom URI for FileDecorationProvider — allows SCM-style colored badges.
-     * Format: mystash-file:/<filePath>?index=N&status=M
+     * Format: superprompt-forge-file:/<filePath>?index=N&status=M
      */
     public readonly decorationUri: vscode.Uri;
 
@@ -143,7 +143,7 @@ export class StashFileItem extends vscode.TreeItem {
 
         // resourceUri enables FileDecorationProvider
         this.decorationUri = vscode.Uri.parse(
-            `mystash-file:///${filePath}?index=${stashIndex}&status=${status ?? ''}`,
+            `superprompt-forge-file:///${filePath}?index=${stashIndex}&status=${status ?? ''}`,
         );
         this.resourceUri = this.decorationUri;
 
@@ -174,9 +174,9 @@ export class StashFileItem extends vscode.TreeItem {
             role: 'treeitem',
         };
 
-        // Wire click to mystash.showFile
+        // Wire click to superprompt-forge.showFile
         this.command = {
-            command: 'mystash.showFile',
+            command: 'superprompt-forge.showFile',
             title: 'Show File Diff',
             arguments: [this],
         };

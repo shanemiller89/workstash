@@ -1,7 +1,7 @@
 # Refactor Code
 
 ## Context
-You are refactoring code in the MyStash VS Code extension. Refactors should preserve behavior while improving structure, readability, or reducing duplication.
+You are refactoring code in the Superprompt Forge VS Code extension. Refactors should preserve behavior while improving structure, readability, or reducing duplication.
 
 ## Rules
 1. **No behavior changes** — refactors must not alter user-facing functionality.

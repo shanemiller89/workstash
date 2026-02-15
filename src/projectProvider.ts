@@ -148,10 +148,10 @@ export class ProjectProvider implements vscode.TreeDataProvider<ProjectItemTreeI
         try {
             // Check auth status
             const isAuth = await this._authService.isAuthenticated();
-            await vscode.commands.executeCommand('setContext', 'corenexus.isAuthenticated', isAuth);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.isAuthenticated', isAuth);
 
             if (!isAuth) {
-                await vscode.commands.executeCommand('setContext', 'corenexus.hasProjects', false);
+                await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasProjects', false);
                 this._cachedItems = [];
                 this._updateTreeChrome(0);
                 return [];
@@ -161,7 +161,7 @@ export class ProjectProvider implements vscode.TreeDataProvider<ProjectItemTreeI
             if (!this._owner || !this._repo) {
                 const ghRepo = await this._gitService.getGitHubRepo();
                 if (!ghRepo) {
-                    await vscode.commands.executeCommand('setContext', 'corenexus.hasProjects', false);
+                    await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasProjects', false);
                     this._cachedItems = [];
                     this._updateTreeChrome(0);
                     return [];
@@ -187,7 +187,7 @@ export class ProjectProvider implements vscode.TreeDataProvider<ProjectItemTreeI
             }
 
             if (!this._selectedProject) {
-                await vscode.commands.executeCommand('setContext', 'corenexus.hasProjects', false);
+                await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasProjects', false);
                 this._cachedItems = [];
                 this._updateTreeChrome(0);
                 return [];
@@ -200,7 +200,7 @@ export class ProjectProvider implements vscode.TreeDataProvider<ProjectItemTreeI
             this._cachedFields = this._selectedProject.fields;
 
             const hasItems = items.length > 0;
-            await vscode.commands.executeCommand('setContext', 'corenexus.hasProjects', hasItems);
+            await vscode.commands.executeCommand('setContext', 'superprompt-forge.hasProjects', hasItems);
 
             // Apply status filter
             let filtered = items;
