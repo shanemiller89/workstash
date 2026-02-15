@@ -147,16 +147,19 @@ export class GoogleAuthProvider implements vscode.AuthenticationProvider, vscode
 
             // 6. Exchange code for tokens
             const clientSecret = this._getClientSecret();
+            if (!clientSecret) {
+                throw new Error(
+                    'Google OAuth client secret not configured. Set superprompt-forge.google.clientSecret in settings.',
+                );
+            }
             const tokenBody: Record<string, string> = {
                 code,
                 client_id: clientId,
                 redirect_uri: redirectUri,
                 grant_type: 'authorization_code',
                 code_verifier: codeVerifier,
+                client_secret: clientSecret,
             };
-            if (clientSecret) {
-                tokenBody.client_secret = clientSecret;
-            }
 
             const tokenResponse = await this._fetchToken(tokenBody);
 
@@ -319,12 +322,12 @@ export class GoogleAuthProvider implements vscode.AuthenticationProvider, vscode
 
         try {
             this._outputChannel.appendLine('[GoogleAuth] Refreshing access token…');
+            const clientSecret = this._getClientSecret();
             const body: Record<string, string> = {
                 refresh_token: refreshToken,
                 client_id: clientId,
                 grant_type: 'refresh_token',
             };
-            const clientSecret = this._getClientSecret();
             if (clientSecret) {
                 body.client_secret = clientSecret;
             }

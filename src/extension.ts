@@ -28,6 +28,7 @@ import { GoogleAuthProvider } from './googleAuthProvider';
 import { GoogleDriveService } from './googleDriveService';
 import { GoogleDriveProvider } from './googleDriveProvider';
 import { DriveFileItem } from './googleDriveItem';
+import { ForgeOverviewProvider } from './forgeProvider';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -239,6 +240,44 @@ export function activate(context: vscode.ExtensionContext) {
     );
     updateGoogleAuthContext();
 
+    // ─── Forge Overview (Aggregated Status) ───────────────────────
+
+    const forgeOverviewProvider = new ForgeOverviewProvider(
+        gitService,
+        authService,
+        gistNotesProvider,
+        prProvider,
+        issueProvider,
+        projectProvider,
+        mattermostService,
+        driveService,
+        outputChannel,
+    );
+
+    const forgeOverviewTreeView = vscode.window.createTreeView('forgeOverviewView', {
+        treeDataProvider: forgeOverviewProvider,
+        showCollapseAll: false,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(forgeOverviewTreeView);
+
+    // Refresh overview when any feature updates
+    context.subscriptions.push(
+        authService.onDidChangeAuthentication(() => {
+            forgeOverviewProvider.refresh('auth-changed');
+        }),
+    );
+    context.subscriptions.push(
+        mattermostService.onDidChangeAuth(() => {
+            forgeOverviewProvider.refresh('mattermost-auth-changed');
+        }),
+    );
+    context.subscriptions.push(
+        driveService.onDidChangeAuth(() => {
+            forgeOverviewProvider.refresh('drive-auth-changed');
+        }),
+    );
+
     // Register superprompt-forge: URI scheme for side-by-side diff viewing
     const contentProvider = new StashContentProvider(gitService);
     context.subscriptions.push(
@@ -282,9 +321,9 @@ export function activate(context: vscode.ExtensionContext) {
             '.git/{refs/stash,logs/refs/stash}',
         );
         const gitWatcher = vscode.workspace.createFileSystemWatcher(stashRefPattern);
-        gitWatcher.onDidChange(() => stashProvider.refresh('git-stash-changed'));
-        gitWatcher.onDidCreate(() => stashProvider.refresh('git-stash-created'));
-        gitWatcher.onDidDelete(() => stashProvider.refresh('git-stash-deleted'));
+        gitWatcher.onDidChange(() => { stashProvider.refresh('git-stash-changed'); forgeOverviewProvider.refresh('git-stash-changed'); });
+        gitWatcher.onDidCreate(() => { stashProvider.refresh('git-stash-created'); forgeOverviewProvider.refresh('git-stash-created'); });
+        gitWatcher.onDidDelete(() => { stashProvider.refresh('git-stash-deleted'); forgeOverviewProvider.refresh('git-stash-deleted'); });
         context.subscriptions.push(gitWatcher);
     }
 
@@ -296,6 +335,7 @@ export function activate(context: vscode.ExtensionContext) {
                 prProvider.refresh('window-focus');
                 issueProvider.refresh('window-focus');
                 mattermostProvider.refresh('window-focus');
+                forgeOverviewProvider.refresh('window-focus');
             }
         }),
     );
@@ -1353,6 +1393,16 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.drive.signIn', async () => {
+            // Ensure credentials are configured before attempting sign-in
+            const config = vscode.workspace.getConfiguration('superprompt-forge.google');
+            const hasId = !!config.get<string>('clientId', '').trim();
+            const hasSecret = !!config.get<string>('clientSecret', '').trim();
+            if (!hasId || !hasSecret) {
+                const configured = await promptForGoogleCredentials();
+                if (!configured) {
+                    return;
+                }
+            }
             try {
                 await driveService.signIn();
             } catch (e: unknown) {
@@ -1369,12 +1419,51 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
+    /**
+     * Prompt for Google OAuth Client ID and Client Secret via input boxes.
+     * Returns true if both are now configured, false if the user cancelled.
+     */
+    const promptForGoogleCredentials = async (): Promise<boolean> => {
+        const config = vscode.workspace.getConfiguration('superprompt-forge.google');
+        let clientId = config.get<string>('clientId', '').trim();
+        let clientSecret = config.get<string>('clientSecret', '').trim();
+
+        if (!clientId) {
+            const input = await vscode.window.showInputBox({
+                title: 'Google OAuth — Client ID',
+                prompt: 'Enter your Google OAuth 2.0 Client ID (from Google Cloud Console → APIs & Services → Credentials)',
+                placeHolder: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com',
+                ignoreFocusOut: true,
+            });
+            if (!input) {
+                return false;
+            }
+            clientId = input.trim();
+            await config.update('clientId', clientId, vscode.ConfigurationTarget.Global);
+        }
+
+        if (!clientSecret) {
+            const input = await vscode.window.showInputBox({
+                title: 'Google OAuth — Client Secret',
+                prompt: 'Enter your Google OAuth 2.0 Client Secret',
+                placeHolder: 'GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxx',
+                password: true,
+                ignoreFocusOut: true,
+            });
+            if (!input) {
+                return false;
+            }
+            clientSecret = input.trim();
+            await config.update('clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
+        }
+
+        updateGoogleConfiguredContext();
+        return true;
+    };
+
     context.subscriptions.push(
-        vscode.commands.registerCommand('superprompt-forge.drive.configure', () => {
-            vscode.commands.executeCommand(
-                'workbench.action.openSettings',
-                'superprompt-forge.google.clientId',
-            );
+        vscode.commands.registerCommand('superprompt-forge.drive.configure', async () => {
+            await promptForGoogleCredentials();
         }),
     );
 

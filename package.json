@@ -204,6 +204,13 @@
         "views": {
             "superprompt-forge-container": [
                 {
+                    "id": "forgeOverviewView",
+                    "name": "Superprompt Forge",
+                    "icon": "$(dashboard)",
+                    "contextualTitle": "Superprompt Forge",
+                    "visibility": "visible"
+                },
+                {
                     "id": "superprompt-forge-view",
                     "name": "Git Stashes",
                     "icon": "$(archive)",
@@ -405,7 +412,7 @@
             },
             {
                 "command": "superprompt-forge.openPanel",
-                "title": "Open Stash Panel",
+                "title": "Open Superprompt Forge",
                 "category": "Superprompt Forge",
                 "icon": "$(open-preview)"
             },
@@ -706,6 +713,11 @@
         ],
         "menus": {
             "view/title": [
+                {
+                    "command": "superprompt-forge.openPanel",
+                    "when": "view == forgeOverviewView",
+                    "group": "navigation"
+                },
                 {
                     "command": "superprompt-forge.refresh",
                     "when": "view == superprompt-forge-view",

@@ -2144,6 +2144,36 @@ export class StashPanel {
 
             case 'drive.signIn': {
                 if (this._driveService) {
+                    // Ensure credentials are configured — prompt if missing
+                    const config = vscode.workspace.getConfiguration('superprompt-forge.google');
+                    let clientId = config.get<string>('clientId', '').trim();
+                    let clientSecret = config.get<string>('clientSecret', '').trim();
+
+                    if (!clientId) {
+                        const input = await vscode.window.showInputBox({
+                            title: 'Google OAuth — Client ID',
+                            prompt: 'Enter your Google OAuth 2.0 Client ID (from Google Cloud Console → APIs & Services → Credentials)',
+                            placeHolder: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com',
+                            ignoreFocusOut: true,
+                        });
+                        if (!input) { break; }
+                        clientId = input.trim();
+                        await config.update('clientId', clientId, vscode.ConfigurationTarget.Global);
+                    }
+
+                    if (!clientSecret) {
+                        const input = await vscode.window.showInputBox({
+                            title: 'Google OAuth — Client Secret',
+                            prompt: 'Enter your Google OAuth 2.0 Client Secret',
+                            placeHolder: 'GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxx',
+                            password: true,
+                            ignoreFocusOut: true,
+                        });
+                        if (!input) { break; }
+                        clientSecret = input.trim();
+                        await config.update('clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
+                    }
+
                     try {
                         await this._driveService.signIn();
                         await this._sendDriveAuthStatus();
