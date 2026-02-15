@@ -38,6 +38,8 @@ export class StashPanel {
     private _disposables: vscode.Disposable[] = [];
     private _isReady = false;
     private _mmWebSocket: MattermostWebSocket | undefined;
+    /** Queued deep-link messages to send once the webview is ready */
+    private _pendingDeepLinks: Array<Record<string, unknown>> = [];
 
     /**
      * Optional repo override chosen by the user in the webview.
@@ -210,36 +212,51 @@ export class StashPanel {
 
     /** Deep-link: switch to Notes tab and select a specific note. */
     public openNote(noteId: string): void {
+        const msg = { type: 'openNote', noteId };
         if (this._isReady) {
-            this._panel.webview.postMessage({ type: 'openNote', noteId });
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingDeepLinks.push(msg);
         }
     }
 
     /** Deep-link: switch to PRs tab and select a specific PR. */
     public openPR(prNumber: number): void {
+        const msg = { type: 'openPR', prNumber };
         if (this._isReady) {
-            this._panel.webview.postMessage({ type: 'openPR', prNumber });
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingDeepLinks.push(msg);
         }
     }
 
     /** Deep-link: switch to Issues tab and select a specific issue. */
     public openIssue(issueNumber: number): void {
+        const msg = { type: 'openIssue', issueNumber };
         if (this._isReady) {
-            this._panel.webview.postMessage({ type: 'openIssue', issueNumber });
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingDeepLinks.push(msg);
         }
     }
 
     /** Deep-link: switch to Mattermost tab and open a specific channel. */
     public openChannel(channelId: string, channelName: string): void {
+        const msg = { type: 'openChannel', channelId, channelName };
         if (this._isReady) {
-            this._panel.webview.postMessage({ type: 'openChannel', channelId, channelName });
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingDeepLinks.push(msg);
         }
     }
 
     /** Deep-link: switch to Projects tab and select a specific item. */
     public openProjectItem(itemId: string): void {
+        const msg = { type: 'openProjectItem', itemId };
         if (this._isReady) {
-            this._panel.webview.postMessage({ type: 'openProjectItem', itemId });
+            this._panel.webview.postMessage(msg);
+        } else {
+            this._pendingDeepLinks.push(msg);
         }
     }
 
@@ -411,6 +428,11 @@ export class StashPanel {
                     available: AiService.isAvailable(),
                     provider: AiService.activeProvider(),
                 });
+                // Flush any deep-link messages that were queued before the webview was ready
+                for (const deepLink of this._pendingDeepLinks) {
+                    this._panel.webview.postMessage(deepLink);
+                }
+                this._pendingDeepLinks = [];
                 break;
 
             case 'refresh':
@@ -3146,11 +3168,14 @@ export class StashPanel {
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                // Let the webview know auth is needed so it can show the sign-in prompt
+                this._panel.webview.postMessage({ type: 'wikiAuthRequired' });
                 return;
             }
 
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
+                this._panel.webview.postMessage({ type: 'wikiError', message: 'No GitHub repository detected. Open a repo or use the repo switcher.' });
                 return;
             }
 

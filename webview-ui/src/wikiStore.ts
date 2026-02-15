@@ -30,6 +30,8 @@ interface WikiStore {
     error: string | null;
     /** Whether the repo has no wiki */
     noWiki: boolean;
+    /** Whether GitHub auth is required */
+    authRequired: boolean;
     /** Search query for filtering pages */
     searchQuery: string;
 
@@ -42,6 +44,7 @@ interface WikiStore {
     setPageLoading: (loading: boolean) => void;
     setError: (error: string | null) => void;
     setNoWiki: (noWiki: boolean) => void;
+    setAuthRequired: (required: boolean) => void;
     setSearchQuery: (query: string) => void;
 
     // ─── Selectors ────────────────────────────────────────────
@@ -56,6 +59,7 @@ export const useWikiStore = create<WikiStore>((set, get) => ({
     isPageLoading: false,
     error: null,
     noWiki: false,
+    authRequired: false,
     searchQuery: '',
 
     setPages: (pages) => {
@@ -67,6 +71,7 @@ export const useWikiStore = create<WikiStore>((set, get) => ({
             isLoading: false,
             error: null,
             noWiki: false,
+            authRequired: false,
             ...(stillExists
                 ? {}
                 : {
@@ -108,6 +113,8 @@ export const useWikiStore = create<WikiStore>((set, get) => ({
     setError: (error) => set({ error, isLoading: false, isPageLoading: false }),
 
     setNoWiki: (noWiki) => set({ noWiki, isLoading: false }),
+
+    setAuthRequired: (authRequired) => set({ authRequired, isLoading: false }),
 
     setSearchQuery: (query) => set({ searchQuery: query }),
 

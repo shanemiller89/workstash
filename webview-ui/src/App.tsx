@@ -1020,11 +1020,18 @@ export const App: React.FC = () => {
                     wikiStore.setLoading(true);
                     wikiStore.setError(null);
                     wikiStore.setNoWiki(false);
+                    wikiStore.setAuthRequired(false);
                     break;
                 }
                 case 'wikiNoWiki': {
                     const wikiStore = useWikiStore.getState();
                     wikiStore.setNoWiki(true);
+                    wikiStore.setLoading(false);
+                    break;
+                }
+                case 'wikiAuthRequired': {
+                    const wikiStore = useWikiStore.getState();
+                    wikiStore.setAuthRequired(true);
                     wikiStore.setLoading(false);
                     break;
                 }

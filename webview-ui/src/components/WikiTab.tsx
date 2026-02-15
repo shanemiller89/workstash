@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo } from 'react';
 import { useWikiStore, type WikiPageSummaryData } from '../wikiStore';
-import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -63,7 +62,7 @@ const WikiList: React.FC = () => {
     const setSearchQuery = useWikiStore((s) => s.setSearchQuery);
     const selectedFilename = useWikiStore((s) => s.selectedFilename);
     const selectPage = useWikiStore((s) => s.selectPage);
-    const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
+    const authRequired = useWikiStore((s) => s.authRequired);
     const filteredPages = useWikiStore((s) => s.filteredPages);
 
     const filtered = useMemo(() => filteredPages(), [filteredPages, pages, searchQuery]);
@@ -85,7 +84,7 @@ const WikiList: React.FC = () => {
     }, []);
 
     // Not authenticated
-    if (!isAuthenticated) {
+    if (authRequired) {
         return (
             <div className="h-full flex flex-col items-center justify-center gap-3 p-6 text-center">
                 <BookOpen size={32} className="text-fg/30" />

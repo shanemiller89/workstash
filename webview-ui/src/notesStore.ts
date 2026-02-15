@@ -64,7 +64,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     authUsername: null,
     searchQuery: '',
     previewMode: true,
-    filterMode: 'workspace',
+    filterMode: 'all',
     currentRepo: null,
 
     setNotes: (notes) => {

@@ -212,8 +212,20 @@ export const NotesList: React.FC = () => {
                         <span className="text-[12px]">
                             {searchQuery
                                 ? 'No notes match your search'
-                                : 'No notes yet — create one to get started'}
+                                : filterMode === 'workspace' && allNotes.length > 0
+                                    ? `No notes linked to this workspace (${allNotes.length} total)`
+                                    : 'No notes yet — create one to get started'}
                         </span>
+                        {filterMode === 'workspace' && allNotes.length > 0 && !searchQuery && (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-[11px] mt-1"
+                                onClick={() => setFilterMode('all')}
+                            >
+                                Show all notes
+                            </Button>
+                        )}
                     </div>
                 ) : (
                     notes.map((note) => {
