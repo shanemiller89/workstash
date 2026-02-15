@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /** App-level UI state shared across tabs */
-type TabKey = 'stashes' | 'notes' | 'prs' | 'issues' | 'projects' | 'mattermost' | 'agent' | 'settings';
+type TabKey = 'stashes' | 'notes' | 'prs' | 'issues' | 'projects' | 'mattermost' | 'drive' | 'agent' | 'settings';
 
 export interface RepoInfo {
     owner: string;

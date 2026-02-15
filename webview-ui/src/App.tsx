@@ -29,10 +29,12 @@ import { MattermostTab } from './components/MattermostTab';
 import { ResizableLayout } from './components/ResizableLayout';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAIStore } from './aiStore';
+import { useDriveStore, type DriveFileData, type SharedDriveData, type PinnedDocData } from './driveStore';
 import { FloatingChat } from './components/FloatingChat';
 import { AgentTab } from './components/AgentTab';
 import { SettingsTab } from './components/SettingsTab';
 import { TabWithSummary } from './components/TabWithSummary';
+import { DriveTab } from './components/DriveTab';
 
 /** Stash master-detail pane (extracted from old App root) */
 const StashesTab: React.FC = () => {
@@ -897,6 +899,67 @@ export const App: React.FC = () => {
                     );
                     break;
                 }
+
+                // ─── Google Drive ─────────────────────────────
+                case 'driveAuth': {
+                    useDriveStore.getState().setAuthenticated(
+                        msg.authenticated as boolean,
+                        msg.email as string | null,
+                    );
+                    break;
+                }
+                case 'driveFiles': {
+                    useDriveStore.getState().setFiles(
+                        msg.files as DriveFileData[],
+                        msg.nextPageToken as string | undefined,
+                    );
+                    break;
+                }
+                case 'driveSearchResults': {
+                    useDriveStore.getState().setSearchResults(msg.files as DriveFileData[]);
+                    break;
+                }
+                case 'driveStarredFiles': {
+                    useDriveStore.getState().setStarredFiles(msg.files as DriveFileData[]);
+                    break;
+                }
+                case 'driveRecentFiles': {
+                    useDriveStore.getState().setRecentFiles(msg.files as DriveFileData[]);
+                    break;
+                }
+                case 'driveSharedDrives': {
+                    useDriveStore.getState().setSharedDrives(msg.drives as SharedDriveData[]);
+                    break;
+                }
+                case 'driveSharedDriveFiles': {
+                    useDriveStore.getState().setSharedDriveFiles(msg.files as DriveFileData[]);
+                    break;
+                }
+                case 'drivePinnedDocs': {
+                    useDriveStore.getState().setPinnedDocs(msg.docs as PinnedDocData[]);
+                    break;
+                }
+                case 'driveUploadStart': {
+                    useDriveStore.getState().setUploading(true, msg.fileName as string);
+                    break;
+                }
+                case 'driveUploadDone': {
+                    useDriveStore.getState().setUploading(false);
+                    break;
+                }
+                case 'driveFileStarred': {
+                    // Update star state in current file lists
+                    const fileId = msg.fileId as string;
+                    const starred = msg.starred as boolean;
+                    const updateStar = (files: DriveFileData[]) =>
+                        files.map((f) => (f.id === fileId ? { ...f, starred } : f));
+                    const ds = useDriveStore.getState();
+                    ds.setFiles(updateStar(ds.files), ds.nextPageToken);
+                    if (ds.selectedFile?.id === fileId) {
+                        ds.selectFile({ ...ds.selectedFile, starred });
+                    }
+                    break;
+                }
             }
         });
 
@@ -938,6 +1001,10 @@ export const App: React.FC = () => {
                     ) : activeTab === 'settings' ? (
                         <ErrorBoundary key="settings" label="Settings">
                             <SettingsTab />
+                        </ErrorBoundary>
+                    ) : activeTab === 'drive' ? (
+                        <ErrorBoundary key="drive" label="Google Drive">
+                            <DriveTab />
                         </ErrorBoundary>
                     ) : activeTab === 'agent' ? (
                         <ErrorBoundary key="agent" label="Agent">

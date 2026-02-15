@@ -2,7 +2,7 @@ import React from 'react';
 import { useAppStore } from '../appStore';
 import { useAIStore } from '../aiStore';
 import { postMessage } from '../vscode';
-import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban, Bot, Wand2, Key, Settings } from 'lucide-react';
+import { Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare, Kanban, Bot, Wand2, Key, Settings, HardDrive } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
 import { RepoSwitcher } from './RepoSwitcher';
@@ -13,6 +13,7 @@ const tabs = [
     { key: 'prs' as const, label: 'PRs', Icon: GitPullRequest },
     { key: 'issues' as const, label: 'Issues', Icon: CircleDot },
     { key: 'projects' as const, label: 'Projects', Icon: Kanban },
+    { key: 'drive' as const, label: 'Drive', Icon: HardDrive },
     { key: 'agent' as const, label: 'Agent', Icon: Wand2 },
 ] as const;
 

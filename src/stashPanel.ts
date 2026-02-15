@@ -7,6 +7,7 @@ import { IssueService } from './issueService';
 import { MattermostService, MattermostPostData, MattermostChannelData } from './mattermostService';
 import { MattermostWebSocket, MmWsPostedData, MmWsReactionData, MmWsStatusChangeData, MmWsTypingData } from './mattermostWebSocket';
 import { ProjectService } from './projectService';
+import { GoogleDriveService } from './googleDriveService';
 import { AiService } from './aiService';
 import { formatRelativeTime, getConfig } from './utils';
 
@@ -26,6 +27,7 @@ export class StashPanel {
     private readonly _issueService: IssueService | undefined;
     private readonly _mattermostService: MattermostService | undefined;
     private readonly _projectService: ProjectService | undefined;
+    private readonly _driveService: GoogleDriveService | undefined;
     private readonly _aiService: AiService;
     private readonly _extensionUri: vscode.Uri;
     private readonly _outputChannel: vscode.OutputChannel;
@@ -123,6 +125,7 @@ export class StashPanel {
         issueService?: IssueService,
         mattermostService?: MattermostService,
         projectService?: ProjectService,
+        driveService?: GoogleDriveService,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -149,6 +152,7 @@ export class StashPanel {
             issueService,
             mattermostService,
             projectService,
+            driveService,
         );
         return StashPanel._instance;
     }
@@ -164,6 +168,7 @@ export class StashPanel {
         issueService?: IssueService,
         mattermostService?: MattermostService,
         projectService?: ProjectService,
+        driveService?: GoogleDriveService,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
@@ -175,6 +180,7 @@ export class StashPanel {
         this._issueService = issueService;
         this._mattermostService = mattermostService;
         this._projectService = projectService;
+        this._driveService = driveService;
         this._aiService = new AiService(outputChannel);
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
@@ -356,6 +362,15 @@ export class StashPanel {
         webSearch?: boolean;
         // Settings message properties
         key?: string;
+        // Google Drive message properties
+        folderId?: string;
+        fileId?: string;
+        driveId?: string;
+        query?: string;
+        starred?: boolean;
+        name?: string;
+        mimeType?: string;
+        webViewLink?: string;
     }): Promise<void> {
         switch (msg.type) {
             case 'ready':
@@ -368,6 +383,7 @@ export class StashPanel {
                 await this._refreshIssues();
                 await this._refreshProjects();
                 await this._refreshMattermost();
+                await this._sendDriveAuthStatus();
                 // Fire-and-forget: pre-fetch user repos for the repo switcher
                 this._fetchUserRepos();
                 // Inform webview whether AI features are available and which provider
@@ -2124,6 +2140,306 @@ export class StashPanel {
                 vscode.commands.executeCommand('workbench.action.openSettings', '@ext:shanemiller89.corenexus');
                 break;
             }
+
+            // ─── Google Drive ─────────────────────────────────
+
+            case 'drive.signIn': {
+                if (this._driveService) {
+                    try {
+                        await this._driveService.signIn();
+                        await this._sendDriveAuthStatus();
+                    } catch (e: unknown) {
+                        vscode.window.showErrorMessage(
+                            `Google sign-in failed: ${e instanceof Error ? e.message : e}`,
+                        );
+                    }
+                }
+                break;
+            }
+
+            case 'drive.signOut': {
+                if (this._driveService) {
+                    await this._driveService.signOut();
+                    await this._sendDriveAuthStatus();
+                }
+                break;
+            }
+
+            case 'drive.listFiles': {
+                if (this._driveService) {
+                    try {
+                        const result = await this._driveService.listFiles(msg.folderId ?? 'root');
+                        this._panel.webview.postMessage({
+                            type: 'driveFiles',
+                            files: result.files,
+                            nextPageToken: result.nextPageToken,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] listFiles error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveFiles',
+                            files: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.search': {
+                if (this._driveService && msg.query) {
+                    try {
+                        const result = await this._driveService.searchFiles(msg.query);
+                        this._panel.webview.postMessage({
+                            type: 'driveSearchResults',
+                            files: result.files,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] search error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveSearchResults',
+                            files: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.getStarred': {
+                if (this._driveService) {
+                    try {
+                        const result = await this._driveService.getStarredFiles();
+                        this._panel.webview.postMessage({
+                            type: 'driveStarredFiles',
+                            files: result.files,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] getStarred error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveStarredFiles',
+                            files: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.getRecent': {
+                if (this._driveService) {
+                    try {
+                        const result = await this._driveService.getRecentFiles();
+                        this._panel.webview.postMessage({
+                            type: 'driveRecentFiles',
+                            files: result.files,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] getRecent error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveRecentFiles',
+                            files: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.getSharedDrives': {
+                if (this._driveService) {
+                    try {
+                        const result = await this._driveService.listSharedDrives();
+                        this._panel.webview.postMessage({
+                            type: 'driveSharedDrives',
+                            drives: result.drives,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] getSharedDrives error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveSharedDrives',
+                            drives: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.listSharedDriveFiles': {
+                if (this._driveService && msg.driveId) {
+                    try {
+                        const result = await this._driveService.listSharedDriveFiles(msg.driveId, msg.folderId);
+                        this._panel.webview.postMessage({
+                            type: 'driveSharedDriveFiles',
+                            files: result.files,
+                        });
+                    } catch (e: unknown) {
+                        this._outputChannel.appendLine(
+                            `[Drive] listSharedDriveFiles error: ${e instanceof Error ? e.message : e}`,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'driveSharedDriveFiles',
+                            files: [],
+                        });
+                    }
+                }
+                break;
+            }
+
+            case 'drive.openInBrowser': {
+                if (this._driveService && msg.fileId) {
+                    try {
+                        await this._driveService.openInBrowser(msg.fileId);
+                    } catch (e: unknown) {
+                        vscode.window.showErrorMessage(
+                            `Failed to open file: ${e instanceof Error ? e.message : e}`,
+                        );
+                    }
+                }
+                break;
+            }
+
+            case 'drive.download': {
+                if (this._driveService && msg.fileId) {
+                    try {
+                        // Let user pick a folder
+                        const folders = await vscode.window.showOpenDialog({
+                            canSelectFiles: false,
+                            canSelectFolders: true,
+                            canSelectMany: false,
+                            title: 'Download to folder',
+                            defaultUri: vscode.workspace.workspaceFolders?.[0]?.uri,
+                        });
+                        if (folders && folders[0]) {
+                            const localUri = await vscode.window.withProgress(
+                                {
+                                    location: vscode.ProgressLocation.Notification,
+                                    title: 'Downloading from Google Drive…',
+                                },
+                                () => this._driveService!.downloadFile(msg.fileId!, folders[0]),
+                            );
+                            const openAction = await vscode.window.showInformationMessage(
+                                `Downloaded: ${localUri.fsPath}`,
+                                'Open File',
+                            );
+                            if (openAction === 'Open File') {
+                                await vscode.commands.executeCommand('vscode.open', localUri);
+                            }
+                        }
+                    } catch (e: unknown) {
+                        vscode.window.showErrorMessage(
+                            `Download failed: ${e instanceof Error ? e.message : e}`,
+                        );
+                    }
+                }
+                break;
+            }
+
+            case 'drive.upload': {
+                if (this._driveService) {
+                    try {
+                        const files = await vscode.window.showOpenDialog({
+                            canSelectFiles: true,
+                            canSelectFolders: false,
+                            canSelectMany: false,
+                            title: 'Select file to upload to Google Drive',
+                        });
+                        if (files && files[0]) {
+                            const fileName = files[0].fsPath.split('/').pop() ?? 'file';
+                            this._panel.webview.postMessage({
+                                type: 'driveUploadStart',
+                                fileName,
+                            });
+                            await vscode.window.withProgress(
+                                {
+                                    location: vscode.ProgressLocation.Notification,
+                                    title: `Uploading ${fileName} to Google Drive…`,
+                                },
+                                () => this._driveService!.uploadFile(
+                                    files[0].fsPath,
+                                    msg.folderId ?? 'root',
+                                ),
+                            );
+                            this._panel.webview.postMessage({ type: 'driveUploadDone' });
+                            vscode.window.showInformationMessage(`Uploaded ${fileName} to Google Drive`);
+                            // Refresh the current folder
+                            const result = await this._driveService.listFiles(msg.folderId ?? 'root');
+                            this._panel.webview.postMessage({
+                                type: 'driveFiles',
+                                files: result.files,
+                                nextPageToken: result.nextPageToken,
+                            });
+                        }
+                    } catch (e: unknown) {
+                        this._panel.webview.postMessage({ type: 'driveUploadDone' });
+                        vscode.window.showErrorMessage(
+                            `Upload failed: ${e instanceof Error ? e.message : e}`,
+                        );
+                    }
+                }
+                break;
+            }
+
+            case 'drive.toggleStar': {
+                if (this._driveService && msg.fileId !== undefined && msg.starred !== undefined) {
+                    try {
+                        await this._driveService.toggleStar(msg.fileId, msg.starred);
+                        this._panel.webview.postMessage({
+                            type: 'driveFileStarred',
+                            fileId: msg.fileId,
+                            starred: msg.starred,
+                        });
+                    } catch (e: unknown) {
+                        vscode.window.showErrorMessage(
+                            `Failed to update star: ${e instanceof Error ? e.message : e}`,
+                        );
+                    }
+                }
+                break;
+            }
+
+            case 'drive.getPinnedDocs': {
+                if (this._driveService) {
+                    this._panel.webview.postMessage({
+                        type: 'drivePinnedDocs',
+                        docs: this._driveService.getPinnedDocs(),
+                    });
+                }
+                break;
+            }
+
+            case 'drive.pinDoc': {
+                if (this._driveService && msg.fileId) {
+                    await this._driveService.pinDoc({
+                        fileId: msg.fileId,
+                        name: msg.name ?? 'Untitled',
+                        mimeType: msg.mimeType ?? 'application/octet-stream',
+                        webViewLink: msg.webViewLink,
+                    });
+                    this._panel.webview.postMessage({
+                        type: 'drivePinnedDocs',
+                        docs: this._driveService.getPinnedDocs(),
+                    });
+                }
+                break;
+            }
+
+            case 'drive.unpinDoc': {
+                if (this._driveService && msg.fileId) {
+                    await this._driveService.unpinDoc(msg.fileId);
+                    this._panel.webview.postMessage({
+                        type: 'drivePinnedDocs',
+                        docs: this._driveService.getPinnedDocs(),
+                    });
+                }
+                break;
+            }
         }
     }
 
@@ -2371,6 +2687,32 @@ export class StashPanel {
                 type: 'authStatus',
                 authenticated: false,
                 username: null,
+            });
+        }
+    }
+
+    /** Send Google Drive authentication status to the webview */
+    private async _sendDriveAuthStatus(): Promise<void> {
+        if (!this._driveService) {
+            return;
+        }
+        try {
+            const isAuth = await this._driveService.isAuthenticated();
+            let email: string | null = null;
+            if (isAuth) {
+                const session = await vscode.authentication.getSession('corenexus-google', [], { createIfNone: false });
+                email = session?.account?.label ?? null;
+            }
+            this._panel.webview.postMessage({
+                type: 'driveAuth',
+                authenticated: isAuth,
+                email,
+            });
+        } catch {
+            this._panel.webview.postMessage({
+                type: 'driveAuth',
+                authenticated: false,
+                email: null,
             });
         }
     }

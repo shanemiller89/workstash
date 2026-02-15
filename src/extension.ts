@@ -24,6 +24,10 @@ import { ProjectItemTreeItem } from './projectItem';
 import { MattermostService } from './mattermostService';
 import { MattermostProvider } from './mattermostProvider';
 import { MattermostChannelItem, MattermostSeparatorItem } from './mattermostItem';
+import { GoogleAuthProvider } from './googleAuthProvider';
+import { GoogleDriveService } from './googleDriveService';
+import { GoogleDriveProvider } from './googleDriveProvider';
+import { DriveFileItem } from './googleDriveItem';
 import { pickStash } from './uiUtils';
 import { getConfig } from './utils';
 
@@ -182,6 +186,58 @@ export function activate(context: vscode.ExtensionContext) {
             mattermostProvider.refresh('auth-changed');
         }),
     );
+
+    // ─── Google Drive Feature ─────────────────────────────────────
+
+    // GoogleAuthProvider — custom VS Code auth provider for Google OAuth 2.0
+    const googleAuthProvider = new GoogleAuthProvider(context, outputChannel);
+    context.subscriptions.push(googleAuthProvider);
+
+    // GoogleDriveService — Google Drive REST API
+    const driveService = new GoogleDriveService(googleAuthProvider, outputChannel, context.globalState);
+
+    // GoogleDriveProvider — tree data provider for Google Drive sidebar
+    const driveProvider = new GoogleDriveProvider(driveService, outputChannel);
+    context.subscriptions.push(driveProvider);
+
+    // Register the Google Drive tree view
+    const driveTreeView = vscode.window.createTreeView('googleDriveView', {
+        treeDataProvider: driveProvider,
+        showCollapseAll: true,
+        canSelectMany: false,
+    });
+    context.subscriptions.push(driveTreeView);
+    driveProvider.setTreeView(driveTreeView);
+
+    // Update context key for Google Drive auth state
+    const updateGoogleAuthContext = async () => {
+        const isGoogleAuth = await driveService.isAuthenticated();
+        await vscode.commands.executeCommand('setContext', 'corenexus.isGoogleAuthenticated', isGoogleAuth);
+    };
+
+    // Update context key for Google Drive configured state
+    const updateGoogleConfiguredContext = () => {
+        const clientId = vscode.workspace.getConfiguration('corenexus').get<string>('google.clientId', '');
+        void vscode.commands.executeCommand('setContext', 'corenexus.isGoogleConfigured', !!clientId);
+    };
+    updateGoogleConfiguredContext();
+
+    // Watch for settings changes to keep configured context in sync
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration('corenexus.google.clientId')) {
+                updateGoogleConfiguredContext();
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        driveService.onDidChangeAuth(() => {
+            driveProvider.refresh('auth-changed');
+            updateGoogleAuthContext();
+        }),
+    );
+    updateGoogleAuthContext();
 
     // Register mystash: URI scheme for side-by-side diff viewing
     const contentProvider = new StashContentProvider(gitService);
@@ -549,7 +605,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('mystash.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
         }),
     );
 
@@ -781,7 +837,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -980,7 +1036,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1070,7 +1126,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1174,7 +1230,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the channel in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
             StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
         }),
     );
@@ -1226,7 +1282,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the project item in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService);
+            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService);
             StashPanel.currentPanel?.openProjectItem(item.projectItem.id);
         }),
     );
@@ -1284,6 +1340,50 @@ export function activate(context: vscode.ExtensionContext) {
         vscode.commands.registerCommand('corenexus.projects.clearSearch', () => {
             projectProvider.setSearchQuery('');
             vscode.commands.executeCommand('setContext', 'corenexus.projects.isSearching', false);
+        }),
+    );
+
+    // ─── Google Drive commands ───
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('corenexus.drive.refresh', () => {
+            driveProvider.refresh('manual');
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('corenexus.drive.signIn', async () => {
+            try {
+                await driveService.signIn();
+            } catch (e: unknown) {
+                vscode.window.showErrorMessage(
+                    `Google sign-in failed: ${e instanceof Error ? e.message : e}`,
+                );
+            }
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('corenexus.drive.signOut', async () => {
+            await driveService.signOut();
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('corenexus.drive.configure', () => {
+            vscode.commands.executeCommand(
+                'workbench.action.openSettings',
+                'corenexus.google.clientId',
+            );
+        }),
+    );
+
+    context.subscriptions.push(
+        vscode.commands.registerCommand('corenexus.drive.openFile', async (item?: DriveFileItem) => {
+            if (!item?.webViewLink) {
+                return;
+            }
+            await vscode.env.openExternal(vscode.Uri.parse(item.webViewLink));
         }),
     );
 }

@@ -110,6 +110,16 @@
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 },
+                "corenexus.google.clientId": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Google OAuth 2.0 Client ID for Google Drive integration. Create one at https://console.cloud.google.com/apis/credentials"
+                },
+                "corenexus.google.clientSecret": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Google OAuth 2.0 Client Secret. Required alongside Client ID for Google Drive authentication."
+                },
                 "corenexus.ai.includeSecretGists": {
                     "type": "boolean",
                     "default": false,
@@ -227,6 +237,13 @@
                     "icon": "$(comment-discussion)",
                     "contextualTitle": "CoreNexus",
                     "visibility": "visible"
+                },
+                {
+                    "id": "googleDriveView",
+                    "name": "Google Drive",
+                    "icon": "$(cloud)",
+                    "contextualTitle": "CoreNexus",
+                    "visibility": "visible"
                 }
             ]
         },
@@ -315,6 +332,21 @@
                 "view": "mattermostView",
                 "contents": "No teams found.\n[Refresh](command:corenexus.mattermost.refresh)",
                 "when": "corenexus.isMattermostAuthenticated && !corenexus.hasMattermostTeams"
+            },
+            {
+                "view": "googleDriveView",
+                "contents": "Google Drive is not configured.\nSet your Google OAuth Client ID in settings to get started.\n[Configure Google Drive](command:corenexus.drive.configure)",
+                "when": "!corenexus.isGoogleConfigured"
+            },
+            {
+                "view": "googleDriveView",
+                "contents": "Sign in to Google to browse your Drive files.\n[Sign In to Google](command:corenexus.drive.signIn)",
+                "when": "corenexus.isGoogleConfigured && !corenexus.isGoogleAuthenticated"
+            },
+            {
+                "view": "googleDriveView",
+                "contents": "No files found.\n[Refresh](command:corenexus.drive.refresh)",
+                "when": "corenexus.isGoogleAuthenticated"
             }
         ],
         "commands": [
@@ -634,6 +666,36 @@
                 "title": "Configure Mattermost Server",
                 "category": "CoreNexus",
                 "icon": "$(gear)"
+            },
+            {
+                "command": "corenexus.drive.refresh",
+                "title": "Refresh Google Drive",
+                "category": "CoreNexus",
+                "icon": "$(refresh)"
+            },
+            {
+                "command": "corenexus.drive.signIn",
+                "title": "Sign In to Google",
+                "category": "CoreNexus",
+                "icon": "$(sign-in)"
+            },
+            {
+                "command": "corenexus.drive.signOut",
+                "title": "Sign Out of Google",
+                "category": "CoreNexus",
+                "icon": "$(sign-out)"
+            },
+            {
+                "command": "corenexus.drive.openFile",
+                "title": "Open in Browser",
+                "category": "CoreNexus",
+                "icon": "$(link-external)"
+            },
+            {
+                "command": "corenexus.drive.configure",
+                "title": "Configure Google Drive",
+                "category": "CoreNexus",
+                "icon": "$(gear)"
             }
         ],
         "menus": {
@@ -823,6 +885,29 @@
                 {
                     "command": "corenexus.mattermost.configure",
                     "when": "view == mattermostView"
+                },
+                {
+                    "command": "corenexus.drive.refresh",
+                    "when": "view == googleDriveView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "mystash.openPanel",
+                    "when": "view == googleDriveView",
+                    "group": "navigation"
+                },
+                {
+                    "command": "corenexus.drive.signIn",
+                    "when": "view == googleDriveView && corenexus.isGoogleConfigured && !corenexus.isGoogleAuthenticated",
+                    "group": "navigation"
+                },
+                {
+                    "command": "corenexus.drive.signOut",
+                    "when": "view == googleDriveView && corenexus.isGoogleAuthenticated"
+                },
+                {
+                    "command": "corenexus.drive.configure",
+                    "when": "view == googleDriveView"
                 }
             ],
             "view/item/context": [
