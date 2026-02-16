@@ -286,6 +286,54 @@ export const App: React.FC = () => {
                     break;
                 }
 
+                // ─── PR creation messages ───
+                case 'prBranches': {
+                    const prStore = usePRStore.getState();
+                    prStore.setBranches(
+                        msg.branches as string[],
+                        (msg.currentBranch as string) ?? null,
+                    );
+                    break;
+                }
+                case 'prCreating': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCreatingPR(true);
+                    break;
+                }
+                case 'prCreated': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCreatingPR(false);
+                    prStore.setShowCreatePR(false);
+                    // Select the newly created PR
+                    if (msg.prNumber) {
+                        prStore.selectPR(msg.prNumber as number);
+                        postMessage('prs.getComments', { prNumber: msg.prNumber });
+                    }
+                    break;
+                }
+                case 'prCreateError': {
+                    const prStore = usePRStore.getState();
+                    prStore.setCreateError(msg.error as string);
+                    break;
+                }
+
+                // ─── PR summary generation messages ───
+                case 'prSummaryLoading': {
+                    const prStore = usePRStore.getState();
+                    prStore.setGeneratingSummary(true);
+                    break;
+                }
+                case 'prSummaryResult': {
+                    const prStore = usePRStore.getState();
+                    prStore.setGeneratedSummary(msg.summary as string);
+                    break;
+                }
+                case 'prSummaryError': {
+                    const prStore = usePRStore.getState();
+                    prStore.setSummaryError(msg.error as string);
+                    break;
+                }
+
                 // ─── Deep-link: open a specific PR ───
                 case 'openPR':
                     appStore.setActiveTab('prs');

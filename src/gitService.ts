@@ -407,6 +407,76 @@ export class GitService {
     }
 
     /**
+     * List local branches, with the current branch first.
+     */
+    async listBranches(): Promise<string[]> {
+        const { stdout, exitCode } = await this.execGit('branch --format="%(refname:short)"');
+        if (exitCode !== 0 || !stdout) {
+            return [];
+        }
+        const branches = stdout.split('\n').map((b) => b.trim().replace(/^"|"$/g, '')).filter(Boolean);
+        // Move current branch to front
+        const current = await this.getCurrentBranch();
+        if (current && branches.includes(current)) {
+            return [current, ...branches.filter((b) => b !== current)];
+        }
+        return branches;
+    }
+
+    /**
+     * Get the diff of the current branch against a base branch.
+     * Uses merge-base to find the common ancestor for a clean diff.
+     */
+    async getDiffAgainstBase(baseBranch: string): Promise<string> {
+        // Find the merge base
+        const { stdout: mergeBase, exitCode: mbExit } = await this.execGit(
+            `merge-base ${baseBranch} HEAD`,
+        );
+        if (mbExit !== 0 || !mergeBase) {
+            // Fallback: direct diff
+            const { stdout, exitCode } = await this.execGit(`diff ${baseBranch}...HEAD`);
+            if (exitCode !== 0) {
+                throw new Error(`Failed to get diff against ${baseBranch}`);
+            }
+            return stdout;
+        }
+        const { stdout, exitCode } = await this.execGit(`diff ${mergeBase.trim()} HEAD`);
+        if (exitCode !== 0) {
+            throw new Error(`Failed to get diff against ${baseBranch}`);
+        }
+        return stdout;
+    }
+
+    /**
+     * Get a stat summary of the diff against a base branch.
+     * Returns a compact --stat output showing files changed.
+     */
+    async getDiffStatAgainstBase(baseBranch: string): Promise<string> {
+        const { stdout: mergeBase, exitCode: mbExit } = await this.execGit(
+            `merge-base ${baseBranch} HEAD`,
+        );
+        const baseRef = mbExit === 0 && mergeBase ? mergeBase.trim() : baseBranch;
+        const { stdout, exitCode } = await this.execGit(`diff --stat ${baseRef} HEAD`);
+        if (exitCode !== 0) {
+            return '';
+        }
+        return stdout;
+    }
+
+    /**
+     * Get commit messages between the current branch and the base branch.
+     */
+    async getCommitLogAgainstBase(baseBranch: string): Promise<string> {
+        const { stdout, exitCode } = await this.execGit(
+            `log --oneline ${baseBranch}..HEAD`,
+        );
+        if (exitCode !== 0) {
+            return '';
+        }
+        return stdout;
+    }
+
+    /**
      * Static parser for GitHub remote URLs. Useful for testing.
      */
     static parseGitHubUrl(url: string): { owner: string; repo: string } | undefined {

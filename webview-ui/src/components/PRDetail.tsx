@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { usePRStore, type PRCommentData, type CommentResolvedFilter, type CommentGroup } from '../prStore';
+import { usePRStore, type PRCommentData, type CommentResolvedFilter, type CommentGroup, type ReviewThread } from '../prStore';
 import { postMessage } from '../vscode';
 import {
     GitPullRequest,
@@ -445,6 +445,112 @@ const UserGroup: React.FC<{
     );
 };
 
+/** Collapsed review thread card — click to open in thread panel */
+const ThreadCard: React.FC<{ thread: ReviewThread; prNumber: number }> = ({ thread, prNumber }) => {
+    const openThread = usePRStore((s) => s.openThread);
+    const { rootComment, replies, isResolved, resolvedBy, path, line } = thread;
+    const replyCount = replies.length;
+
+    const handleToggleResolved = useCallback(
+        (e: React.MouseEvent) => {
+            e.stopPropagation();
+            if (isResolved) {
+                postMessage('prs.unresolveThread', { threadId: thread.threadId });
+            } else {
+                postMessage('prs.resolveThread', { threadId: thread.threadId });
+            }
+        },
+        [thread.threadId, isResolved],
+    );
+
+    return (
+        <div
+            className={`border rounded overflow-hidden cursor-pointer hover:border-accent/40 transition-colors ${
+                isResolved ? 'border-green-400/30 bg-green-400/[0.03]' : 'border-border'
+            }`}
+            onClick={() => openThread(thread.threadId)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') openThread(thread.threadId);
+            }}
+        >
+            {/* File context bar */}
+            {path && (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-[var(--vscode-textCodeBlock-background,rgba(127,127,127,0.08))] border-b border-border text-[10px] text-fg/50">
+                    <FileCode size={10} className="shrink-0" />
+                    <span className="font-mono truncate">{path}</span>
+                    {line != null && <span className="shrink-0">:{line}</span>}
+                    {isResolved && (
+                        <Badge
+                            variant="outline"
+                            className="ml-auto text-[9px] px-1.5 py-0.5 bg-green-400/15 text-green-400 border-green-400/30 gap-0.5"
+                        >
+                            <CheckCircle2 size={8} /> Resolved
+                        </Badge>
+                    )}
+                </div>
+            )}
+
+            {/* Root comment header + preview */}
+            <div className="px-3 py-2">
+                <div className="flex items-center gap-2 mb-1">
+                    {rootComment.authorAvatarUrl && (
+                        <img
+                            src={rootComment.authorAvatarUrl}
+                            alt={rootComment.author}
+                            className="w-4 h-4 rounded-full"
+                        />
+                    )}
+                    <span className="text-[11px] font-medium">{rootComment.author}</span>
+                    <span className="text-[10px] text-fg/40" title={formatDate(rootComment.createdAt)}>
+                        {formatRelative(rootComment.createdAt)}
+                    </span>
+                    <div className="flex-1" />
+                    {/* Resolve toggle */}
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        className={
+                            isResolved
+                                ? 'text-green-400 hover:text-fg/50'
+                                : 'text-fg/30 hover:text-green-400'
+                        }
+                        onClick={handleToggleResolved}
+                        title={isResolved ? 'Unresolve thread' : 'Resolve thread'}
+                    >
+                        {isResolved ? <CheckCircle2 size={12} /> : <Circle size={12} />}
+                    </Button>
+                </div>
+                {/* Body preview (truncated) */}
+                <div className="text-[11px] text-fg/70 line-clamp-2 pl-6">
+                    <MarkdownBody content={rootComment.body} />
+                </div>
+            </div>
+
+            {/* Reply count footer */}
+            {replyCount > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 border-t border-border bg-card text-[10px] text-fg/40">
+                    <Reply size={10} />
+                    {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+                    {/* Show last replier avatar */}
+                    {replies[replies.length - 1].authorAvatarUrl && (
+                        <>
+                            <span>·</span>
+                            <img
+                                src={replies[replies.length - 1].authorAvatarUrl}
+                                alt={replies[replies.length - 1].author}
+                                className="w-3.5 h-3.5 rounded-full"
+                            />
+                            <span>{replies[replies.length - 1].author}</span>
+                        </>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
+
 const EMPTY_REVIEWERS: { login: string; avatarUrl: string }[] = [];
 
 /** Reviewer request picker + current reviewer list */
@@ -664,6 +770,10 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     const groupByUser = usePRStore((s) => s.commentGroupByUser);
     const isCommentsLoading = usePRStore((s) => s.isCommentsLoading);
     const isCommentSaving = usePRStore((s) => s.isCommentSaving);
+
+    // Threaded selectors
+    const reviewThreads = usePRStore((s) => s.reviewThreads());
+    const issueComments = usePRStore((s) => s.issueComments());
 
     const selectedPR = useMemo(() => {
         if (selectedPRNumber === null) return undefined;
@@ -920,10 +1030,42 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                             ))}
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2">
-                            {filteredComments.map((c) => (
-                                <CommentCard key={c.id} comment={c} prNumber={pr!.number} />
-                            ))}
+                        <div className="flex flex-col gap-3">
+                            {/* Review threads (grouped) */}
+                            {reviewThreads.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    <div className="flex items-center gap-1.5 text-[10px] text-fg/40 uppercase tracking-wider font-medium">
+                                        <FileDiff size={10} />
+                                        Review threads ({reviewThreads.length})
+                                    </div>
+                                    {reviewThreads.map((thread) => (
+                                        <ThreadCard
+                                            key={thread.threadId}
+                                            thread={thread}
+                                            prNumber={pr!.number}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Issue comments (non-threaded) */}
+                            {issueComments.length > 0 && (
+                                <div className="flex flex-col gap-2">
+                                    {reviewThreads.length > 0 && (
+                                        <div className="flex items-center gap-1.5 text-[10px] text-fg/40 uppercase tracking-wider font-medium mt-1">
+                                            <MessageSquare size={10} />
+                                            Comments ({issueComments.length})
+                                        </div>
+                                    )}
+                                    {issueComments.map((c) => (
+                                        <CommentCard
+                                            key={c.id}
+                                            comment={c}
+                                            prNumber={pr!.number}
+                                        />
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

@@ -348,6 +348,10 @@ export class StashPanel {
         // PR reviewer properties
         reviewers?: string[];
         reviewer?: string;
+        // PR create properties
+        baseBranch?: string;
+        headBranch?: string;
+        draft?: boolean;
         // Issue message properties
         issueNumber?: number;
         stateReason?: string;
@@ -1017,6 +1021,135 @@ export class StashPanel {
                     }
                 }
                 break;
+
+            case 'prs.getBranches': {
+                try {
+                    const branches = await this._gitService.listBranches();
+                    const currentBranch = await this._gitService.getCurrentBranch();
+                    this._panel.webview.postMessage({
+                        type: 'prBranches',
+                        branches,
+                        currentBranch: currentBranch ?? null,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    this._panel.webview.postMessage({ type: 'prError', message: m });
+                }
+                break;
+            }
+
+            case 'prs.createPR': {
+                if (msg.title && msg.headBranch && msg.baseBranch && this._prService) {
+                    try {
+                        const repoInfo = await this._getRepoInfo();
+                        if (!repoInfo) { break; }
+                        this._panel.webview.postMessage({ type: 'prCreating' });
+                        const pr = await this._prService.createPullRequest(
+                            repoInfo.owner,
+                            repoInfo.repo,
+                            msg.title,
+                            msg.body ?? '',
+                            msg.headBranch,
+                            msg.baseBranch,
+                            msg.draft ?? false,
+                        );
+                        this._panel.webview.postMessage({
+                            type: 'prCreated',
+                            pr: PrService.toData(pr),
+                        });
+                        vscode.window.showInformationMessage(
+                            `PR #${pr.number} created: ${pr.title}`,
+                        );
+                        // Refresh the PR list to include the new PR
+                        await this._refreshPRs();
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to create PR: ${m}`);
+                        this._panel.webview.postMessage({ type: 'prCreateError', message: m });
+                    }
+                }
+                break;
+            }
+
+            case 'prs.generateSummary': {
+                if (!AiService.isAvailable()) {
+                    this._panel.webview.postMessage({ type: 'prSummaryError', error: 'AI features require GitHub Copilot or Gemini' });
+                    break;
+                }
+                const summaryBaseBranch = msg.baseBranch ?? 'main';
+                try {
+                    this._panel.webview.postMessage({ type: 'prSummaryLoading' });
+
+                    // Gather diff, stat, and commit log against the base branch
+                    const [diff, stat, commitLog] = await Promise.all([
+                        this._gitService.getDiffAgainstBase(summaryBaseBranch).catch(() => ''),
+                        this._gitService.getDiffStatAgainstBase(summaryBaseBranch).catch(() => ''),
+                        this._gitService.getCommitLogAgainstBase(summaryBaseBranch).catch(() => ''),
+                    ]);
+
+                    if (!diff && !stat && !commitLog) {
+                        this._panel.webview.postMessage({
+                            type: 'prSummaryError',
+                            error: `No changes found between current branch and ${summaryBaseBranch}`,
+                        });
+                        break;
+                    }
+
+                    // Truncate diff if too large (keep first 8000 chars)
+                    const truncatedDiff = diff.length > 8000
+                        ? diff.slice(0, 8000) + `\n\n... (diff truncated, ${diff.length} total chars)`
+                        : diff;
+
+                    const contextData = [
+                        '## Diff Statistics',
+                        stat || 'No stat available',
+                        '',
+                        '## Commit Log',
+                        commitLog || 'No commits',
+                        '',
+                        '## Full Diff',
+                        truncatedDiff || 'No diff available',
+                    ].join('\n');
+
+                    // Use custom or default system prompt
+                    const customSystemPrompt = (msg.systemPrompt as string | undefined)?.trim();
+                    const systemPrompt = customSystemPrompt ||
+                        `You are a developer assistant creating a pull request description.
+Analyze the provided diff, commit log, and statistics to generate a clear, well-structured PR description.
+
+Format the output as follows:
+## Summary
+A 1-2 sentence overview of the changes.
+
+## Changes
+- Bullet points describing each meaningful change
+- Group related changes together
+- Focus on WHAT changed and WHY, not line-by-line details
+
+## Testing
+Suggest how these changes should be tested.
+
+Keep it concise and actionable. Use markdown formatting.
+Do NOT include the diff itself in the output.`;
+
+                    const result = await this._aiService.summarize(
+                        'pr-summary',
+                        contextData,
+                        systemPrompt,
+                    );
+                    this._panel.webview.postMessage({
+                        type: 'prSummaryResult',
+                        content: result,
+                    });
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : 'AI error';
+                    this._panel.webview.postMessage({
+                        type: 'prSummaryError',
+                        error: m,
+                    });
+                }
+                break;
+            }
 
             // ─── Issue messages from webview ───
 

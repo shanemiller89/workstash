@@ -12,6 +12,7 @@ import {
     Search,
     RefreshCw,
     ExternalLink,
+    Plus,
 } from 'lucide-react';
 
 const stateFilters: { key: PRStateFilter; label: string }[] = [
@@ -69,6 +70,7 @@ export const PRList: React.FC = () => {
     const selectPR = usePRStore((s) => s.selectPR);
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
     const setSearchQuery = usePRStore((s) => s.setSearchQuery);
+    const setShowCreatePR = usePRStore((s) => s.setShowCreatePR);
     const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
 
     const prs = useMemo(() => {
@@ -149,6 +151,14 @@ export const PRList: React.FC = () => {
                         </Button>
                     ))}
                     <div className="flex-1" />
+                    <Button
+                        variant="ghost"
+                        size="icon-xs"
+                        onClick={() => setShowCreatePR(true)}
+                        title="Create Pull Request"
+                    >
+                        <Plus size={13} />
+                    </Button>
                     <Button
                         variant="ghost"
                         size="icon-xs"

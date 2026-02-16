@@ -761,6 +761,28 @@ export class PrService {
         return data.map((u) => ({ login: u.login, avatarUrl: u.avatar_url }));
     }
 
+    // ─── Create Pull Request ─────────────────────────────────────
+
+    /**
+     * Create a new pull request on a repository.
+     */
+    async createPullRequest(
+        owner: string,
+        repo: string,
+        title: string,
+        body: string,
+        head: string,
+        base: string,
+        draft: boolean = false,
+    ): Promise<PullRequest> {
+        const { data } = await this._request<GitHubPR>(
+            'POST',
+            `/repos/${owner}/${repo}/pulls`,
+            { title, body, head, base, draft },
+        );
+        return this._parsePR(data);
+    }
+
     // ─── Static Converters ────────────────────────────────────────
 
     /** Convert a PullRequest to its webview-safe data shape. */

@@ -57,6 +57,17 @@ export interface CommentGroup {
     comments: PRCommentData[];
 }
 
+/** A review thread: root comment + replies */
+export interface ReviewThread {
+    threadId: string;
+    rootComment: PRCommentData;
+    replies: PRCommentData[];
+    isResolved: boolean;
+    resolvedBy: string | null;
+    path?: string;
+    line?: number | null;
+}
+
 interface PRStore {
     prs: PullRequestData[];
     selectedPRNumber: number | null;
@@ -74,9 +85,23 @@ interface PRStore {
     commentResolvedFilter: CommentResolvedFilter;
     commentGroupByUser: boolean;
 
+    // Thread panel state
+    activeThreadId: string | null;
+
     // Reviewer state
     collaborators: { login: string; avatarUrl: string }[];
     isRequestingReview: boolean;
+
+    // Create PR state
+    isCreatingPR: boolean;
+    showCreatePR: boolean;
+    branches: string[];
+    currentBranch: string | null;
+    isGeneratingSummary: boolean;
+    generatedSummary: string | null;
+    summaryError: string | null;
+    createError: string | null;
+    prSummarySystemPrompt: string;
 
     // Actions
     setPRs: (prs: PullRequestData[]) => void;
@@ -102,10 +127,30 @@ interface PRStore {
     filteredPRs: () => PullRequestData[];
     selectedPR: () => PullRequestData | undefined;
 
+    // Thread actions
+    openThread: (threadId: string) => void;
+    closeThread: () => void;
+
+    // Create PR actions
+    setShowCreatePR: (show: boolean) => void;
+    setBranches: (branches: string[], currentBranch: string | null) => void;
+    setCreatingPR: (creating: boolean) => void;
+    setGeneratingSummary: (generating: boolean) => void;
+    setGeneratedSummary: (summary: string | null) => void;
+    setSummaryError: (error: string | null) => void;
+    setCreateError: (error: string | null) => void;
+    setPRSummarySystemPrompt: (prompt: string) => void;
+
     // Comment selectors
     commentAuthors: () => string[];
     filteredComments: () => PRCommentData[];
     groupedComments: () => CommentGroup[];
+    /** Build review threads from filtered comments */
+    reviewThreads: () => ReviewThread[];
+    /** Get only issue-level (non-review) comments */
+    issueComments: () => PRCommentData[];
+    /** Get the thread for the active thread panel */
+    activeThread: () => ReviewThread | null;
 }
 
 export const usePRStore = create<PRStore>((set, get) => ({
@@ -124,6 +169,22 @@ export const usePRStore = create<PRStore>((set, get) => ({
     commentGroupByUser: false,
     collaborators: [],
     isRequestingReview: false,
+
+    // Thread panel state
+    activeThreadId: null,
+
+    // Create PR state
+    isCreatingPR: false,
+    showCreatePR: false,
+    branches: [],
+    currentBranch: null,
+    createError: null,
+
+    // AI summary state
+    isGeneratingSummary: false,
+    generatedSummary: null,
+    summaryError: null,
+    prSummarySystemPrompt: '',
 
     setPRs: (prs) => {
         const { selectedPRNumber } = get();
@@ -220,6 +281,20 @@ export const usePRStore = create<PRStore>((set, get) => ({
         }
     },
 
+    // ─── Thread actions ───
+    openThread: (threadId) => set({ activeThreadId: threadId }),
+    closeThread: () => set({ activeThreadId: null }),
+
+    // ─── Create PR actions ───
+    setShowCreatePR: (show) => set({ showCreatePR: show, createError: null }),
+    setBranches: (branches, currentBranch) => set({ branches, currentBranch }),
+    setCreatingPR: (creating) => set({ isCreatingPR: creating }),
+    setGeneratingSummary: (generating) => set({ isGeneratingSummary: generating }),
+    setGeneratedSummary: (summary) => set({ generatedSummary: summary, isGeneratingSummary: false }),
+    setSummaryError: (error) => set({ summaryError: error, isGeneratingSummary: false }),
+    setCreateError: (error) => set({ createError: error, isCreatingPR: false }),
+    setPRSummarySystemPrompt: (prompt) => set({ prSummarySystemPrompt: prompt }),
+
     filteredPRs: () => {
         const { prs, searchQuery } = get();
         const q = searchQuery.trim().toLowerCase();
@@ -285,5 +360,61 @@ export const usePRStore = create<PRStore>((set, get) => ({
         }
 
         return [...groupMap.values()];
+    },
+
+    /** Build review threads from filtered review comments */
+    reviewThreads: () => {
+        const filtered = get().filteredComments();
+        // Only review comments have threadId
+        const reviewComments = filtered.filter((c) => c.threadId);
+        const threadMap = new Map<string, ReviewThread>();
+
+        for (const comment of reviewComments) {
+            const tid = comment.threadId!;
+            const existing = threadMap.get(tid);
+            if (existing) {
+                existing.replies.push(comment);
+            } else {
+                threadMap.set(tid, {
+                    threadId: tid,
+                    rootComment: comment,
+                    replies: [],
+                    isResolved: comment.isResolved ?? false,
+                    resolvedBy: comment.resolvedBy ?? null,
+                    path: comment.path,
+                    line: comment.line,
+                });
+            }
+        }
+
+        // Sort replies chronologically within each thread
+        for (const thread of threadMap.values()) {
+            thread.replies.sort(
+                (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+            );
+        }
+
+        // Sort threads: unresolved first, then by root comment date
+        return [...threadMap.values()].sort((a, b) => {
+            if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
+            return (
+                new Date(a.rootComment.createdAt).getTime() -
+                new Date(b.rootComment.createdAt).getTime()
+            );
+        });
+    },
+
+    /** Get only issue-level (non-review) comments */
+    issueComments: () => {
+        const filtered = get().filteredComments();
+        return filtered.filter((c) => !c.threadId);
+    },
+
+    /** Get the thread for the active thread panel */
+    activeThread: () => {
+        const { activeThreadId } = get();
+        if (!activeThreadId) return null;
+        const threads = get().reviewThreads();
+        return threads.find((t) => t.threadId === activeThreadId) ?? null;
     },
 }));
