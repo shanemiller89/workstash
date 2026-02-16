@@ -16,44 +16,44 @@
 
 > Extract the ~2,000-line `_handleMessage()` switch into domain-specific handler modules. Each handler receives a shared context object and owns its own message types.
 
-- [ ] **1a. Define `PanelContext` interface**
+- [x] **1a. Define `PanelContext` interface**
     - Shared type carrying `panel`, `extensionUri`, `gitService`, `outputChannel`, `authService`, `gistService`, `prService`, `issueService`, `mattermostService`, `projectService`, `driveService`, `calendarService`, `wikiService`, and helper methods (`_postMessage`, `_refresh`, `_getWebviewContent`, etc.)
     - 📁 New file: `src/panelContext.ts`
 
-- [ ] **1b. Extract stash message handlers**
+- [x] **1b. Extract stash message handlers**
     - Move all stash-related cases (`apply`, `pop`, `drop`, `create`, `showFile`, `getFileDiff`, `refresh`, `clear`, `createStashInline`) into `src/handlers/stashHandlers.ts`
     - Export a single `handleStashMessage(ctx, message)` function
     - 📁 `src/handlers/stashHandlers.ts`
 
-- [ ] **1c. Extract notes message handlers**
+- [x] **1c. Extract notes message handlers**
     - Move all notes-related cases (`notesReady`, `loadNotes`, `loadNote`, `createNote`, `saveNote`, `deleteNote`, `toggleNoteVisibility`, `copyNoteLink`, `signIn`, `signOut`) into `src/handlers/notesHandlers.ts`
     - 📁 `src/handlers/notesHandlers.ts`
 
-- [ ] **1d. Extract PR message handlers**
+- [x] **1d. Extract PR message handlers**
     - Move PR cases (`loadPRs`, `loadPR`, `loadPRComments`, `addPRComment`, `loadPRFiles`, `prReady`) into `src/handlers/prHandlers.ts`
     - 📁 `src/handlers/prHandlers.ts`
 
-- [ ] **1e. Extract issue message handlers**
+- [x] **1e. Extract issue message handlers**
     - Move issue cases into `src/handlers/issueHandlers.ts`
     - 📁 `src/handlers/issueHandlers.ts`
 
-- [ ] **1f. Extract Mattermost message handlers**
+- [x] **1f. Extract Mattermost message handlers**
     - Move Mattermost cases (channels, posts, threads, DMs, reactions, typing, WebSocket) into `src/handlers/mattermostHandlers.ts`
     - 📁 `src/handlers/mattermostHandlers.ts`
 
-- [ ] **1g. Extract project message handlers**
+- [x] **1g. Extract project message handlers**
     - Move project cases into `src/handlers/projectHandlers.ts`
     - 📁 `src/handlers/projectHandlers.ts`
 
-- [ ] **1h. Extract Drive/Calendar/Wiki message handlers**
+- [x] **1h. Extract Drive/Calendar/Wiki message handlers**
     - Move Drive, Calendar, and Wiki cases into `src/handlers/driveHandlers.ts`, `src/handlers/calendarHandlers.ts`, `src/handlers/wikiHandlers.ts`
     - 📁 `src/handlers/driveHandlers.ts`, `src/handlers/calendarHandlers.ts`, `src/handlers/wikiHandlers.ts`
 
-- [ ] **1i. Extract AI message handlers**
+- [x] **1i. Extract AI message handlers**
     - Move AI cases (`ai.summarize`, `ai.chat`, `ai.agent`, `ai.cancelAgent`, `ai.getModels`, `ai.setModel`, `ai.configureGeminiKey`) into `src/handlers/aiHandlers.ts`
     - 📁 `src/handlers/aiHandlers.ts`
 
-- [ ] **1j. Wire handlers into `stashPanel.ts`**
+- [x] **1j. Wire handlers into `stashPanel.ts`**
     - Replace the monolithic switch with a handler registry/dispatch:
       ```ts
       const handlers = [handleStashMessage, handleNotesMessage, ...];
@@ -591,7 +591,7 @@
 
 | Section                              | Sub-tasks | Done | Remaining |
 |--------------------------------------|-----------|------|-----------|
-| 1. Decompose `stashPanel.ts`        | 10        | 0    | 10        |
+| 1. Decompose `stashPanel.ts`        | 10        | 10   | 0         |
 | 2. Decompose `App.tsx`              | 9         | 0    | 9         |
 | 3. `createOrShow` Options Bag       | 3         | 0    | 3         |
 | 4. Deduplicate Shared Code          | 10        | 0    | 10        |
