@@ -5,6 +5,7 @@ import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
 import { LinkPreview } from './LinkPreview';
+import { ScrollArea } from './ui/scroll-area';
 import {
     InputGroup,
     InputGroupTextarea,
@@ -432,7 +433,7 @@ export const MattermostThreadPanel: React.FC = () => {
     if (!activeThreadRootId) { return null; }
 
     return (
-        <div className="flex flex-col h-full border-l border-[var(--vscode-panel-border)]">
+        <div className="flex flex-col h-full min-h-0 border-l border-[var(--vscode-panel-border)]">
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--vscode-panel-border)] shrink-0">
                 <span className="text-sm font-semibold flex-1">Thread</span>
@@ -450,7 +451,7 @@ export const MattermostThreadPanel: React.FC = () => {
             </div>
 
             {/* Thread messages */}
-            <div className="flex-1 overflow-y-auto py-1">
+            <ScrollArea className="flex-1 py-1">
                 {isLoadingThread ? (
                     <div className="flex items-center justify-center h-20 text-sm text-fg/50">
                         <Loader2 size={14} className="animate-spin mr-2" />
@@ -467,7 +468,7 @@ export const MattermostThreadPanel: React.FC = () => {
                     </>
                 )}
                 <div ref={messagesEndRef} />
-            </div>
+            </ScrollArea>
 
             {/* Reply compose */}
             <div className="shrink-0 border-t border-[var(--vscode-panel-border)] p-2">

@@ -71,7 +71,7 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
     );
 
     return (
-        <div className="flex h-full">
+        <div className="flex h-full min-h-0 overflow-hidden">
             {isOpen ? (
                 <Group
                     id={`superprompt-forge-summary-${tabKey}`}
@@ -79,13 +79,13 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
                     onLayoutChanged={handleLayoutChanged}
                 >
                     <Panel id="content" defaultSize={`${100 - savedSummaryPercent}%`} minSize="40%">
-                        <div className="h-full min-w-0 overflow-clip">
+                        <div className="h-full min-h-0 min-w-0 overflow-hidden">
                             {children}
                         </div>
                     </Panel>
                     <Separator className="resize-handle" />
                     <Panel id="summary" defaultSize={`${savedSummaryPercent}%`} minSize="15%" maxSize="50%">
-                        <div className="h-full overflow-clip">
+                        <div className="h-full min-h-0 overflow-hidden">
                             <ErrorBoundary label="AI Summary">
                                 <SummaryPane tabKey={tabKey} label={displayLabel} />
                             </ErrorBoundary>
@@ -93,7 +93,7 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
                     </Panel>
                 </Group>
             ) : (
-                <div className="flex-1 min-w-0 overflow-clip">
+                <div className="flex-1 min-h-0 min-w-0 overflow-hidden">
                     {children}
                 </div>
             )}

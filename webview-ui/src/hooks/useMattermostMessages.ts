@@ -139,13 +139,40 @@ export function handleMattermostMessage(msg: Msg): boolean {
         case 'mattermostNewPost': {
             const newPost = msg.post as MattermostPostData;
             const alreadyExists = s.posts.some((p) => p.id === newPost.id);
+
             if (newPost.channelId === s.selectedChannelId && !alreadyExists) {
-                s.prependNewPost(newPost);
+                // Check if there's a pending optimistic post for this message.
+                // This handles the race where the WebSocket event arrives before
+                // the REST API response (mattermostPostConfirmed).
+                const pendingMatch = s.posts.find(
+                    (p) =>
+                        p._pending &&
+                        p.userId === newPost.userId &&
+                        p.channelId === newPost.channelId,
+                );
+                if (pendingMatch) {
+                    // Replace the pending post with the real server post
+                    s.confirmPendingPost(pendingMatch.id, newPost);
+                } else {
+                    s.prependNewPost(newPost);
+                }
             }
+
             if (newPost.rootId && newPost.rootId === s.activeThreadRootId) {
                 const alreadyInThread = s.threadPosts.some((p) => p.id === newPost.id);
                 if (!alreadyInThread) {
-                    s.appendThreadPost(newPost);
+                    // Also check for pending match in thread posts
+                    const pendingThreadMatch = s.threadPosts.find(
+                        (p) =>
+                            p._pending &&
+                            p.userId === newPost.userId &&
+                            p.channelId === newPost.channelId,
+                    );
+                    if (pendingThreadMatch) {
+                        s.confirmPendingPost(pendingThreadMatch.id, newPost);
+                    } else {
+                        s.appendThreadPost(newPost);
+                    }
                 }
             }
             return true;

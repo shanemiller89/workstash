@@ -1317,14 +1317,6 @@ export class StashPanel {
                 const username = data.sender_name?.replace(/^@/, '') ??
                     await this._mattermostService.resolveUsername(rawPost.user_id);
 
-                // Resolve file attachments if present
-                let files: MattermostFileInfoData[] | undefined;
-                if (rawPost.file_ids && rawPost.file_ids.length > 0) {
-                    try {
-                        files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);
-                    } catch { /* ignore */ }
-                }
-
                 const postData: MattermostPostData = {
                     id: rawPost.id,
                     channelId: rawPost.channel_id,
@@ -1336,8 +1328,9 @@ export class StashPanel {
                     rootId: rawPost.root_id,
                     type: rawPost.type,
                     isPinned: rawPost.is_pinned ?? false,
-                    files: files && files.length > 0 ? files : undefined,
                 };
+
+                // Send the post to webview immediately (no waiting for file resolution)
                 this._panel.webview.postMessage({ type: 'mattermostNewPost', post: postData });
 
                 // Also tell webview to increment unread for non-active channels
@@ -1345,6 +1338,19 @@ export class StashPanel {
                     type: 'mattermostNewPostUnread',
                     channelId: rawPost.channel_id,
                 });
+
+                // Resolve file attachments asynchronously and send an update if present
+                if (rawPost.file_ids && rawPost.file_ids.length > 0) {
+                    try {
+                        const files = await this._mattermostService.resolveFileInfos(rawPost.file_ids);
+                        if (files && files.length > 0) {
+                            this._panel.webview.postMessage({
+                                type: 'mattermostPostEdited',
+                                post: { ...postData, files },
+                            });
+                        }
+                    } catch { /* ignore file resolution failures */ }
+                }
 
                 // Desktop notification: check if message mentions the current user
                 try {

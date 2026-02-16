@@ -8,6 +8,7 @@ import { MarkdownBody } from './MarkdownBody';
 import { ReactionBar } from './ReactionBar';
 import { FileAttachments } from './FileAttachments';
 import { LinkPreview } from './LinkPreview';
+import { ScrollArea } from './ui/scroll-area';
 import {
     InputGroup,
     InputGroupTextarea,
@@ -978,7 +979,7 @@ export const MattermostChat: React.FC<{
     }
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
             {/* User profile popover */}
             {profileUserId && (
                 <UserProfilePopover
@@ -1057,7 +1058,7 @@ export const MattermostChat: React.FC<{
             )}
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto py-2">
+            <ScrollArea className="flex-1 py-2">
                 {/* Load more */}
                 {hasMorePosts && posts.length > 0 && (
                     <div className="text-center py-2">
@@ -1174,7 +1175,7 @@ export const MattermostChat: React.FC<{
                 )}
 
                 <div ref={messagesEndRef} />
-            </div>
+            </ScrollArea>
 
             {/* Typing indicator */}
             {selectedChannelId && <TypingIndicator channelId={selectedChannelId} />}

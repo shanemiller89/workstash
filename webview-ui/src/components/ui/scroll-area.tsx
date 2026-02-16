@@ -15,7 +15,7 @@ function ScrollArea({
     return (
         <div
             className={cn(
-                'relative',
+                'relative min-h-0 min-w-0',
                 orientation === 'vertical' && 'overflow-y-auto overflow-x-hidden',
                 orientation === 'horizontal' && 'overflow-x-auto overflow-y-hidden',
                 orientation === 'both' && 'overflow-auto',

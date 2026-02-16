@@ -71,7 +71,7 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${100 - threadDefaultSize}%`}
                 minSize="30%"
             >
-                <div className="h-full overflow-clip">
+                <div className="h-full min-h-0 overflow-hidden">
                     <ErrorBoundary label="Chat">
                         <MattermostChat onClose={onClose} />
                     </ErrorBoundary>
@@ -83,7 +83,7 @@ const ChatWithThread: React.FC<{ onClose: () => void }> = ({ onClose }) => {
                 defaultSize={`${threadDefaultSize}%`}
                 minSize="20%"
             >
-                <div className="h-full overflow-clip">
+                <div className="h-full min-h-0 overflow-hidden">
                     <ErrorBoundary label="Thread">
                         <MattermostThreadPanel />
                     </ErrorBoundary>
@@ -137,7 +137,7 @@ export const MattermostTab: React.FC = () => {
     if (isNarrow) {
         return (
             <TabWithSummary tabKey="mattermost">
-                <div ref={containerRef} className="h-full flex flex-col bg-bg text-fg text-[13px]">
+                <div ref={containerRef} className="h-full min-h-0 flex flex-col bg-bg text-fg text-[13px]">
                     {hasSelection ? (
                         <ChatWithThread onClose={handleCloseDetail} />
                     ) : (
@@ -153,7 +153,7 @@ export const MattermostTab: React.FC = () => {
     // Wide mode: always show list + detail (chat or empty state)
     return (
         <TabWithSummary tabKey="mattermost">
-            <div ref={containerRef} className="h-full flex flex-col bg-bg text-fg text-[13px]">
+            <div ref={containerRef} className="h-full min-h-0 flex flex-col bg-bg text-fg text-[13px]">
                 <Group
                     id="superprompt-forge-mattermost"
                     orientation="horizontal"
@@ -164,7 +164,7 @@ export const MattermostTab: React.FC = () => {
                         defaultSize={`${defaultListPercent}%`}
                         minSize="15%"
                     >
-                        <div className="h-full overflow-clip">
+                        <div className="h-full min-h-0 overflow-hidden">
                             <ErrorBoundary label="Channel List">
                                 <MattermostChannelList />
                             </ErrorBoundary>
@@ -176,7 +176,7 @@ export const MattermostTab: React.FC = () => {
                         defaultSize={`${100 - defaultListPercent}%`}
                         minSize="30%"
                     >
-                        <div className="h-full overflow-clip">
+                        <div className="h-full min-h-0 overflow-hidden">
                             {hasSelection ? (
                                 <ErrorBoundary label="Chat">
                                     <ChatWithThread onClose={handleCloseDetail} />

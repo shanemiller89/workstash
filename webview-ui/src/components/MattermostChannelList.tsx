@@ -3,6 +3,7 @@ import { useMattermostStore, type MattermostChannelData } from '../mattermostSto
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
+import { ScrollArea } from './ui/scroll-area';
 import {
     Select,
     SelectContent,
@@ -408,7 +409,7 @@ export const MattermostChannelList: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col h-full min-h-0">
             {/* Team selector + status */}
             <div className="flex items-center gap-2 p-3 border-b border-[var(--vscode-panel-border)]">
                 {teams.length > 1 ? (
@@ -490,7 +491,7 @@ export const MattermostChannelList: React.FC = () => {
             {showNewDm && <NewDmDialog onClose={() => setShowNewDm(false)} />}
 
             {/* Channel list with sections */}
-            <div ref={channelListRef} className="flex-1 overflow-y-auto" {...channelContainerProps} aria-label="Channels list">
+            <ScrollArea ref={channelListRef} className="flex-1" {...channelContainerProps} aria-label="Channels list">
                 {isLoadingChannels ? (
                     <div className="flex items-center justify-center h-24 text-sm text-fg/50">
                         Loading channels…
@@ -586,7 +587,7 @@ export const MattermostChannelList: React.FC = () => {
                         );
                     })()
                 )}
-            </div>
+            </ScrollArea>
         </div>
     );
 };
