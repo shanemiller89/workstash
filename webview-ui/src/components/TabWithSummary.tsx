@@ -2,7 +2,6 @@ import React, { useCallback } from 'react';
 import { Group, Panel, Separator, type Layout } from 'react-resizable-panels';
 import { useAIStore } from '../aiStore';
 import { SummaryPane } from './SummaryPane';
-import { TabSummaryButton } from './TabSummary';
 import { ErrorBoundary } from './ErrorBoundary';
 
 // ─── Tab label map ────────────────────────────────────────────────
@@ -51,12 +50,11 @@ interface TabWithSummaryProps {
 
 /**
  * Wraps a tab's content in a horizontal split layout.
- * Includes a fixed sparkles toggle in the top-right corner
- * and a resizable summary right pane that appears when toggled.
+ * When the AI summary pane is toggled open (via the TabBar sparkles button),
+ * a resizable summary right pane appears alongside the tab content.
  */
 export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children, label }) => {
     const summaryPaneTabKey = useAIStore((s) => s.summaryPaneTabKey);
-    const aiAvailable = useAIStore((s) => s.aiAvailable);
     const isOpen = summaryPaneTabKey === tabKey;
     const displayLabel = label ?? TAB_LABELS[tabKey] ?? tabKey;
 
@@ -81,13 +79,8 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
                     onLayoutChanged={handleLayoutChanged}
                 >
                     <Panel id="content" defaultSize={`${100 - savedSummaryPercent}%`} minSize="40%">
-                        <div className="h-full min-w-0 overflow-clip relative">
+                        <div className="h-full min-w-0 overflow-clip">
                             {children}
-                            {aiAvailable && (
-                                <div className="absolute top-1 right-1 z-10">
-                                    <TabSummaryButton tabKey={tabKey} />
-                                </div>
-                            )}
                         </div>
                     </Panel>
                     <Separator className="resize-handle" />
@@ -100,18 +93,10 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
                     </Panel>
                 </Group>
             ) : (
-                <div className="flex-1 min-w-0 overflow-clip relative">
+                <div className="flex-1 min-w-0 overflow-clip">
                     {children}
-                    {aiAvailable && (
-                        <div className="absolute top-1 right-1 z-10">
-                            <TabSummaryButton tabKey={tabKey} />
-                        </div>
-                    )}
                 </div>
             )}
         </div>
     );
 };
-
-// Re-export TabSummaryButton for convenience
-export { TabSummaryButton };

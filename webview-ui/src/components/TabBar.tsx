@@ -5,7 +5,7 @@ import { postMessage } from '../vscode';
 import {
     Archive, StickyNote, GitPullRequest, CircleDot, MessageSquare,
     Kanban, Bot, Wand2, Key, Settings, HardDrive, Calendar, BookOpen,
-    ChevronDown, MoreHorizontal,
+    ChevronDown, MoreHorizontal, Sparkles,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
@@ -252,6 +252,14 @@ export const TabBar: React.FC = () => {
     const toggleChatPanel = useAIStore((s) => s.toggleChatPanel);
     const aiAvailable = useAIStore((s) => s.aiAvailable);
     const aiProvider = useAIStore((s) => s.aiProvider);
+    const summaryPaneTabKey = useAIStore((s) => s.summaryPaneTabKey);
+    const toggleSummaryPane = useAIStore((s) => s.toggleSummaryPane);
+
+    // Summary is open for the currently active tab
+    const summaryOpen = summaryPaneTabKey === activeTab;
+    const handleToggleSummary = useCallback(() => {
+        toggleSummaryPane(activeTab);
+    }, [activeTab, toggleSummaryPane]);
 
     // ── Overflow detection via ResizeObserver ──
     const barRef = useRef<HTMLDivElement>(null);
@@ -324,20 +332,28 @@ export const TabBar: React.FC = () => {
                 >
                     <Archive size={14} />
                 </Button>
-                <Button
-                    variant="ghost"
-                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
-                        activeTab === 'settings'
-                            ? 'border-accent text-fg'
-                            : 'border-transparent text-fg/50 hover:text-fg/80'
-                    }`}
-                    onClick={() => setActiveTab('settings')}
-                    role="tab"
-                    aria-selected={activeTab === 'settings'}
-                    title="Settings"
-                >
-                    <Settings size={14} />
-                </Button>
+                {aiAvailable && (
+                    <TooltipProvider>
+                        <Tooltip>
+                            <TooltipTrigger
+                                render={<Button
+                                    variant="ghost"
+                                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
+                                        summaryOpen
+                                            ? 'border-accent text-accent'
+                                            : 'border-transparent text-fg/50 hover:text-fg/80'
+                                    }`}
+                                    onClick={handleToggleSummary}
+                                />}
+                            >
+                                <Sparkles size={14} />
+                            </TooltipTrigger>
+                            <TooltipContent>
+                                {summaryOpen ? 'Close AI Summary' : 'AI Summary'}
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
+                )}
                 {aiAvailable ? (
                     <TooltipProvider>
                         <Tooltip>
@@ -378,6 +394,20 @@ export const TabBar: React.FC = () => {
                         </Tooltip>
                     </TooltipProvider>
                 )}
+                <Button
+                    variant="ghost"
+                    className={`rounded-none h-auto px-3 py-2 border-b-2 ${
+                        activeTab === 'settings'
+                            ? 'border-accent text-fg'
+                            : 'border-transparent text-fg/50 hover:text-fg/80'
+                    }`}
+                    onClick={() => setActiveTab('settings')}
+                    role="tab"
+                    aria-selected={activeTab === 'settings'}
+                    title="Settings"
+                >
+                    <Settings size={14} />
+                </Button>
             </div>
         </div>
     );
