@@ -42,7 +42,7 @@ export function handleIssueMessage(msg: Msg): boolean {
             );
             return true;
         case 'issueError':
-            s.setLoading(false);
+            s.setError(msg.message as string ?? 'An error occurred');
             s.setCommentsLoading(false);
             s.setCommentSaving(false);
             return true;

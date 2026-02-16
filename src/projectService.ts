@@ -145,6 +145,108 @@ export interface ProjectItemData {
 
 export type FetchFn = typeof globalThis.fetch;
 
+// ─── Raw GraphQL Response Shapes ──────────────────────────────────
+
+/** Shape returned by the ProjectV2 field nodes in GraphQL. */
+interface RawFieldNode {
+    id: string;
+    name: string;
+    dataType: string;
+    options?: { id: string; name: string; color?: string; description?: string }[];
+    configuration?: {
+        iterations: {
+            id: string;
+            title: string;
+            startDate: string;
+            duration: number;
+        }[];
+    };
+}
+
+/** Shape returned by the ProjectV2 view nodes in GraphQL. */
+interface RawViewNode {
+    id: string;
+    number: number;
+    name: string;
+    layout: string;
+    filter: string | null;
+    groupByFields?: { nodes: { id: string }[] };
+    verticalGroupByFields?: { nodes: { id: string }[] };
+}
+
+/** Top-level shape of a ProjectV2 GraphQL response. */
+interface RawProjectGQL {
+    id: string;
+    number: number;
+    title: string;
+    shortDescription: string | null;
+    url: string;
+    closed: boolean;
+    public: boolean;
+    items: { totalCount: number };
+    fields: { nodes: (RawFieldNode | null)[] };
+    views: { nodes: RawViewNode[] };
+}
+
+/** Shape of a single user/assignee node returned by GraphQL. */
+interface RawUserNode {
+    login: string;
+    avatarUrl: string;
+}
+
+/** Shape of a single label node returned by GraphQL. */
+interface RawLabelNode {
+    name: string;
+    color: string;
+}
+
+/** Shape of a single field value node (union of all field value types). */
+interface RawFieldValueNode {
+    field?: { id: string; name: string };
+    text?: string;
+    number?: number;
+    date?: string;
+    name?: string;
+    optionId?: string;
+    title?: string;
+    iterationId?: string;
+    startDate?: string;
+    labels?: { nodes: RawLabelNode[] };
+    users?: { nodes: RawUserNode[] };
+    milestone?: { title: string };
+}
+
+/** Shape of a single item node from the ProjectV2 items query. */
+interface RawProjectItemNode {
+    id: string;
+    type: string;
+    isArchived?: boolean;
+    createdAt: string;
+    updatedAt: string;
+    fieldValues?: { nodes: (RawFieldValueNode | null)[] };
+    content?: {
+        id?: string;
+        number?: number;
+        title?: string;
+        state?: string;
+        url?: string;
+        body?: string;
+        author?: { login: string; avatarUrl: string };
+        labels?: { nodes: RawLabelNode[] };
+        assignees?: { nodes: RawUserNode[] };
+    };
+}
+
+/** Response shape from the listProjectItems query. */
+interface RawProjectItemsResponse {
+    node: {
+        items: {
+            pageInfo: { hasNextPage: boolean; endCursor: string | null };
+            nodes: RawProjectItemNode[];
+        };
+    };
+}
+
 // ─── ProjectService ───────────────────────────────────────────────
 
 /**
@@ -337,45 +439,9 @@ export class ProjectService {
             }
         `;
 
-        interface ProjectGQL {
-            id: string;
-            number: number;
-            title: string;
-            shortDescription: string | null;
-            url: string;
-            closed: boolean;
-            public: boolean;
-            items: { totalCount: number };
-            fields: {
-                nodes: Array<{
-                    id: string;
-                    name: string;
-                    dataType: string;
-                    options?: { id: string; name: string; color?: string; description?: string }[];
-                    configuration?: {
-                        iterations: {
-                            id: string;
-                            title: string;
-                            startDate: string;
-                            duration: number;
-                        }[];
-                    };
-                }>;
-            };
-            views: {
-                nodes: {
-                    id: string;
-                    number: number;
-                    name: string;
-                    layout: string;
-                    filter: string | null;
-                }[];
-            };
-        }
-
         // Try user first, then organization
         try {
-            const data = await this._graphql<{ user: { projectV2: ProjectGQL } }>(query, {
+            const data = await this._graphql<{ user: { projectV2: RawProjectGQL } }>(query, {
                 owner,
                 number: projectNumber,
             });
@@ -462,7 +528,7 @@ export class ProjectService {
                         }
                     }
                 `;
-            const data = await this._graphql<{ organization: { projectV2: ProjectGQL } }>(
+            const data = await this._graphql<{ organization: { projectV2: RawProjectGQL } }>(
                 orgQueryFinal,
                 { owner, number: projectNumber },
             );
@@ -549,43 +615,7 @@ export class ProjectService {
             }
         `;
 
-        interface ProjectGQL {
-            id: string;
-            number: number;
-            title: string;
-            shortDescription: string | null;
-            url: string;
-            closed: boolean;
-            public: boolean;
-            items: { totalCount: number };
-            fields: {
-                nodes: Array<{
-                    id: string;
-                    name: string;
-                    dataType: string;
-                    options?: { id: string; name: string; color?: string; description?: string }[];
-                    configuration?: {
-                        iterations: {
-                            id: string;
-                            title: string;
-                            startDate: string;
-                            duration: number;
-                        }[];
-                    };
-                }>;
-            };
-            views: {
-                nodes: {
-                    id: string;
-                    number: number;
-                    name: string;
-                    layout: string;
-                    filter: string | null;
-                }[];
-            };
-        }
-
-        const data = await this._graphql<{ node: ProjectGQL }>(query, { id: projectNodeId });
+        const data = await this._graphql<{ node: RawProjectGQL }>(query, { id: projectNodeId });
         return this._parseProject(data.node);
     }
 
@@ -700,17 +730,14 @@ export class ProjectService {
             }
         `;
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const data = await this._graphql<any>(query, {
+        const data = await this._graphql<RawProjectItemsResponse>(query, {
             id: projectNodeId,
             first,
             after: after ?? null,
         });
 
         const itemsNode = data.node.items;
-        const items = (itemsNode.nodes as unknown[]).map((n: unknown) =>
-            this._parseProjectItem(n),
-        );
+        const items = itemsNode.nodes.map((n) => this._parseProjectItem(n));
 
         return {
             items,
@@ -836,12 +863,10 @@ export class ProjectService {
 
     // ─── Private Parsers ──────────────────────────────────────────
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private _parseProject(raw: any): Project {
+    private _parseProject(raw: RawProjectGQL): Project {
         const fields: ProjectField[] = (raw.fields?.nodes ?? [])
-            .filter((f: unknown) => f !== null)
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .map((f: any) => {
+            .filter((f): f is RawFieldNode => f !== null)
+            .map((f) => {
                 const field: ProjectField = {
                     id: f.id,
                     name: f.name,
@@ -857,8 +882,7 @@ export class ProjectService {
             });
 
         const views: ProjectView[] = (raw.views?.nodes ?? []).map(
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (v: any) => {
+            (v) => {
                 const view: ProjectView = {
                     id: v.id,
                     number: v.number,
@@ -866,13 +890,11 @@ export class ProjectService {
                     layout: v.layout as ProjectView['layout'],
                     filter: v.filter ?? undefined,
                 };
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const gbIds = (v.groupByFields?.nodes ?? []).map((n: any) => n.id).filter(Boolean);
+                const gbIds = (v.groupByFields?.nodes ?? []).map((n) => n.id).filter(Boolean);
                 if (gbIds.length > 0) {
                     view.groupByFieldIds = gbIds;
                 }
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const vgbIds = (v.verticalGroupByFields?.nodes ?? []).map((n: any) => n.id).filter(Boolean);
+                const vgbIds = (v.verticalGroupByFields?.nodes ?? []).map((n) => n.id).filter(Boolean);
                 if (vgbIds.length > 0) {
                     view.verticalGroupByFieldIds = vgbIds;
                 }
@@ -894,11 +916,9 @@ export class ProjectService {
         };
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private _parseProjectItem(raw: any): ProjectItem {
+    private _parseProjectItem(raw: RawProjectItemNode): ProjectItem {
         const fieldValues: ProjectFieldValue[] = [];
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         for (const fv of raw.fieldValues?.nodes ?? []) {
             if (!fv || !fv.field) {
                 continue;
@@ -930,14 +950,12 @@ export class ProjectService {
             } else if (fv.labels) {
                 base.fieldType = 'LABELS';
                 base.labels = (fv.labels.nodes ?? []).map(
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (l: any) => ({ name: l.name, color: l.color }),
+                    (l) => ({ name: l.name, color: l.color }),
                 );
             } else if (fv.users) {
                 base.fieldType = 'ASSIGNEES';
                 base.users = (fv.users.nodes ?? []).map(
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    (u: any) => ({ login: u.login, avatarUrl: u.avatarUrl }),
+                    (u) => ({ login: u.login, avatarUrl: u.avatarUrl }),
                 );
             } else if (fv.milestone) {
                 base.fieldType = 'MILESTONE';
@@ -958,21 +976,19 @@ export class ProjectService {
                 const type = raw.type === 'PULL_REQUEST' ? 'PullRequest' : 'Issue';
                 content = {
                     type: type as 'Issue' | 'PullRequest',
-                    nodeId: c.id,
+                    nodeId: c.id ?? '',
                     number: c.number,
-                    title: c.title,
+                    title: c.title ?? '',
                     state: c.state,
                     url: c.url,
                     body: c.body ?? undefined,
                     author: c.author?.login,
                     authorAvatarUrl: c.author?.avatarUrl,
                     labels: (c.labels?.nodes ?? []).map(
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (l: any) => ({ name: l.name, color: l.color }),
+                        (l) => ({ name: l.name, color: l.color }),
                     ),
                     assignees: (c.assignees?.nodes ?? []).map(
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (a: any) => ({ login: a.login, avatarUrl: a.avatarUrl }),
+                        (a) => ({ login: a.login, avatarUrl: a.avatarUrl }),
                     ),
                 };
             } else if (c.title !== undefined) {

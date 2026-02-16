@@ -164,12 +164,12 @@
 
 ### 4B. Agent Templates (2 copies → 1 source of truth)
 
-- [ ] **4b-i. Single-source agent templates in `aiService.ts`**
+- [x] **4b-i. Single-source agent templates in `aiService.ts`**
     - Backend `AGENT_TEMPLATES` is the source of truth
     - Add a new message type `'ai.getTemplates'` that sends templates to the webview
     - 📁 `src/aiService.ts`, `src/handlers/aiHandlers.ts`
 
-- [ ] **4b-ii. Remove hardcoded templates from `AgentTab.tsx`**
+- [x] **4b-ii. Remove hardcoded templates from `AgentTab.tsx`**
     - `AgentTab.tsx` receives templates from extension via message, stores in `aiStore.ts`
     - The `AGENT_TEMPLATES` array and `DEFAULT_SYSTEM_PROMPTS` map in `AgentTab.tsx` become dynamic data from the store
     - 📁 `webview-ui/src/components/AgentTab.tsx`, `webview-ui/src/aiStore.ts`
@@ -243,22 +243,22 @@
 
 > Add AbortController-based cancellation and request deduplication for AI operations.
 
-- [ ] **6a. Add `AbortController` to AI summary requests**
+- [x] **6a. Add `AbortController` to AI summary requests**
     - Store a per-tab `AbortController` in `AiService`
     - Abort previous request when a new summary is triggered for the same tab
     - Pass `signal` to `fetch()` (Gemini) or `CancellationToken` (Copilot)
     - 📁 `src/aiService.ts`, `src/geminiService.ts`
 
-- [ ] **6b. Add `AbortController` to AI chat requests**
+- [x] **6b. Add `AbortController` to AI chat requests**
     - Store a single chat `AbortController`
     - Abort in-flight request when user sends a new message or closes chat
     - 📁 `src/aiService.ts`, `src/geminiService.ts`
 
-- [ ] **6c. Add `AbortController` to agent analysis**
+- [x] **6c. Add `AbortController` to agent analysis**
     - Already has a `CancellationToken` parameter — ensure it's wired to Gemini's `fetch` signal
     - 📁 `src/aiService.ts`, `src/geminiService.ts`
 
-- [ ] **6d. Parallelize `_gatherAllTabContext()`**
+- [x] **6d. Parallelize `_gatherAllTabContext()`**
     - Replace sequential tab-by-tab fetching with `Promise.all()` for independent data sources
     - Group: stashes (git CLI) | PRs + Issues + Projects (GitHub API, can share auth) | Notes (Gist API) | Mattermost (REST) | Drive + Calendar (Google API) | Wiki (GitHub API)
     - 📁 `src/stashPanel.ts` (or `src/handlers/aiHandlers.ts` after §1i)
@@ -273,38 +273,38 @@
 
 > Extend the roving tabindex pattern from `StashList` to all list views.
 
-- [ ] **7a. Extract `useRovingTabIndex` hook**
+- [x] **7a. Extract `useRovingTabIndex` hook**
     - Generalize the keyboard navigation logic from `StashList.tsx` into a reusable hook
     - API: `useRovingTabIndex({ itemCount, onSelect, onAction? })` → `{ activeIndex, containerProps, getItemProps }`
     - Supports: Arrow Up/Down, Home/End, Enter/Space, Escape
     - 📁 `webview-ui/src/hooks/useRovingTabIndex.ts`
 
-- [ ] **7b. Apply to `PRList.tsx`**
+- [x] **7b. Apply to `PRList.tsx`**
     - Add keyboard navigation with `useRovingTabIndex`
     - Enter → open PR detail
     - 📁 `webview-ui/src/components/PRList.tsx`
 
-- [ ] **7c. Apply to `IssueList.tsx`**
+- [x] **7c. Apply to `IssueList.tsx`**
     - Same pattern, Enter → open issue detail
     - 📁 `webview-ui/src/components/IssueList.tsx`
 
-- [ ] **7d. Apply to `NotesList.tsx`**
+- [x] **7d. Apply to `NotesList.tsx`**
     - Same pattern, Enter → select note for editing
     - 📁 `webview-ui/src/components/NotesList.tsx`
 
-- [ ] **7e. Apply to `MattermostChannelList.tsx`**
+- [x] **7e. Apply to `MattermostChannelList.tsx`**
     - Same pattern, Enter → open channel
     - 📁 `webview-ui/src/components/MattermostChannelList.tsx`
 
-- [ ] **7f. Apply to `ProjectList.tsx`**
+- [x] **7f. Apply to `ProjectList.tsx`**
     - Same pattern, Enter → open project item detail
     - 📁 `webview-ui/src/components/ProjectList.tsx`
 
-- [ ] **7g. Apply to `DriveFileList.tsx`**
+- [x] **7g. Apply to `DriveFileList.tsx`**
     - Same pattern, Enter → open file detail / navigate into folder
     - 📁 `webview-ui/src/components/DriveFileList.tsx`
 
-- [ ] **7h. Document keyboard shortcuts**
+- [x] **7h. Document keyboard shortcuts**
     - Add a keyboard shortcut help section to `SettingsTab.tsx`
     - Show all discoverable shortcuts: `a`/`p`/`d` (stash), `Enter`/`Escape` (all lists)
     - Add tooltip on StashCard hover showing shortcuts
@@ -316,13 +316,13 @@
 
 > Add consistent error state UI to all list components that fetch data.
 
-- [ ] **8a. Create `ErrorState` component**
+- [x] **8a. Create `ErrorState` component**
     - Reusable component: icon + error message + optional retry button
     - Props: `{ message: string; onRetry?: () => void }`
     - Uses shadcn/ui `Button`, VS Code theme colors
     - 📁 `webview-ui/src/components/ErrorState.tsx`
 
-- [ ] **8b. Add `error` field to relevant stores**
+- [x] **8b. Add `error` field to relevant stores**
     - Add `error: string | null` + `setError()` + `clearError()` to:
       - `prStore.ts`
       - `issueStore.ts`
@@ -333,12 +333,12 @@
     - (notesStore and mattermostStore may already have error handling — verify)
     - 📁 6 store files
 
-- [ ] **8c. Wire error messages from extension to stores**
+- [x] **8c. Wire error messages from extension to stores**
     - Ensure each domain handler sends `{ type: 'domainError', message: '...' }` on failure
     - Ensure webview message hooks (§2) dispatch to the correct store's `setError()`
     - 📁 Extension handlers (§1) + webview hooks (§2)
 
-- [ ] **8d. Render `ErrorState` in list views**
+- [x] **8d. Render `ErrorState` in list views**
     - Add error state rendering to:
       - `PRList.tsx` — with "Retry" calling `postMessage('loadPRs')`
       - `IssueList.tsx` — with "Retry" calling `postMessage('loadIssues')`
@@ -415,13 +415,13 @@
     - Review each usage contextually — some `overflow-hidden` is intentional for scrollable containers
     - 📁 Selective replacement
 
-- [ ] **10d. Arbitrary value consolidation**
+- [x] **10d. Arbitrary value consolidation**
     - Replace `w-[280px]` → `w-70` where Tailwind v4 has standard spacing
     - Replace `text-[11px]` → `text-xs` or keep if intentional sub-scale sizing
     - Review on case-by-case basis — don't over-normalize if specific sizes are deliberate
     - 📁 Selective replacement
 
-- [ ] **10e. Verify zero lint warnings after changes**
+- [x] **10e. Verify zero lint warnings after changes**
     - Run Tailwind CSS linting / build to confirm all warnings resolved
     - 📁 Verification only
 
@@ -433,12 +433,12 @@
 
 ### 11A. `projectService.ts` — GraphQL Response Types (11 instances)
 
-- [ ] **11a-i. Define `GraphQLProjectResponse` interface**
+- [x] **11a-i. Define `GraphQLProjectResponse` interface**
     - Type the raw response from GitHub Projects V2 GraphQL API
     - Cover `project.fields`, `project.views`, `project.items` nodes
     - 📁 `src/projectService.ts`
 
-- [ ] **11a-ii. Replace `any` in `_parseProject()` and `_parseProjectItem()`**
+- [x] **11a-ii. Replace `any` in `_parseProject()` and `_parseProjectItem()`**
     - Use the new typed interfaces instead of `any`
     - Remove all `// eslint-disable-next-line @typescript-eslint/no-explicit-any` comments
     - 📁 `src/projectService.ts`
@@ -451,7 +451,7 @@
 
 ### 11C. Test Files (4 instances)
 
-- [ ] **11c-i. Replace `as any` mock casts with proper mock types**
+- [x] **11c-i. Replace `as any` mock casts with proper mock types**
     - Create a `MockAuthService` and `MockOutputChannel` type for tests
     - Replace `auth as any` with `auth as MockAuthService`
     - 📁 `src/test/gistService.test.ts`
@@ -518,12 +518,12 @@
 
 > Miscellaneous cleanup items.
 
-- [ ] **15a. Implement PR filter enhancement (TODO in codebase)**
+- [x] **15a. Implement PR filter enhancement (TODO in codebase)**
     - `src/prProvider.ts` line 10: `// TODO: Add 'assigned' | 'review-requested' filters`
     - Add filter options for PRs where the user is assigned or review is requested
     - 📁 `src/prProvider.ts`, `src/prService.ts`, `webview-ui/src/components/PRList.tsx`
 
-- [ ] **15b. Add `filteredByState` to `projectStore.ts`**
+- [x] **15b. Add `filteredByState` to `projectStore.ts`**
     - `filteredItems()` currently doesn't filter by `stateFilter` in the store — it's applied independently in views
     - Consolidate: add `stateFilter` into the store-level `filteredItems()` derived selector for consistency
     - 📁 `webview-ui/src/projectStore.ts`
@@ -590,21 +590,21 @@
 | 1. Decompose `stashPanel.ts`        | 10        | 10   | 0         |
 | 2. Decompose `App.tsx`              | 9         | 9    | 0         |
 | 3. `createOrShow` Options Bag       | 3         | 3    | 0         |
-| 4. Deduplicate Shared Code          | 10        | 8    | 2         |
+| 4. Deduplicate Shared Code          | 10        | 10   | 0         |
 | 5. Zustand Selective Subscriptions   | 3         | 3    | 0         |
-| 6. AI Request Management            | 5         | 1    | 4         |
-| 7. Keyboard Navigation Parity       | 8         | 0    | 8         |
-| 8. Error States for List Views      | 4         | 0    | 4         |
+| 6. AI Request Management            | 5         | 5    | 0         |
+| 7. Keyboard Navigation Parity       | 8         | 8    | 0         |
+| 8. Error States for List Views      | 4         | 4    | 0         |
 | 9. Tab Organization                 | 5         | 0    | 5         |
-| 10. Tailwind v4 Modernization       | 5         | 3    | 2         |
-| 11. Eliminate `any`                  | 4         | 1    | 3         |
+| 10. Tailwind v4 Modernization       | 5         | 5    | 0         |
+| 11. Eliminate `any`                  | 4         | 4    | 0         |
 | 12. Fix Missing AI Tab Labels       | 2         | 2    | 0         |
 | 13. Summary Pane Resizable          | 2         | 0    | 2         |
 | 14. Extract `useDraggable`          | 3         | 0    | 3         |
-| 15. Remaining Code Quality          | 4         | 2    | 2         |
+| 15. Remaining Code Quality          | 4         | 4    | 0         |
 | 16. Testing Updates                 | 3         | 0    | 3         |
 | 17. Build & Release Verification    | 5         | 0    | 5         |
-| **Total**                           | **85**    | **42**| **43**   |
+| **Total**                           | **85**    | **67**| **18**   |
 
 ---
 

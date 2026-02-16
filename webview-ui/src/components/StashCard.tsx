@@ -62,7 +62,7 @@ export const StashCard: React.FC<{
         >
             {/* Header */}
             <div
-                className="flex items-stretch gap-2.5 p-3 cursor-pointer select-none min-h-[52px] leading-normal"
+                className="flex items-stretch gap-2.5 p-3 cursor-pointer select-none min-h-13 leading-normal"
                 onClick={() => {
                     toggleExpanded(stash.index);
                     selectStash(stash.index);

@@ -486,7 +486,7 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                             title={`Linked to ${note.linkedRepo} — click to unlink`}
                         >
                             <FolderGit2 size={12} className="text-accent" />
-                            <span className="max-w-[80px] truncate">{note.linkedRepo.split('/')[1]}</span>
+                            <span className="max-w-20 truncate">{note.linkedRepo.split('/')[1]}</span>
                             <Unlink size={10} />
                         </Button>
                     ) : currentRepo ? (

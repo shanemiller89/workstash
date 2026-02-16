@@ -165,7 +165,8 @@ export class PrProvider implements vscode.TreeDataProvider<PrItem>, vscode.Dispo
                 this._owner,
                 this._repo,
                 this._stateFilter,
-                this._username, // author filter — 'authored' only for now
+                this._username,
+                'authored', // tree view always shows authored PRs
             );
             this._cachedPRs = prs;
 

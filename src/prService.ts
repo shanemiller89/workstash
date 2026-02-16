@@ -5,9 +5,8 @@ import { AuthService } from './authService';
 
 export type PRState = 'open' | 'closed' | 'merged';
 
-/** Filter for "whose PRs" — currently only 'authored', future: 'assigned', 'review-requested' */
-export type PRAuthorFilter = 'authored';
-// TODO: Add 'assigned' | 'review-requested' filters
+/** Filter for "whose PRs" to display. */
+export type PRAuthorFilter = 'all' | 'authored' | 'assigned' | 'review-requested';
 
 export interface PullRequest {
     number: number;
@@ -30,6 +29,7 @@ export interface PullRequest {
     labels: { name: string; color: string }[];
     isDraft: boolean;
     requestedReviewers: { login: string; avatarUrl: string }[];
+    assignees: { login: string; avatarUrl: string }[];
 }
 
 export interface PRComment {
@@ -77,6 +77,7 @@ export interface PullRequestData {
     labels: { name: string; color: string }[];
     isDraft: boolean;
     requestedReviewers: { login: string; avatarUrl: string }[];
+    assignees: { login: string; avatarUrl: string }[];
 }
 
 export interface PRCommentData {
@@ -126,6 +127,7 @@ interface GitHubPR {
     changed_files?: number;
     labels: { name: string; color: string }[];
     requested_reviewers?: { login: string; avatar_url: string }[];
+    assignees?: { login: string; avatar_url: string }[];
 }
 
 /** Raw GitHub issue comment response */
@@ -314,6 +316,10 @@ export class PrService {
                 login: r.login,
                 avatarUrl: r.avatar_url,
             })),
+            assignees: (pr.assignees ?? []).map((a) => ({
+                login: a.login,
+                avatarUrl: a.avatar_url,
+            })),
         };
     }
 
@@ -353,16 +359,18 @@ export class PrService {
      * List pull requests for a repository.
      * Uses the pulls endpoint with state filter, then filters by author client-side.
      *
-     * @param owner   Repository owner
-     * @param repo    Repository name
-     * @param state   Filter: 'open', 'closed', 'merged', or 'all'
-     * @param author  GitHub username to filter by (author filter)
+     * @param owner         Repository owner
+     * @param repo          Repository name
+     * @param state         Filter: 'open', 'closed', 'merged', or 'all'
+     * @param username      GitHub username for author/assignee/reviewer filtering
+     * @param authorFilter  Whose PRs to show: 'all', 'authored', 'assigned', 'review-requested'
      */
     async listPullRequests(
         owner: string,
         repo: string,
         state: PRState | 'all' = 'all',
-        author?: string,
+        username?: string,
+        authorFilter: PRAuthorFilter = 'all',
     ): Promise<PullRequest[]> {
         // GitHub API only knows 'open' | 'closed' | 'all' for state param
         // We handle 'merged' as closed + merged_at not null
@@ -375,9 +383,24 @@ export class PrService {
 
         let prs = data.map((pr) => this._parsePR(pr));
 
-        // Filter by author if specified
-        if (author) {
-            prs = prs.filter((pr) => pr.author.toLowerCase() === author.toLowerCase());
+        // Filter by author role if username is available
+        if (username && authorFilter !== 'all') {
+            const lowerUser = username.toLowerCase();
+            switch (authorFilter) {
+                case 'authored':
+                    prs = prs.filter((pr) => pr.author.toLowerCase() === lowerUser);
+                    break;
+                case 'assigned':
+                    prs = prs.filter((pr) =>
+                        pr.assignees.some((a) => a.login.toLowerCase() === lowerUser),
+                    );
+                    break;
+                case 'review-requested':
+                    prs = prs.filter((pr) =>
+                        pr.requestedReviewers.some((r) => r.login.toLowerCase() === lowerUser),
+                    );
+                    break;
+            }
         }
 
         // If user asked for 'merged', filter to only merged PRs
@@ -841,6 +864,7 @@ export class PrService {
             labels: pr.labels,
             isDraft: pr.isDraft,
             requestedReviewers: pr.requestedReviewers,
+            assignees: pr.assignees,
         };
     }
 

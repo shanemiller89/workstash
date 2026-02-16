@@ -51,6 +51,9 @@ export function handleAIMessage(msg: Msg): boolean {
                 msg.assignments as Record<string, string>,
             );
             return true;
+        case 'aiAgentTemplates':
+            s.setDefaultSystemPrompts(msg.templates as Record<string, string>);
+            return true;
         default:
             return false;
     }

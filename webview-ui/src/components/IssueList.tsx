@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo, useRef } from 'react';
 import { useIssueStore, type IssueStateFilter } from '../issueStore';
 import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { ErrorState } from './ErrorState';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 import {
     CircleDot,
     CheckCircle2,
@@ -53,6 +55,7 @@ export const IssueList: React.FC = () => {
     const allIssues = useIssueStore((s) => s.issues);
     const searchQuery = useIssueStore((s) => s.searchQuery);
     const isLoading = useIssueStore((s) => s.isLoading);
+    const error = useIssueStore((s) => s.error);
     const isRepoNotFound = useIssueStore((s) => s.isRepoNotFound);
     const stateFilter = useIssueStore((s) => s.stateFilter);
     const setStateFilter = useIssueStore((s) => s.setStateFilter);
@@ -91,6 +94,18 @@ export const IssueList: React.FC = () => {
         },
         [selectIssue],
     );
+
+    // Keyboard navigation (§7c)
+    const searchRef = useRef<HTMLInputElement>(null);
+    const onIssueSelect = useCallback(
+        (index: number) => {
+            const issue = issues[index];
+            if (issue) handleSelectIssue(issue.number);
+        },
+        [issues, handleSelectIssue],
+    );
+    const { listRef, containerProps, getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
+        useRovingTabIndex({ itemCount: issues.length, onSelect: onIssueSelect, searchRef });
 
     // Not authenticated
     if (!isAuthenticated) {
@@ -154,10 +169,12 @@ export const IssueList: React.FC = () => {
                     <div className="relative">
                         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/30" />
                         <Input
+                            ref={searchRef}
                             type="text"
                             placeholder="Search issues..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={rovingSearchKeyDown}
                             className="pl-7 text-[11px]"
                         />
                     </div>
@@ -165,11 +182,19 @@ export const IssueList: React.FC = () => {
             </div>
 
             {/* Issue List */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={listRef} className="flex-1 overflow-y-auto" {...containerProps} aria-label="Issue list">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-8 text-fg/40 text-[11px]">
                         Loading issues…
                     </div>
+                ) : error ? (
+                    <ErrorState
+                        message={error}
+                        onRetry={() => {
+                            useIssueStore.getState().setError(null);
+                            handleRefresh();
+                        }}
+                    />
                 ) : issues.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2">
                         <p className="text-fg/40 text-[11px]">
@@ -179,7 +204,7 @@ export const IssueList: React.FC = () => {
                         </p>
                     </div>
                 ) : (
-                    issues.map((issue) => {
+                    issues.map((issue, i) => {
                         const isSelected = selectedIssueNumber === issue.number;
                         return (
                             <Button
@@ -191,6 +216,7 @@ export const IssueList: React.FC = () => {
                                         : 'border-l-2 border-l-transparent'
                                 }`}
                                 onClick={() => handleSelectIssue(issue.number)}
+                                {...getItemProps(i)}
                             >
                                 <div className="flex items-start gap-2">
                                     <div className="mt-0.5 shrink-0">

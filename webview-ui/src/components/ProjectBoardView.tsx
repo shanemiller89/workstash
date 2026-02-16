@@ -161,7 +161,7 @@ const BoardColumnComponent: React.FC<BoardColumnProps> = React.memo(
         const colors = getColumnColorClasses(column.color);
 
         return (
-            <div className="shrink-0 w-[260px] flex flex-col rounded-lg border border-border bg-[var(--vscode-sideBar-background)] overflow-clip">
+            <div className="shrink-0 w-65 flex flex-col rounded-lg border border-border bg-[var(--vscode-sideBar-background)] overflow-clip">
                 {/* Column header */}
                 <div
                     className={`flex items-center gap-2 px-3 py-2 border-b border-border ${colors.bg}`}

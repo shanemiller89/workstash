@@ -665,7 +665,7 @@ const ReviewerSection: React.FC<{ prNumber: number; prAuthor: string }> = ({ prN
                     Request
                 </Button>
                 {open && (
-                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded shadow-lg min-w-[200px] max-h-60 flex flex-col">
+                    <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded shadow-lg min-w-50 max-h-60 flex flex-col">
                         <div className="p-1.5 border-b border-border">
                             <Input
                                 ref={inputRef}

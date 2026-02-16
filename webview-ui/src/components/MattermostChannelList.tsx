@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useMattermostStore, type MattermostChannelData } from '../mattermostStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
@@ -32,6 +32,7 @@ import {
     CheckCheck,
     Star,
 } from 'lucide-react';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 
 function ChannelIcon({ type, size = 14 }: { type: string; size?: number }) {
     switch (type) {
@@ -82,7 +83,7 @@ function UnreadBadge({ count, mentions }: { count: number; mentions: number }) {
     if (count <= 0 && mentions <= 0) { return null; }
     if (mentions > 0) {
         return (
-            <span className="ml-auto shrink-0 bg-[var(--vscode-notificationsErrorIcon-foreground,#f14c4c)] text-white text-[10px] font-bold leading-none rounded-full px-1.5 py-0.5 min-w-[16px] text-center">
+            <span className="ml-auto shrink-0 bg-[var(--vscode-notificationsErrorIcon-foreground,#f14c4c)] text-white text-[10px] font-bold leading-none rounded-full px-1.5 py-0.5 min-w-4 text-center">
                 {mentions}
             </span>
         );
@@ -173,7 +174,7 @@ function NewDmDialog({ onClose }: { onClose: () => void }) {
                 <div className="mt-1 text-xs text-fg/50 px-1">Searching…</div>
             )}
             {!isSearchingUsers && userSearchResults.length > 0 && (
-                <div className="mt-1 max-h-[160px] overflow-y-auto">
+                <div className="mt-1 max-h-40 overflow-y-auto">
                     {userSearchResults.map((u) => (
                         <Button
                             key={u.id}
@@ -262,6 +263,18 @@ export const MattermostChannelList: React.FC = () => {
         [teams, selectedTeamId],
     );
 
+    // Flatten all visible (open-section) channels for keyboard navigation (§7e)
+    const visibleChannels = useMemo(() => {
+        const list: MattermostChannelData[] = [];
+        if (favoritesOpen) list.push(...favoriteChannels);
+        if (publicOpen) list.push(...publicChannels);
+        if (privateOpen) list.push(...privateChannels);
+        if (dmsOpen) list.push(...dmChannels);
+        return list;
+    }, [favoritesOpen, publicOpen, privateOpen, dmsOpen, favoriteChannels, publicChannels, privateChannels, dmChannels]);
+
+    const channelSearchRef = useRef<HTMLInputElement>(null);
+
     const handleTeamSelect = useCallback(
         (teamId: string) => {
             selectTeam(teamId);
@@ -278,6 +291,16 @@ export const MattermostChannelList: React.FC = () => {
         },
         [selectChannel],
     );
+
+    const onChannelSelect = useCallback(
+        (index: number) => {
+            const ch = visibleChannels[index];
+            if (ch) handleChannelSelect(ch);
+        },
+        [visibleChannels, handleChannelSelect],
+    );
+    const { listRef: channelListRef, containerProps: channelContainerProps, getItemProps: getChannelItemProps, handleSearchKeyDown: rovingChannelSearchKeyDown } =
+        useRovingTabIndex({ itemCount: visibleChannels.length, onSelect: onChannelSelect, searchRef: channelSearchRef });
 
     const handleRefresh = useCallback(() => {
         if (selectedTeamId) {
@@ -307,15 +330,15 @@ export const MattermostChannelList: React.FC = () => {
         postMessage('mattermost.signInWithSessionToken');
     }, []);
 
-    // Render a single channel row
-    const renderChannel = (channel: MattermostChannelData) => {
+    // Render a single channel row (flatIdx is the index within visibleChannels for keyboard nav)
+    const renderChannel = (channel: MattermostChannelData, _sectionIdx: number, flatIdx: number) => {
         const unread = unreads[channel.id];
         const hasUnread = unread && (unread.msgCount > 0 || unread.mentionCount > 0);
         const isDm = channel.type === 'D';
         const dmStatus = isDm && channel.otherUserId ? userStatuses[channel.otherUserId] : undefined;
         const isFav = favoriteChannelIds.has(channel.id);
         return (
-            <div key={channel.id} className="group/ch flex items-center">
+            <div key={channel.id} className="group/ch flex items-center" {...getChannelItemProps(flatIdx)}>
                 <Button
                     variant="ghost"
                     onClick={() => handleChannelSelect(channel)}
@@ -373,7 +396,7 @@ export const MattermostChannelList: React.FC = () => {
                 <p className="text-sm text-fg/60">
                     Sign in to Mattermost to view your channels.
                 </p>
-                <div className="flex flex-col gap-2 w-full max-w-[220px]">
+                <div className="flex flex-col gap-2 w-full max-w-55">
                     <Button
                         onClick={handleSignInWithPassword}
                     >
@@ -469,8 +492,10 @@ export const MattermostChannelList: React.FC = () => {
                     <Input
                         type="text"
                         placeholder="Search channels…"
+                        ref={channelSearchRef}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
+                        onKeyDown={rovingChannelSearchKeyDown}
                         className="pl-7"
                     />
                 </div>
@@ -480,87 +505,101 @@ export const MattermostChannelList: React.FC = () => {
             {showNewDm && <NewDmDialog onClose={() => setShowNewDm(false)} />}
 
             {/* Channel list with sections */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={channelListRef} className="flex-1 overflow-y-auto" {...channelContainerProps} aria-label="Channels list">
                 {isLoadingChannels ? (
                     <div className="flex items-center justify-center h-24 text-sm text-fg/50">
                         Loading channels…
                     </div>
                 ) : (
-                    <>
-                        {/* Favorites section */}
-                        {favoriteChannels.length > 0 && (
-                            <Collapsible open={favoritesOpen} onOpenChange={setFavoritesOpen}>
-                                <SectionHeader
-                                    title="Favorites"
-                                    isOpen={favoritesOpen}
-                                    onToggle={() => setFavoritesOpen((v) => !v)}
-                                />
-                                <CollapsibleContent>
-                                    {favoriteChannels.map(renderChannel)}
-                                </CollapsibleContent>
-                            </Collapsible>
-                        )}
+                    (() => {
+                        // Compute flat offsets matching visibleChannels ordering
+                        let offset = 0;
+                        const favOffset = offset;
+                        if (favoritesOpen) offset += favoriteChannels.length;
+                        const pubOffset = offset;
+                        if (publicOpen) offset += publicChannels.length;
+                        const privOffset = offset;
+                        if (privateOpen) offset += privateChannels.length;
+                        const dmOffset = offset;
 
-                        {/* Public Channels section */}
-                        <Collapsible open={publicOpen} onOpenChange={setPublicOpen}>
-                            <SectionHeader
-                                title="Public Channels"
-                                isOpen={publicOpen}
-                                onToggle={() => setPublicOpen((v) => !v)}
-                            />
-                            <CollapsibleContent>
-                                {publicChannels.length === 0 ? (
-                                    <div className="px-3 py-2 text-xs text-fg/40">
-                                        {searchQuery ? 'No matching channels' : 'No public channels'}
-                                    </div>
-                                ) : (
-                                    publicChannels.map(renderChannel)
+                        return (
+                            <>
+                                {/* Favorites section */}
+                                {favoriteChannels.length > 0 && (
+                                    <Collapsible open={favoritesOpen} onOpenChange={setFavoritesOpen}>
+                                        <SectionHeader
+                                            title="Favorites"
+                                            isOpen={favoritesOpen}
+                                            onToggle={() => setFavoritesOpen((v) => !v)}
+                                        />
+                                        <CollapsibleContent>
+                                            {favoriteChannels.map((ch, i) => renderChannel(ch, i, favOffset + i))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
                                 )}
-                            </CollapsibleContent>
-                        </Collapsible>
 
-                        {/* Private Channels section */}
-                        {privateChannels.length > 0 && (
-                            <Collapsible open={privateOpen} onOpenChange={setPrivateOpen}>
-                                <SectionHeader
-                                    title="Private Channels"
-                                    isOpen={privateOpen}
-                                    onToggle={() => setPrivateOpen((v) => !v)}
-                                />
-                                <CollapsibleContent>
-                                    {privateChannels.map(renderChannel)}
-                                </CollapsibleContent>
-                            </Collapsible>
-                        )}
+                                {/* Public Channels section */}
+                                <Collapsible open={publicOpen} onOpenChange={setPublicOpen}>
+                                    <SectionHeader
+                                        title="Public Channels"
+                                        isOpen={publicOpen}
+                                        onToggle={() => setPublicOpen((v) => !v)}
+                                    />
+                                    <CollapsibleContent>
+                                        {publicChannels.length === 0 ? (
+                                            <div className="px-3 py-2 text-xs text-fg/40">
+                                                {searchQuery ? 'No matching channels' : 'No public channels'}
+                                            </div>
+                                        ) : (
+                                            publicChannels.map((ch, i) => renderChannel(ch, i, pubOffset + i))
+                                        )}
+                                    </CollapsibleContent>
+                                </Collapsible>
 
-                        {/* Direct Messages section */}
-                        <Collapsible open={dmsOpen} onOpenChange={setDmsOpen}>
-                            <SectionHeader
-                                title="Direct Messages"
-                                isOpen={dmsOpen}
-                                onToggle={() => setDmsOpen((v) => !v)}
-                                action={
-                                    <Button
-                                        variant="ghost"
-                                        size="icon-xs"
-                                        onClick={(e) => { e.stopPropagation(); setShowNewDm(true); }}
-                                        title="New Direct Message"
-                                    >
-                                        <Plus size={12} />
-                                    </Button>
-                                }
-                            />
-                            <CollapsibleContent>
-                                {dmChannels.length === 0 ? (
-                                    <div className="px-3 py-2 text-xs text-fg/40">
-                                        {searchQuery ? 'No matching DMs' : 'No direct messages'}
-                                    </div>
-                                ) : (
-                                    dmChannels.map(renderChannel)
+                                {/* Private Channels section */}
+                                {privateChannels.length > 0 && (
+                                    <Collapsible open={privateOpen} onOpenChange={setPrivateOpen}>
+                                        <SectionHeader
+                                            title="Private Channels"
+                                            isOpen={privateOpen}
+                                            onToggle={() => setPrivateOpen((v) => !v)}
+                                        />
+                                        <CollapsibleContent>
+                                            {privateChannels.map((ch, i) => renderChannel(ch, i, privOffset + i))}
+                                        </CollapsibleContent>
+                                    </Collapsible>
                                 )}
-                            </CollapsibleContent>
-                        </Collapsible>
-                    </>
+
+                                {/* Direct Messages section */}
+                                <Collapsible open={dmsOpen} onOpenChange={setDmsOpen}>
+                                    <SectionHeader
+                                        title="Direct Messages"
+                                        isOpen={dmsOpen}
+                                        onToggle={() => setDmsOpen((v) => !v)}
+                                        action={
+                                            <Button
+                                                variant="ghost"
+                                                size="icon-xs"
+                                                onClick={(e) => { e.stopPropagation(); setShowNewDm(true); }}
+                                                title="New Direct Message"
+                                            >
+                                                <Plus size={12} />
+                                            </Button>
+                                        }
+                                    />
+                                    <CollapsibleContent>
+                                        {dmChannels.length === 0 ? (
+                                            <div className="px-3 py-2 text-xs text-fg/40">
+                                                {searchQuery ? 'No matching DMs' : 'No direct messages'}
+                                            </div>
+                                        ) : (
+                                            dmChannels.map((ch, i) => renderChannel(ch, i, dmOffset + i))
+                                        )}
+                                    </CollapsibleContent>
+                                </Collapsible>
+                            </>
+                        );
+                    })()
                 )}
             </div>
         </div>

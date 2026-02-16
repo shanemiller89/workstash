@@ -20,7 +20,10 @@ export const handlePrMessage: MessageHandler = async (ctx, msg) => {
         case 'prs.filter':
             // State filter changed in webview — re-fetch with new filter
             if (msg.state) {
-                await ctx.refreshPRs(msg.state as 'open' | 'closed' | 'merged' | 'all');
+                await ctx.refreshPRs(
+                    msg.state as 'open' | 'closed' | 'merged' | 'all',
+                    msg.authorFilter as 'all' | 'authored' | 'assigned' | 'review-requested' | undefined,
+                );
             }
             return true;
 

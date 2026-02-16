@@ -70,81 +70,6 @@ const AGENT_TEMPLATES = [
     },
 ] as const;
 
-// ─── Default system prompts (mirrors aiService AGENT_TEMPLATES) ───
-
-const DEFAULT_SYSTEM_PROMPTS: Record<string, string> = {
-    sprint: `You are a senior engineering manager creating a sprint status report.
-Analyze ALL the workspace data provided and produce a comprehensive sprint overview with these sections:
-## Sprint Overview
-- Overall velocity and health assessment
-## Pull Requests
-- PRs ready to merge, PRs needing review, stale PRs
-## Issues & Projects
-- Open issues by priority/label, project board status, blockers
-## Code Activity
-- Stash activity (work-in-progress indicators), branch patterns
-## Team Communication
-- Mattermost highlights, unread threads, action items from chat
-## Calendar & Schedule
-- Upcoming meetings, deadlines, or time conflicts from Google Calendar
-## Documents & Files
-- Recently modified Google Drive docs, relevant shared files
-## Wiki
-- Key wiki pages, recent documentation updates
-## Recommendations
-- Top 3 actions the team should take today
-
-Use markdown formatting. Be specific — reference PR numbers, issue titles, calendar events, etc.`,
-
-    review: `You are a senior code reviewer analyzing the workspace for code review status.
-Produce a detailed code review report:
-## Review Dashboard
-- PRs awaiting review (list each with age, author, size)
-- PRs with unresolved comments
-- PRs with requested changes
-## Risk Assessment
-- Large PRs (high additions/deletions) that need careful review
-- PRs that have been open longest
-- Draft PRs that might need help
-## Suggested Review Order
-- Prioritized list of which PRs to review first and why
-## Related Issues
-- Link PRs to their related issues where possible
-
-Be specific with PR numbers and issue references.`,
-
-    activity: `You are a team activity analyst reviewing the workspace.
-Produce a team activity summary:
-## Today's Snapshot
-- What changed recently across all data sources
-- New PRs, closed issues, updated projects
-## Work In Progress
-- Active stashes (uncommitted work)
-- Open draft PRs
-- Issues in progress
-## Communication
-- Mattermost channel activity, any mentions or urgent messages
-- Notes recently updated
-## Schedule & Calendar
-- Upcoming meetings and events from Google Calendar
-- Potential scheduling conflicts or busy periods
-## Documents
-- Recently modified Google Drive files
-- Starred/pinned documents
-## Wiki
-- Wiki page overview, documentation coverage
-## Attention Needed
-- Items that may be blocked or stale
-- Anything that looks unusual or needs follow-up
-
-Keep it scannable with bullet points.`,
-
-    custom: `You are an expert development assistant with deep knowledge of software workflows.
-Analyze the workspace data provided and respond to the user's custom prompt.
-Be thorough, specific, and reference actual data items by name/number.
-Use markdown formatting with clear sections.`,
-};
-
 // ─── Tab metadata for summaries dashboard ─────────────────────────
 
 const SUMMARY_TABS = [
@@ -436,12 +361,13 @@ export const AgentTab: React.FC = () => {
     const setAgentPaneOpen = useAIStore((s) => s.setAgentPaneOpen);
     const setAgentPaneWidth = useAIStore((s) => s.setAgentPaneWidth);
     const summaryPaneTabKey = useAIStore((s) => s.summaryPaneTabKey);
+    const defaultSystemPrompts = useAIStore((s) => s.defaultSystemPrompts);
     const resultRef = useRef<HTMLDivElement>(null);
     const [systemPromptOpen, setSystemPromptOpen] = useState(false);
 
     // Current system prompt (custom override or default)
     const currentSystemPrompt = agentSystemPrompts[agentTemplate] ?? '';
-    const effectiveSystemPrompt = currentSystemPrompt.trim() || DEFAULT_SYSTEM_PROMPTS[agentTemplate] || '';
+    const effectiveSystemPrompt = currentSystemPrompt.trim() || defaultSystemPrompts[agentTemplate] || '';
     const isSystemPromptCustomized = !!currentSystemPrompt.trim();
 
     // Auto-scroll as streaming content arrives
@@ -589,7 +515,7 @@ export const AgentTab: React.FC = () => {
                                         ? 'Describe what you want to analyze about your workspace…'
                                         : 'Add extra focus areas or constraints…'
                                 }
-                                className="text-[12px] min-h-[80px] max-h-[200px] resize-y"
+                                className="text-[12px] min-h-20 max-h-50 resize-y"
                                 rows={4}
                             />
                         </div>
@@ -621,10 +547,10 @@ export const AgentTab: React.FC = () => {
                             {systemPromptOpen && (
                                 <div className="border-t border-border px-3 py-2.5 flex flex-col gap-2">
                                     <Textarea
-                                        value={currentSystemPrompt || DEFAULT_SYSTEM_PROMPTS[agentTemplate] || ''}
+                                        value={currentSystemPrompt || defaultSystemPrompts[agentTemplate] || ''}
                                         onChange={(e) => setAgentSystemPrompt(agentTemplate, e.target.value)}
                                         placeholder="System prompt for AI analysis…"
-                                        className="text-[11px] min-h-[120px] max-h-[300px] resize-y font-mono leading-relaxed"
+                                        className="text-[11px] min-h-30 max-h-75 resize-y font-mono leading-relaxed"
                                         rows={8}
                                     />
                                     {isSystemPromptCustomized && (
@@ -768,7 +694,7 @@ export const AgentTab: React.FC = () => {
 
         {/* Right summary pane (opens when a summary card is clicked) */}
         {summaryPaneTabKey && !agentPaneOpen && (
-            <div className="w-[280px] shrink-0 overflow-clip">
+            <div className="w-70 shrink-0 overflow-clip">
                 <ErrorBoundary label="AI Summary">
                     <SummaryPane tabKey={summaryPaneTabKey} label={summaryPaneLabel} />
                 </ErrorBoundary>

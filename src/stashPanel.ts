@@ -303,7 +303,6 @@ export class StashPanel {
         return result;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private async _handleMessage(msg: { type: string } & Record<string, any>): Promise<void> {
         // ─── 'ready' stays inline — it mutates panel-level state ──────
         if (msg.type === 'ready') {
@@ -339,6 +338,11 @@ export class StashPanel {
                 type: 'aiAvailable',
                 available: AiService.isAvailable(),
                 provider: AiService.activeProvider(),
+            });
+            // Send agent template default prompts (single source of truth)
+            this._panel.webview.postMessage({
+                type: 'aiAgentTemplates',
+                templates: AiService.AGENT_TEMPLATES,
             });
             // Flush any deep-link messages that were queued before the webview was ready
             for (const deepLink of this._pendingDeepLinks) {
@@ -390,7 +394,7 @@ export class StashPanel {
 
             // Domain refresh helpers
             refreshNotes: () => this._refreshNotes(),
-            refreshPRs: (state) => this._refreshPRs(state),
+            refreshPRs: (state, authorFilter) => this._refreshPRs(state, authorFilter),
             sendPRComments: (prNumber) => this._sendPRComments(prNumber),
             refreshIssues: (state) => this._refreshIssues(state),
             sendIssueComments: (issueNumber) => this._sendIssueComments(issueNumber),
@@ -420,7 +424,6 @@ export class StashPanel {
      */
     private async _gatherContext(tabKey?: string): Promise<string> {
         this._outputChannel.appendLine(`[AI] Gathering context${tabKey ? ` for tab: ${tabKey}` : ' for all tabs'}`);
-        const sections: string[] = [];
         const shouldInclude = (key: string) => !tabKey || tabKey === key;
 
         // Read AI privacy settings
@@ -428,174 +431,176 @@ export class StashPanel {
         const includeSecretGists = aiConfig.get<boolean>('includeSecretGists', false);
         const includePrivateMessages = aiConfig.get<boolean>('includePrivateMessages', false);
 
+        // §6d — Run independent data sources in parallel
+        type SectionResult = { key: string; order: number; text: string };
+
+        const tasks: Array<Promise<SectionResult | null>> = [];
+
         // ─── Stashes ─────────────────────────────────────────
         if (shouldInclude('stashes')) {
-            try {
-                const stashes = await this._gitService.getStashList();
-                if (stashes.length === 0) {
-                    sections.push('## Stashes\nNo stashes found.');
-                } else {
+            tasks.push((async (): Promise<SectionResult> => {
+                try {
+                    const stashes = await this._gitService.getStashList();
+                    if (stashes.length === 0) {
+                        return { key: 'stashes', order: 0, text: '## Stashes\nNo stashes found.' };
+                    }
                     const lines = stashes.map((s) =>
                         `- stash@{${s.index}}: "${s.message}" (branch: ${s.branch}, ${formatRelativeTime(s.date)})`,
                     );
-                    sections.push(`## Stashes (${stashes.length})\n${lines.join('\n')}`);
+                    return { key: 'stashes', order: 0, text: `## Stashes (${stashes.length})\n${lines.join('\n')}` };
+                } catch {
+                    return { key: 'stashes', order: 0, text: '## Stashes\nUnable to fetch stash data.' };
                 }
-            } catch {
-                sections.push('## Stashes\nUnable to fetch stash data.');
-            }
+            })());
         }
 
         // ─── Pull Requests ───────────────────────────────────
         if (shouldInclude('prs') && this._prService && this._authService) {
-            try {
-                const repoInfo = await this._getRepoInfo();
-                if (repoInfo) {
+            tasks.push((async (): Promise<SectionResult | null> => {
+                try {
+                    const repoInfo = await this._getRepoInfo();
+                    if (!repoInfo) {return null;}
                     let username: string | undefined;
-                    try { username = await this._prService.getAuthenticatedUser(); } catch { /* ok */ }
-                    const prs = await this._prService.listPullRequests(
+                    try { username = await this._prService!.getAuthenticatedUser(); } catch { /* ok */ }
+                    const prs = await this._prService!.listPullRequests(
                         repoInfo.owner, repoInfo.repo, 'open', username,
                     );
                     if (prs.length === 0) {
-                        sections.push('## Pull Requests\nNo open PRs.');
-                    } else {
-                        const lines = prs.map((pr) => {
-                            const data = PrService.toData(pr);
-                            return `- #${data.number}: "${data.title}" by ${data.author} (${data.state}, ${data.commentsCount} comments, +${data.additions}/-${data.deletions})`;
-                        });
-                        sections.push(`## Pull Requests (${prs.length} open)\n${lines.join('\n')}`);
+                        return { key: 'prs', order: 1, text: '## Pull Requests\nNo open PRs.' };
                     }
+                    const lines = prs.map((pr) => {
+                        const data = PrService.toData(pr);
+                        return `- #${data.number}: "${data.title}" by ${data.author} (${data.state}, ${data.commentsCount} comments, +${data.additions}/-${data.deletions})`;
+                    });
+                    return { key: 'prs', order: 1, text: `## Pull Requests (${prs.length} open)\n${lines.join('\n')}` };
+                } catch {
+                    return { key: 'prs', order: 1, text: '## Pull Requests\nUnable to fetch PR data.' };
                 }
-            } catch {
-                sections.push('## Pull Requests\nUnable to fetch PR data.');
-            }
+            })());
         }
 
         // ─── Issues ──────────────────────────────────────────
         if (shouldInclude('issues') && this._issueService && this._authService) {
-            try {
-                const repoInfo = await this._getRepoInfo();
-                if (repoInfo) {
-                    const issues = await this._issueService.listIssues(
+            tasks.push((async (): Promise<SectionResult | null> => {
+                try {
+                    const repoInfo = await this._getRepoInfo();
+                    if (!repoInfo) {return null;}
+                    const issues = await this._issueService!.listIssues(
                         repoInfo.owner, repoInfo.repo, 'open',
                     );
                     if (issues.length === 0) {
-                        sections.push('## Issues\nNo open issues.');
-                    } else {
-                        const lines = issues.map((i) => {
-                            const data = IssueService.toData(i);
-                            const labels = data.labels.length > 0 ? ` [${data.labels.map((l) => l.name).join(', ')}]` : '';
-                            return `- #${data.number}: "${data.title}" by ${data.author}${labels} (${data.commentsCount} comments)`;
-                        });
-                        sections.push(`## Issues (${issues.length} open)\n${lines.join('\n')}`);
+                        return { key: 'issues', order: 2, text: '## Issues\nNo open issues.' };
                     }
+                    const lines = issues.map((i) => {
+                        const data = IssueService.toData(i);
+                        const labels = data.labels.length > 0 ? ` [${data.labels.map((l) => l.name).join(', ')}]` : '';
+                        return `- #${data.number}: "${data.title}" by ${data.author}${labels} (${data.commentsCount} comments)`;
+                    });
+                    return { key: 'issues', order: 2, text: `## Issues (${issues.length} open)\n${lines.join('\n')}` };
+                } catch {
+                    return { key: 'issues', order: 2, text: '## Issues\nUnable to fetch issue data.' };
                 }
-            } catch {
-                sections.push('## Issues\nUnable to fetch issue data.');
-            }
+            })());
         }
 
         // ─── Projects ────────────────────────────────────────
         if (shouldInclude('projects') && this._projectService && this._authService) {
-            try {
-                const repoInfo = await this._getRepoInfo();
-                if (repoInfo) {
-                    const projects = await this._projectService.listRepositoryProjects(
+            tasks.push((async (): Promise<SectionResult | null> => {
+                try {
+                    const repoInfo = await this._getRepoInfo();
+                    if (!repoInfo) {return null;}
+                    const projects = await this._projectService!.listRepositoryProjects(
                         repoInfo.owner, repoInfo.repo,
                     );
                     if (projects.length === 0) {
-                        sections.push('## Projects\nNo projects found.');
-                    } else {
-                        const projLines: string[] = [];
-                        // Summarize first 3 projects
-                        for (const p of projects.slice(0, 3)) {
-                            try {
-                                const itemResult = await this._projectService.listProjectItems(p.id);
-                                const itemData = itemResult.items.map((i: { id: string; type: string; isArchived: boolean }) => i);
-                                const typeCounts: Record<string, number> = {};
-                                for (const item of itemData) {
-                                    typeCounts[item.type] = (typeCounts[item.type] ?? 0) + 1;
-                                }
-                                const typeStr = Object.entries(typeCounts)
-                                    .map(([k, v]) => `${k}: ${v}`)
-                                    .join(', ');
-                                projLines.push(`- "${p.title}" (${itemData.length} items — ${typeStr})`);
-                            } catch {
-                                projLines.push(`- "${p.title}" (unable to load items)`);
-                            }
-                        }
-                        sections.push(`## Projects (${projects.length})\n${projLines.join('\n')}`);
+                        return { key: 'projects', order: 3, text: '## Projects\nNo projects found.' };
                     }
+                    const projLines: string[] = [];
+                    for (const p of projects.slice(0, 3)) {
+                        try {
+                            const itemResult = await this._projectService!.listProjectItems(p.id);
+                            const itemData = itemResult.items.map((i: { id: string; type: string; isArchived: boolean }) => i);
+                            const typeCounts: Record<string, number> = {};
+                            for (const item of itemData) {
+                                typeCounts[item.type] = (typeCounts[item.type] ?? 0) + 1;
+                            }
+                            const typeStr = Object.entries(typeCounts)
+                                .map(([k, v]) => `${k}: ${v}`)
+                                .join(', ');
+                            projLines.push(`- "${p.title}" (${itemData.length} items — ${typeStr})`);
+                        } catch {
+                            projLines.push(`- "${p.title}" (unable to load items)`);
+                        }
+                    }
+                    return { key: 'projects', order: 3, text: `## Projects (${projects.length})\n${projLines.join('\n')}` };
+                } catch {
+                    return { key: 'projects', order: 3, text: '## Projects\nUnable to fetch project data.' };
                 }
-            } catch {
-                sections.push('## Projects\nUnable to fetch project data.');
-            }
+            })());
         }
 
         // ─── Notes ───────────────────────────────────────────
         if (shouldInclude('notes') && this._gistService && this._authService) {
-            try {
-                const isAuth = await this._authService.isAuthenticated();
-                if (isAuth) {
-                    const notes = await this._gistService.listNotes();
+            tasks.push((async (): Promise<SectionResult | null> => {
+                try {
+                    const isAuth = await this._authService!.isAuthenticated();
+                    if (!isAuth) {return null;}
+                    const notes = await this._gistService!.listNotes();
                     if (notes.length === 0) {
-                        sections.push('## Notes\nNo notes found.');
-                    } else {
-                        // Filter by visibility setting
-                        const filteredNotes = includeSecretGists
-                            ? notes
-                            : notes.filter((n) => n.isPublic);
-                        if (filteredNotes.length === 0) {
-                            sections.push('## Notes\nNo public notes found. Enable "Include Secret Gists" in settings to include secret notes.');
-                        } else {
-                        // Fetch full content for each note (list API may truncate)
-                        const noteLines: string[] = [];
-                        for (const n of filteredNotes.slice(0, 10)) {
-                            try {
-                                const full = await this._gistService.getNote(n.id);
-                                const content = full.content.trim();
-                                const preview = content.length > 500
-                                    ? content.slice(0, 500) + '…'
-                                    : content;
-                                noteLines.push(
-                                    `### "${full.title}" (${full.isPublic ? 'public' : 'secret'})\n${preview}`,
-                                );
-                            } catch {
-                                noteLines.push(
-                                    `### "${n.title}" (${n.isPublic ? 'public' : 'secret'})\nUnable to load content.`,
-                                );
-                            }
-                        }
-                        if (filteredNotes.length > 10) {
-                            noteLines.push(`…and ${filteredNotes.length - 10} more notes.`);
-                        }
-                        const secretNote = includeSecretGists ? '' : ' (public only)';
-                        sections.push(`## Notes (${filteredNotes.length})${secretNote}\n${noteLines.join('\n\n')}`);
+                        return { key: 'notes', order: 4, text: '## Notes\nNo notes found.' };
+                    }
+                    const filteredNotes = includeSecretGists
+                        ? notes
+                        : notes.filter((n) => n.isPublic);
+                    if (filteredNotes.length === 0) {
+                        return { key: 'notes', order: 4, text: '## Notes\nNo public notes found. Enable "Include Secret Gists" in settings to include secret notes.' };
+                    }
+                    const noteLines: string[] = [];
+                    for (const n of filteredNotes.slice(0, 10)) {
+                        try {
+                            const full = await this._gistService!.getNote(n.id);
+                            const content = full.content.trim();
+                            const preview = content.length > 500
+                                ? content.slice(0, 500) + '…'
+                                : content;
+                            noteLines.push(
+                                `### "${full.title}" (${full.isPublic ? 'public' : 'secret'})\n${preview}`,
+                            );
+                        } catch {
+                            noteLines.push(
+                                `### "${n.title}" (${n.isPublic ? 'public' : 'secret'})\nUnable to load content.`,
+                            );
                         }
                     }
+                    if (filteredNotes.length > 10) {
+                        noteLines.push(`…and ${filteredNotes.length - 10} more notes.`);
+                    }
+                    const secretNote = includeSecretGists ? '' : ' (public only)';
+                    return { key: 'notes', order: 4, text: `## Notes (${filteredNotes.length})${secretNote}\n${noteLines.join('\n\n')}` };
+                } catch {
+                    return { key: 'notes', order: 4, text: '## Notes\nUnable to fetch notes.' };
                 }
-            } catch {
-                sections.push('## Notes\nUnable to fetch notes.');
-            }
+            })());
         }
 
         // ─── Mattermost ─────────────────────────────────────
         if (shouldInclude('mattermost') && this._mattermostService) {
-            try {
-                const configured = await this._mattermostService.isConfigured();
-                if (configured) {
-                    const teams = await this._mattermostService.getMyTeams();
+            tasks.push((async (): Promise<SectionResult> => {
+                try {
+                    const configured = await this._mattermostService!.isConfigured();
+                    if (!configured) {
+                        return { key: 'mattermost', order: 5, text: '## Mattermost\nNot configured.' };
+                    }
+                    const teams = await this._mattermostService!.getMyTeams();
                     const teamNames = teams.map((t) => t.displayName).join(', ');
                     const mmLines: string[] = [`Connected to teams: ${teamNames}`];
 
-                    // Get channels and recent posts for the first team
                     if (teams.length > 0) {
                         try {
-                            const channels = await this._mattermostService.getMyChannels(teams[0].id);
-                            // Filter out DMs/group messages unless setting enabled
+                            const channels = await this._mattermostService!.getMyChannels(teams[0].id);
                             const eligibleChannels = includePrivateMessages
                                 ? channels
                                 : channels.filter((c) => c.type === 'O' || c.type === 'P');
-                            // Sort by last post time, get most active channels
                             const activeChannels = eligibleChannels
                                 .filter((c) => c.lastPostAt > 0)
                                 .sort((a, b) => b.lastPostAt - a.lastPostAt)
@@ -603,10 +608,9 @@ export class StashPanel {
 
                             mmLines.push(`\n${channels.length} channels total, showing recent activity:`);
 
-                            // Fetch recent posts from top active channels
                             for (const ch of activeChannels) {
                                 try {
-                                    const posts = await this._mattermostService.getChannelPosts(
+                                    const posts = await this._mattermostService!.getChannelPosts(
                                         ch.id, 0, 35,
                                     );
                                     if (posts.length > 0) {
@@ -627,25 +631,25 @@ export class StashPanel {
                             }
                         } catch { /* ok */ }
                     }
-                    sections.push(`## Mattermost\n${mmLines.join('\n')}`);
-                } else {
-                    sections.push('## Mattermost\nNot configured.');
+                    return { key: 'mattermost', order: 5, text: `## Mattermost\n${mmLines.join('\n')}` };
+                } catch {
+                    return { key: 'mattermost', order: 5, text: '## Mattermost\nUnable to fetch Mattermost data.' };
                 }
-            } catch {
-                sections.push('## Mattermost\nUnable to fetch Mattermost data.');
-            }
+            })());
         }
 
         // ─── Google Drive ────────────────────────────────────
         if (shouldInclude('drive') && this._driveService) {
-            try {
-                const isGoogleAuth = await this._driveService.isAuthenticated();
-                if (isGoogleAuth) {
+            tasks.push((async (): Promise<SectionResult> => {
+                try {
+                    const isGoogleAuth = await this._driveService!.isAuthenticated();
+                    if (!isGoogleAuth) {
+                        return { key: 'drive', order: 6, text: '## Google Drive\nNot signed in.' };
+                    }
                     const driveLines: string[] = [];
 
-                    // Recent files
                     try {
-                        const recent = await this._driveService.getRecentFiles(15);
+                        const recent = await this._driveService!.getRecentFiles(15);
                         if (recent.files.length > 0) {
                             driveLines.push('### Recent Files');
                             for (const f of recent.files) {
@@ -655,9 +659,8 @@ export class StashPanel {
                         }
                     } catch { /* ok */ }
 
-                    // Starred files
                     try {
-                        const starred = await this._driveService.getStarredFiles(15);
+                        const starred = await this._driveService!.getStarredFiles(15);
                         if (starred.files.length > 0) {
                             driveLines.push('### Starred/Pinned Files');
                             for (const f of starred.files) {
@@ -667,39 +670,37 @@ export class StashPanel {
                     } catch { /* ok */ }
 
                     if (driveLines.length > 0) {
-                        sections.push(`## Google Drive\n${driveLines.join('\n')}`);
-                    } else {
-                        sections.push('## Google Drive\nConnected but no recent or starred files.');
+                        return { key: 'drive', order: 6, text: `## Google Drive\n${driveLines.join('\n')}` };
                     }
-                } else {
-                    sections.push('## Google Drive\nNot signed in.');
+                    return { key: 'drive', order: 6, text: '## Google Drive\nConnected but no recent or starred files.' };
+                } catch {
+                    return { key: 'drive', order: 6, text: '## Google Drive\nUnable to fetch Drive data.' };
                 }
-            } catch {
-                sections.push('## Google Drive\nUnable to fetch Drive data.');
-            }
+            })());
         }
 
         // ─── Google Calendar ─────────────────────────────────
         if (shouldInclude('calendar') && this._calendarService) {
-            try {
-                const isGoogleAuth = await this._calendarService.isAuthenticated();
-                if (isGoogleAuth) {
+            tasks.push((async (): Promise<SectionResult> => {
+                try {
+                    const isGoogleAuth = await this._calendarService!.isAuthenticated();
+                    if (!isGoogleAuth) {
+                        return { key: 'calendar', order: 7, text: '## Google Calendar\nNot signed in.' };
+                    }
                     const calLines: string[] = [];
-
-                    // Fetch upcoming events for the next 7 days
                     const now = new Date();
                     const weekFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
                     const timeMin = now.toISOString();
                     const timeMax = weekFromNow.toISOString();
 
                     try {
-                        const calendars = await this._calendarService.listCalendars();
+                        const calendars = await this._calendarService!.listCalendars();
                         calLines.push(`${calendars.length} calendar(s) connected`);
 
                         let totalEvents = 0;
                         for (const cal of calendars.slice(0, 5)) {
                             try {
-                                const eventsResp = await this._calendarService.listEvents(
+                                const eventsResp = await this._calendarService!.listEvents(
                                     cal.id, timeMin, timeMax, 20,
                                 );
                                 const items = eventsResp.items ?? [];
@@ -727,60 +728,69 @@ export class StashPanel {
                         calLines.push('Unable to list calendars.');
                     }
 
-                    sections.push(`## Google Calendar (next 7 days)\n${calLines.join('\n')}`);
-                } else {
-                    sections.push('## Google Calendar\nNot signed in.');
+                    return { key: 'calendar', order: 7, text: `## Google Calendar (next 7 days)\n${calLines.join('\n')}` };
+                } catch {
+                    return { key: 'calendar', order: 7, text: '## Google Calendar\nUnable to fetch calendar data.' };
                 }
-            } catch {
-                sections.push('## Google Calendar\nUnable to fetch calendar data.');
-            }
+            })());
         }
 
         // ─── Wiki ────────────────────────────────────────────
         if (shouldInclude('wiki') && this._wikiService && this._authService) {
-            try {
-                const repoInfo = await this._getRepoInfo();
-                if (repoInfo) {
-                    const hasWiki = await this._wikiService.hasWiki(repoInfo.owner, repoInfo.repo);
+            tasks.push((async (): Promise<SectionResult | null> => {
+                try {
+                    const repoInfo = await this._getRepoInfo();
+                    if (!repoInfo) {return null;}
+                    const hasWiki = await this._wikiService!.hasWiki(repoInfo.owner, repoInfo.repo);
                     if (!hasWiki) {
-                        sections.push('## Wiki\nNo wiki found for this repository.');
-                    } else {
-                        const pages = await this._wikiService.listPages(repoInfo.owner, repoInfo.repo);
-                        if (pages.length === 0) {
-                            sections.push('## Wiki\nWiki exists but has no pages.');
-                        } else {
-                            const wikiLines: string[] = [];
-                            // Fetch content for Home page if it exists
-                            const homePage = pages.find((p) => p.title === 'Home');
-                            if (homePage) {
-                                try {
-                                    const home = await this._wikiService.getPageContent(
-                                        repoInfo.owner, repoInfo.repo, homePage.filename,
-                                    );
-                                    const preview = home.content.length > 1000
-                                        ? home.content.slice(0, 1000) + '…'
-                                        : home.content;
-                                    wikiLines.push(`### Home\n${preview}`);
-                                } catch { /* ok */ }
-                            }
-                            // List remaining pages
-                            const otherPages = pages.filter((p) => p.title !== 'Home');
-                            if (otherPages.length > 0) {
-                                wikiLines.push('\n### Other Pages');
-                                for (const p of otherPages.slice(0, 20)) {
-                                    wikiLines.push(`- ${p.title}`);
-                                }
-                                if (otherPages.length > 20) {
-                                    wikiLines.push(`…and ${otherPages.length - 20} more pages.`);
-                                }
-                            }
-                            sections.push(`## Wiki (${pages.length} pages)\n${wikiLines.join('\n')}`);
+                        return { key: 'wiki', order: 8, text: '## Wiki\nNo wiki found for this repository.' };
+                    }
+                    const pages = await this._wikiService!.listPages(repoInfo.owner, repoInfo.repo);
+                    if (pages.length === 0) {
+                        return { key: 'wiki', order: 8, text: '## Wiki\nWiki exists but has no pages.' };
+                    }
+                    const wikiLines: string[] = [];
+                    const homePage = pages.find((p) => p.title === 'Home');
+                    if (homePage) {
+                        try {
+                            const home = await this._wikiService!.getPageContent(
+                                repoInfo.owner, repoInfo.repo, homePage.filename,
+                            );
+                            const preview = home.content.length > 1000
+                                ? home.content.slice(0, 1000) + '…'
+                                : home.content;
+                            wikiLines.push(`### Home\n${preview}`);
+                        } catch { /* ok */ }
+                    }
+                    const otherPages = pages.filter((p) => p.title !== 'Home');
+                    if (otherPages.length > 0) {
+                        wikiLines.push('\n### Other Pages');
+                        for (const p of otherPages.slice(0, 20)) {
+                            wikiLines.push(`- ${p.title}`);
+                        }
+                        if (otherPages.length > 20) {
+                            wikiLines.push(`…and ${otherPages.length - 20} more pages.`);
                         }
                     }
+                    return { key: 'wiki', order: 8, text: `## Wiki (${pages.length} pages)\n${wikiLines.join('\n')}` };
+                } catch {
+                    return { key: 'wiki', order: 8, text: '## Wiki\nUnable to fetch wiki data.' };
                 }
-            } catch {
-                sections.push('## Wiki\nUnable to fetch wiki data.');
+            })());
+        }
+
+        // Wait for all tasks to settle, then assemble in stable order
+        const results = await Promise.allSettled(tasks);
+        const sections: string[] = [];
+        const resolved: SectionResult[] = [];
+        for (const r of results) {
+            if (r.status === 'fulfilled' && r.value) {
+                resolved.push(r.value);
             }
+        }
+        resolved.sort((a, b) => a.order - b.order);
+        for (const s of resolved) {
+            sections.push(s.text);
         }
 
         return sections.join('\n\n');
@@ -937,7 +947,7 @@ export class StashPanel {
     }
 
     /** Fetch PRs from PrService and send to webview. */
-    private async _refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all'): Promise<void> {
+    private async _refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all', authorFilter?: 'all' | 'authored' | 'assigned' | 'review-requested'): Promise<void> {
         if (!this._prService || !this._authService) {
             this._outputChannel.appendLine('[PRs] Skipped: service not available');
             return;
@@ -971,6 +981,7 @@ export class StashPanel {
                 repoInfo.repo,
                 state ?? 'open',
                 username,
+                authorFilter ?? 'all',
             );
             this._outputChannel.appendLine(`[PRs] Loaded ${prs.length} PRs`);
             const payload = prs.map((pr) => PrService.toData(pr));

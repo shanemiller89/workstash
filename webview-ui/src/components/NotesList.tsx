@@ -7,6 +7,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Skeleton } from './ui/skeleton';
 import { Badge } from './ui/badge';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 
 /** Skeleton card shown while notes are loading */
 const SkeletonCard: React.FC = () => (
@@ -72,6 +73,17 @@ export const NotesList: React.FC = () => {
         }
     };
 
+    // Keyboard navigation (§7d)
+    const onNoteSelect = useCallback(
+        (index: number) => {
+            const note = notes[index];
+            if (note) handleSelectNote(note);
+        },
+        [notes, handleSelectNote],
+    );
+    const { listRef: notesListRef, containerProps, getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
+        useRovingTabIndex({ itemCount: notes.length, onSelect: onNoteSelect, searchRef });
+
     // Not authenticated state
     if (!isAuthenticated) {
         return (
@@ -104,7 +116,7 @@ export const NotesList: React.FC = () => {
                         placeholder="Search notes…"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        onKeyDown={handleSearchKeyDown}
+                        onKeyDown={(e) => { handleSearchKeyDown(e); rovingSearchKeyDown(e); }}
                         className="flex-1 text-[12px]"
                     />
                     <Button
@@ -201,7 +213,7 @@ export const NotesList: React.FC = () => {
             </div>
 
             {/* Note list */}
-            <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
+            <div ref={notesListRef} className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5" {...containerProps} aria-label="Notes list">
                 {error ? (
                     <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-8">
                         <AlertCircle size={24} className="text-destructive opacity-80" />
@@ -243,7 +255,7 @@ export const NotesList: React.FC = () => {
                         )}
                     </div>
                 ) : (
-                    notes.map((note) => {
+                    notes.map((note, i) => {
                         const isSelected = selectedNoteId === note.id;
                         const snippet = note.content.replace(/\n/g, ' ').slice(0, 80);
                         const updatedDate = new Date(note.updatedAt);
@@ -252,14 +264,14 @@ export const NotesList: React.FC = () => {
                         return (
                             <div
                                 key={note.id}
-                                className={`rounded-md border p-2.5 cursor-pointer transition-colors ${
+                                className={`rounded-md border p-2.5 cursor-pointer transition-colors outline-none ${
                                     isSelected
                                         ? 'border-accent ring-1 ring-accent bg-accent/5'
                                         : 'border-border bg-card hover:border-accent'
                                 }`}
                                 onClick={() => handleSelectNote(note)}
                                 role="option"
-                                aria-selected={isSelected}
+                                {...getItemProps(i)}
                             >
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1 min-w-0">

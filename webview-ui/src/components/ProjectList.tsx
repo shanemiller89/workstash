@@ -1,8 +1,9 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import { useProjectStore } from '../projectStore';
-import { useNotesStore } from '../notesStore';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { ErrorState } from './ErrorState';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 import {
     CircleDot,
     CheckCircle2,
@@ -73,45 +74,14 @@ function ItemTypeIcon({
 export const ProjectList: React.FC = () => {
     const items = useProjectStore((s) => s.items);
     const searchQuery = useProjectStore((s) => s.searchQuery);
-    const statusFilter = useProjectStore((s) => s.statusFilter);
-    const myIssuesOnly = useProjectStore((s) => s.myIssuesOnly);
     const selectItem = useProjectStore((s) => s.selectItem);
     const selectedItemId = useProjectStore((s) => s.selectedItemId);
     const selectedProject = useProjectStore((s) => s.selectedProject);
-    const authUsername = useNotesStore((s) => s.authUsername);
+    const error = useProjectStore((s) => s.error);
+    const filteredItemsFn = useProjectStore((s) => s.filteredItems);
 
-    const filteredItems = useMemo(() => {
-        let filtered = items.filter((i) => !i.isArchived);
-
-        if (myIssuesOnly && authUsername) {
-            filtered = filtered.filter((item) =>
-                item.content?.assignees?.some(
-                    (a) => a.login.toLowerCase() === authUsername.toLowerCase(),
-                ),
-            );
-        }
-
-        if (statusFilter !== 'all') {
-            filtered = filtered.filter((item) => {
-                const statusFv = item.fieldValues.find(
-                    (fv) => fv.fieldName === 'Status' && fv.fieldType === 'SINGLE_SELECT',
-                );
-                return statusFv?.singleSelectOptionName === statusFilter;
-            });
-        }
-
-        const q = searchQuery.trim().toLowerCase();
-        if (q) {
-            filtered = filtered.filter((item) => {
-                const title = item.content?.title?.toLowerCase() ?? '';
-                const number = item.content?.number ? `#${item.content.number}` : '';
-                const labels = item.content?.labels?.map((l) => l.name.toLowerCase()).join(' ') ?? '';
-                return title.includes(q) || number.includes(q) || labels.includes(q);
-            });
-        }
-
-        return filtered;
-    }, [items, statusFilter, searchQuery, myIssuesOnly, authUsername]);
+    // Use the store's consolidated filteredItems (includes archive, myIssuesOnly, status, search)
+    const filteredItems = filteredItemsFn();
 
     const handleSelectItem = useCallback(
         (itemId: string) => {
@@ -119,6 +89,26 @@ export const ProjectList: React.FC = () => {
         },
         [selectItem],
     );
+
+    // Keyboard navigation (§7f)
+    const onProjectItemSelect = useCallback(
+        (index: number) => {
+            const item = filteredItems[index];
+            if (item) handleSelectItem(item.id);
+        },
+        [filteredItems, handleSelectItem],
+    );
+    const { listRef, containerProps, getItemProps } =
+        useRovingTabIndex({ itemCount: filteredItems.length, onSelect: onProjectItemSelect });
+
+    if (error) {
+        return (
+            <ErrorState
+                message={error}
+                onRetry={() => useProjectStore.getState().setError(null)}
+            />
+        );
+    }
 
     if (filteredItems.length === 0) {
         return (
@@ -135,8 +125,8 @@ export const ProjectList: React.FC = () => {
     }
 
     return (
-        <div className="h-full overflow-y-auto">
-            {filteredItems.map((item) => {
+        <div ref={listRef} className="h-full overflow-y-auto" {...containerProps} aria-label="Project items list">
+            {filteredItems.map((item, i) => {
                 const isSelected = selectedItemId === item.id;
                 const title = item.content?.title ?? 'Untitled';
                 const statusFv = item.fieldValues.find(
@@ -155,6 +145,7 @@ export const ProjectList: React.FC = () => {
                                 : 'border-l-2 border-l-transparent'
                         }`}
                         onClick={() => handleSelectItem(item.id)}
+                        {...getItemProps(i)}
                     >
                         <div className="flex items-start gap-2">
                             <div className="mt-0.5 shrink-0">

@@ -59,11 +59,13 @@ interface DriveStore {
     // File browser
     files: DriveFileData[];
     isLoading: boolean;
+    error: string | null;
     nextPageToken: string | null;
     breadcrumbs: BreadcrumbItem[];
     setFiles: (files: DriveFileData[], nextPageToken?: string | null) => void;
     appendFiles: (files: DriveFileData[], nextPageToken?: string | null) => void;
     setLoading: (loading: boolean) => void;
+    setError: (error: string | null) => void;
 
     // Navigation
     navigateToFolder: (folderId: string, folderName: string) => void;
@@ -123,10 +125,11 @@ export const useDriveStore = create<DriveStore>((set, get) => ({
     // File browser
     files: [],
     isLoading: false,
+    error: null,
     nextPageToken: null,
     breadcrumbs: [{ id: 'root', name: 'My Drive' }],
     setFiles: (files, nextPageToken) =>
-        set({ files, nextPageToken: nextPageToken ?? null, isLoading: false }),
+        set({ files, nextPageToken: nextPageToken ?? null, isLoading: false, error: null }),
     appendFiles: (newFiles, nextPageToken) =>
         set((state) => ({
             files: [...state.files, ...newFiles],
@@ -134,6 +137,7 @@ export const useDriveStore = create<DriveStore>((set, get) => ({
             isLoading: false,
         })),
     setLoading: (isLoading) => set({ isLoading }),
+    setError: (error) => set({ error, isLoading: false }),
 
     // Navigation
     navigateToFolder: (folderId, folderName) =>

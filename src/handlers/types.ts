@@ -54,7 +54,7 @@ export interface HandlerContext {
 
     // ─── Domain refresh helpers ───────────────────────────
     refreshNotes(): Promise<void>;
-    refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all'): Promise<void>;
+    refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all', authorFilter?: 'all' | 'authored' | 'assigned' | 'review-requested'): Promise<void>;
     sendPRComments(prNumber: number): Promise<void>;
     refreshIssues(state?: 'open' | 'closed' | 'all'): Promise<void>;
     sendIssueComments(issueNumber: number): Promise<void>;
@@ -81,7 +81,6 @@ export interface HandlerContext {
 // Each domain module exports a single function matching this signature.
 // Returns `true` if the message was handled, `false` otherwise.
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type WebviewMessage = { type: string } & Record<string, any>;
 
 export type MessageHandler = (

@@ -107,7 +107,7 @@ function FieldValueCell({
 
         case 'TEXT':
             return (
-                <span className="text-[10px] text-fg/70 truncate max-w-[120px] inline-block">
+                <span className="text-[10px] text-fg/70 truncate max-w-30 inline-block">
                     {fv.text ?? '—'}
                 </span>
             );
@@ -271,7 +271,7 @@ export const ProjectTableView: React.FC = () => {
                                 }`}
                             >
                                 {/* Title cell */}
-                                <td className="px-3 py-2 max-w-[300px]">
+                                <td className="px-3 py-2 max-w-75">
                                     <div className="flex items-center gap-1.5">
                                         <div className="shrink-0">
                                             <ItemTypeIcon

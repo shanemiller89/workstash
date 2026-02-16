@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useState, useRef, useEffect } from 'react';
 import { useDriveStore, type DriveFileData, type DriveViewMode } from '../driveStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
@@ -7,6 +7,7 @@ import { Badge } from './ui/badge';
 import { Skeleton } from './ui/skeleton';
 import { ScrollArea } from './ui/scroll-area';
 import { Separator } from './ui/separator';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 import {
     Folder,
     File,
@@ -41,6 +42,7 @@ import {
     DropdownMenuTrigger,
 } from './ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from './ui/tooltip';
+import { ErrorState } from './ErrorState';
 
 const FOLDER_MIME = 'application/vnd.google-apps.folder';
 
@@ -102,6 +104,7 @@ export const DriveFileList: React.FC = () => {
     const setViewMode = useDriveStore((s) => s.setViewMode);
     const files = useDriveStore((s) => s.files);
     const isLoading = useDriveStore((s) => s.isLoading);
+    const error = useDriveStore((s) => s.error);
     const breadcrumbs = useDriveStore((s) => s.breadcrumbs);
     const navigateToFolder = useDriveStore((s) => s.navigateToFolder);
     const navigateBack = useDriveStore((s) => s.navigateBack);
@@ -233,6 +236,19 @@ export const DriveFileList: React.FC = () => {
 
     const showingLoading = isLoading || isSearching;
 
+    // Keyboard navigation (§7g)
+    const onFileSelect = useCallback(
+        (index: number) => {
+            const file = displayFiles[index];
+            if (!file) return;
+            if (file.mimeType === FOLDER_MIME) handleFolderClick(file);
+            else handleFileClick(file);
+        },
+        [displayFiles, handleFolderClick, handleFileClick],
+    );
+    const { listRef: fileListRef, containerProps: fileContainerProps, getItemProps: getFileItemProps, handleSearchKeyDown: rovingFileSearchKeyDown } =
+        useRovingTabIndex({ itemCount: displayFiles.length, onSelect: onFileSelect, searchRef: searchInputRef });
+
     return (
         <div className="h-full flex flex-col bg-bg text-fg text-[13px]">
             {/* Header */}
@@ -324,6 +340,7 @@ export const DriveFileList: React.FC = () => {
                         placeholder="Search Google Drive..."
                         value={searchQuery}
                         onChange={(e) => handleSearchChange(e.target.value)}
+                        onKeyDown={rovingFileSearchKeyDown}
                         className="h-7 text-xs"
                     />
                 )}
@@ -497,7 +514,7 @@ export const DriveFileList: React.FC = () => {
 
             {/* File list */}
             {(viewMode !== 'pinned' && (viewMode !== 'shared' || selectedSharedDriveId)) && (
-                <ScrollArea className="flex-1 overflow-y-auto">
+                <ScrollArea ref={fileListRef} className="flex-1 overflow-y-auto" {...fileContainerProps} aria-label="Files list">
                     <div className="p-1">
                         {showingLoading ? (
                             Array.from({ length: 8 }).map((_, i) => (
@@ -507,6 +524,14 @@ export const DriveFileList: React.FC = () => {
                                     <Skeleton className="h-3 w-12 rounded" />
                                 </div>
                             ))
+                        ) : error ? (
+                            <ErrorState
+                                message={error}
+                                onRetry={() => {
+                                    useDriveStore.getState().setError(null);
+                                    handleRefresh();
+                                }}
+                            />
                         ) : displayFiles.length === 0 ? (
                             <div className="text-center text-fg/40 text-xs py-8">
                                 {showSearch && searchQuery.trim() ? (
@@ -522,12 +547,13 @@ export const DriveFileList: React.FC = () => {
                                 )}
                             </div>
                         ) : (
-                            displayFiles.map((file) => (
+                            displayFiles.map((file, i) => (
                                 <FileRow
                                     key={file.id}
                                     file={file}
                                     onFolderClick={handleFolderClick}
                                     onFileClick={handleFileClick}
+                                    rovingProps={getFileItemProps(i)}
                                 />
                             ))
                         )}
@@ -544,13 +570,15 @@ const FileRow: React.FC<{
     file: DriveFileData;
     onFolderClick: (file: DriveFileData) => void;
     onFileClick: (file: DriveFileData) => void;
-}> = ({ file, onFolderClick, onFileClick }) => {
+    rovingProps?: Record<string, unknown>;
+}> = ({ file, onFolderClick, onFileClick, rovingProps }) => {
     const isFolder = file.mimeType === FOLDER_MIME;
 
     return (
         <button
-            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-card text-left group"
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded hover:bg-card text-left group outline-none focus-visible:ring-1 focus-visible:ring-accent"
             onClick={() => (isFolder ? onFolderClick(file) : onFileClick(file))}
+            {...rovingProps}
         >
             <FileIcon mimeType={file.mimeType} size={14} />
             <span className="truncate flex-1 min-w-0">{file.name}</span>

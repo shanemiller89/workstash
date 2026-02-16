@@ -21,6 +21,7 @@ import {
     StickyNote,
     Bot,
     Key,
+    Keyboard,
     CheckCircle2,
     XCircle,
     Eye,
@@ -76,6 +77,13 @@ const SectionCard: React.FC<{
             {children}
         </CardContent>
     </Card>
+);
+
+/** Keyboard key badge */
+const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+    <kbd className="inline-flex items-center justify-center min-w-6 h-5 px-1.5 rounded border border-border bg-card text-[11px] font-mono text-fg/70">
+        {children}
+    </kbd>
 );
 
 // ─── Main Component ───────────────────────────────────────────────
@@ -206,7 +214,7 @@ export const SettingsTab: React.FC = () => {
                                     }
                                 }}
                             >
-                                <SelectTrigger className="w-[160px] h-7 text-[11px]">
+                                <SelectTrigger className="w-40 h-7 text-[11px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -319,7 +327,7 @@ export const SettingsTab: React.FC = () => {
                                 value={settings.geminiModel}
                                 onValueChange={(v) => updateSetting('geminiModel', v)}
                             >
-                                <SelectTrigger className="w-[180px] h-7 text-[11px]">
+                                <SelectTrigger className="w-45 h-7 text-[11px]">
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -356,7 +364,7 @@ export const SettingsTab: React.FC = () => {
                                         value={modelAssignments[key] || '__default__'}
                                         onValueChange={(v) => handleModelChange(key, v ?? '__default__')}
                                     >
-                                        <SelectTrigger className="w-[200px] h-7 text-[11px]">
+                                        <SelectTrigger className="w-50 h-7 text-[11px]">
                                             <SelectValue />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -465,7 +473,7 @@ export const SettingsTab: React.FC = () => {
                         <Input
                             value={settings.mattermostServerUrl}
                             placeholder="https://mattermost.example.com"
-                            className="w-[220px] h-7 text-[11px]"
+                            className="w-55 h-7 text-[11px]"
                             onChange={(e) => updateSetting('mattermostServerUrl', e.target.value)}
                             onBlur={(e) => updateSetting('mattermostServerUrl', e.target.value.trim().replace(/\/+$/, ''))}
                         />
@@ -535,7 +543,7 @@ export const SettingsTab: React.FC = () => {
                             value={settings.sortOrder}
                             onValueChange={(v) => updateSetting('sortOrder', v)}
                         >
-                            <SelectTrigger className="w-[120px] h-7 text-[11px]">
+                            <SelectTrigger className="w-30 h-7 text-[11px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -570,7 +578,7 @@ export const SettingsTab: React.FC = () => {
                             min={5}
                             max={300}
                             value={settings.autosaveDelay}
-                            className="w-[80px] h-7 text-[11px] text-center"
+                            className="w-20 h-7 text-[11px] text-center"
                             onChange={(e) => {
                                 const v = parseInt(e.target.value, 10);
                                 if (!isNaN(v) && v >= 5 && v <= 300) {
@@ -588,7 +596,7 @@ export const SettingsTab: React.FC = () => {
                             value={settings.defaultVisibility}
                             onValueChange={(v) => updateSetting('defaultVisibility', v)}
                         >
-                            <SelectTrigger className="w-[120px] h-7 text-[11px]">
+                            <SelectTrigger className="w-30 h-7 text-[11px]">
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
@@ -597,6 +605,29 @@ export const SettingsTab: React.FC = () => {
                             </SelectContent>
                         </Select>
                     </SettingRow>
+                </SectionCard>
+
+                {/* Keyboard Shortcuts (§7h) */}
+                <SectionCard title="Keyboard Shortcuts" icon={<Keyboard size={14} />}>
+                    <div className="space-y-2 text-[12px]">
+                        <p className="text-fg/50 mb-3">These shortcuts work inside list views across all tabs.</p>
+                        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 items-center">
+                            <Kbd>↑</Kbd><span className="text-fg/70">Move focus up</span>
+                            <Kbd>↓</Kbd><span className="text-fg/70">Move focus down</span>
+                            <Kbd>Home</Kbd><span className="text-fg/70">Jump to first item</span>
+                            <Kbd>End</Kbd><span className="text-fg/70">Jump to last item</span>
+                            <Kbd>Enter</Kbd><span className="text-fg/70">Open / select focused item</span>
+                            <Kbd>Space</Kbd><span className="text-fg/70">Open / select focused item</span>
+                            <Kbd>Escape</Kbd><span className="text-fg/70">Clear search / return to list</span>
+                        </div>
+                        <Separator className="my-2" />
+                        <p className="text-fg/50 mb-2">Stash detail shortcuts (when a stash is expanded):</p>
+                        <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 items-center">
+                            <Kbd>a</Kbd><span className="text-fg/70">Apply stash</span>
+                            <Kbd>p</Kbd><span className="text-fg/70">Pop stash</span>
+                            <Kbd>d</Kbd><span className="text-fg/70">Drop stash</span>
+                        </div>
+                    </div>
                 </SectionCard>
 
                 {/* Footer spacer */}

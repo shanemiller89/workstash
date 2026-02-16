@@ -41,7 +41,7 @@ export function handleProjectMessage(msg: Msg): boolean {
             s.addItem(msg.item as ProjectItemData);
             return true;
         case 'projectError':
-            s.setLoading(false);
+            s.setError(msg.message as string ?? 'An error occurred');
             s.setItemsLoading(false);
             s.setFieldUpdating(false);
             return true;

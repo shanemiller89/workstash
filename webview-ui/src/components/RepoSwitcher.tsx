@@ -150,7 +150,7 @@ export const RepoSwitcher: React.FC = () => {
                     <Button
                         variant="ghost"
                         size="sm"
-                        className="h-6 gap-1 px-2 text-[11px] font-normal text-fg/60 hover:text-fg/90 max-w-[200px]"
+                        className="h-6 gap-1 px-2 text-[11px] font-normal text-fg/60 hover:text-fg/90 max-w-50"
                     >
                         <GitBranch size={12} className="shrink-0" />
                         <span className="truncate">{triggerLabel}</span>
@@ -161,7 +161,7 @@ export const RepoSwitcher: React.FC = () => {
             <PopoverContent
                 align="end"
                 sideOffset={4}
-                className="w-[280px] p-0 gap-0"
+                className="w-70 p-0 gap-0"
             >
                 {/* Search input */}
                 <div className="p-2 pb-0">
@@ -175,7 +175,7 @@ export const RepoSwitcher: React.FC = () => {
                 </div>
 
                 {/* Grouped repo list */}
-                <ScrollArea className="max-h-[300px] overflow-y-auto">
+                <ScrollArea className="max-h-75 overflow-y-auto">
                     <div className="p-1">
                         {repoGroupsLoading && filteredGroups.length === 0 && (
                             <div className="flex items-center justify-center gap-2 py-4 text-[12px] text-[var(--vscode-descriptionForeground)]">

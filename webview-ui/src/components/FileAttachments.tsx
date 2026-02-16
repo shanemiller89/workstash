@@ -74,7 +74,7 @@ const ImageAttachment: React.FC<{
                 <img
                     src={file.url}
                     alt={file.name}
-                    className="max-w-[280px] max-h-[200px] object-contain bg-black/10"
+                    className="max-w-70 max-h-50 object-contain bg-black/10"
                     onError={() => setLoadError(true)}
                 />
             </Button>
@@ -94,7 +94,7 @@ const GenericFileAttachment: React.FC<{
         href={file.url}
         target="_blank"
         rel="noopener noreferrer"
-        className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--vscode-panel-border)] hover:border-[var(--vscode-focusBorder)] hover:bg-[var(--vscode-list-hoverBackground)] transition-colors text-xs max-w-[280px]"
+        className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--vscode-panel-border)] hover:border-[var(--vscode-focusBorder)] hover:bg-[var(--vscode-list-hoverBackground)] transition-colors text-xs max-w-70"
         title={`Download ${file.name}`}
     >
         <FileText size={16} className="shrink-0 text-fg/50" />

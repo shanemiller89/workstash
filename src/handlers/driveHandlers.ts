@@ -41,9 +41,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         nextPageToken: result.nextPageToken,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] listFiles error: ${extractErrorMessage(e)}`,
+                        `[Drive] listFiles error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveFiles',
                         files: [],
@@ -62,9 +64,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         files: result.files,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] search error: ${extractErrorMessage(e)}`,
+                        `[Drive] search error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveSearchResults',
                         files: [],
@@ -83,9 +87,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         files: result.files,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] getStarred error: ${extractErrorMessage(e)}`,
+                        `[Drive] getStarred error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveStarredFiles',
                         files: [],
@@ -104,9 +110,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         files: result.files,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] getRecent error: ${extractErrorMessage(e)}`,
+                        `[Drive] getRecent error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveRecentFiles',
                         files: [],
@@ -125,9 +133,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         drives: result.drives,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] getSharedDrives error: ${extractErrorMessage(e)}`,
+                        `[Drive] getSharedDrives error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveSharedDrives',
                         drives: [],
@@ -146,9 +156,11 @@ export const handleDriveMessage: MessageHandler = async (ctx, msg) => {
                         files: result.files,
                     });
                 } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
                     ctx.outputChannel.appendLine(
-                        `[Drive] listSharedDriveFiles error: ${extractErrorMessage(e)}`,
+                        `[Drive] listSharedDriveFiles error: ${m}`,
                     );
+                    ctx.postMessage({ type: 'driveError', message: m });
                     ctx.postMessage({
                         type: 'driveSharedDriveFiles',
                         files: [],

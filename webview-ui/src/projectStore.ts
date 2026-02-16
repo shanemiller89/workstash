@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useNotesStore } from './notesStore';
 
 // ─── Data Shapes (mirror projectService webview types) ────────────
 
@@ -135,6 +136,7 @@ interface ProjectStore {
     isItemsLoading: boolean;
     isFieldUpdating: boolean;
     isRepoNotFound: boolean;
+    error: string | null;
 
     // Actions
     setAvailableProjects: (projects: ProjectSummary[]) => void;
@@ -151,6 +153,7 @@ interface ProjectStore {
     setItemsLoading: (loading: boolean) => void;
     setFieldUpdating: (updating: boolean) => void;
     setRepoNotFound: (notFound: boolean) => void;
+    setError: (error: string | null) => void;
     updateItemFieldValue: (itemId: string, fieldId: string, value: ProjectFieldValueData) => void;
     removeItem: (itemId: string) => void;
     addItem: (item: ProjectItemData) => void;
@@ -178,6 +181,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isItemsLoading: false,
     isFieldUpdating: false,
     isRepoNotFound: false,
+    error: null,
 
     setAvailableProjects: (projects) => set({ availableProjects: projects }),
 
@@ -200,6 +204,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
             items,
             isItemsLoading: false,
             isLoading: false,
+            error: null,
             ...(stillExists ? {} : { selectedItemId: null }),
         });
     },
@@ -229,6 +234,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     setItemsLoading: (loading) => set({ isItemsLoading: loading }),
     setFieldUpdating: (updating) => set({ isFieldUpdating: updating }),
     setRepoNotFound: (notFound) => set({ isRepoNotFound: notFound, isLoading: false }),
+    setError: (error) => set({ error, isLoading: false }),
 
     updateItemFieldValue: (itemId, fieldId, value) => {
         set((state) => ({
@@ -263,9 +269,21 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     },
 
     filteredItems: () => {
-        const { items, statusFilter, searchQuery } = get();
+        const { items, statusFilter, searchQuery, myIssuesOnly } = get();
 
         let filtered = items.filter((i) => !i.isArchived);
+
+        // My issues only filter
+        if (myIssuesOnly) {
+            const authUsername = useNotesStore.getState().authUsername;
+            if (authUsername) {
+                filtered = filtered.filter((item) =>
+                    item.content?.assignees?.some(
+                        (a) => a.login.toLowerCase() === authUsername.toLowerCase(),
+                    ),
+                );
+            }
+        }
 
         // Status filter
         if (statusFilter !== 'all') {

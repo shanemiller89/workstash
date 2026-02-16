@@ -45,6 +45,9 @@ export function handleDriveMessage(msg: Msg): boolean {
         case 'driveUploadDone':
             s.setUploading(false);
             return true;
+        case 'driveError':
+            s.setError(msg.message as string ?? 'An error occurred');
+            return true;
         case 'driveFileStarred': {
             const fileId = msg.fileId as string;
             const starred = msg.starred as boolean;

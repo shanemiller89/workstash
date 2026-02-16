@@ -3,6 +3,19 @@ import { AiService } from '../aiService';
 import { extractErrorMessage } from '../utils';
 import type { HandlerContext, MessageHandler } from './types';
 
+// ─── Cancellation tracking (§6a-c) ─────────────────────────────
+// Per-tab summary tokens, single chat token, single agent token.
+const _summaryCts = new Map<string, vscode.CancellationTokenSource>();
+let _chatCts: vscode.CancellationTokenSource | undefined;
+let _agentCts: vscode.CancellationTokenSource | undefined;
+
+/** Cancel and dispose an existing CTS, then create a fresh one. */
+function resetCts(existing?: vscode.CancellationTokenSource): vscode.CancellationTokenSource {
+    existing?.cancel();
+    existing?.dispose();
+    return new vscode.CancellationTokenSource();
+}
+
 /** Handle all `ai.*` messages from the webview. */
 export const handleAiMessage: MessageHandler = async (ctx, msg) => {
     switch (msg.type) {
@@ -56,16 +69,22 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
             if (!msg.tabKey) { return true; }
             const tabKey = msg.tabKey;
             const customPrompt = msg.customPrompt as string | undefined;
+
+            // §6a — cancel any in-flight summary for this tab
+            const cts = resetCts(_summaryCts.get(tabKey));
+            _summaryCts.set(tabKey, cts);
+
             try {
                 const contextData = await ctx.gatherContext(tabKey);
                 ctx.outputChannel.appendLine(`[AI] Summarize ${tabKey} — context length: ${contextData.length} chars${customPrompt ? ' (custom prompt)' : ''}`);
-                const result = await ctx.aiService.summarize(tabKey, contextData, customPrompt);
+                const result = await ctx.aiService.summarize(tabKey, contextData, customPrompt, cts.token);
                 ctx.postMessage({
                     type: 'aiSummaryResult',
                     tabKey,
                     content: result,
                 });
             } catch (e: unknown) {
+                if (cts.token.isCancellationRequested) { return true; } // silently drop cancelled
                 const m = extractErrorMessage(e);
                 ctx.postMessage({
                     type: 'aiSummaryError',
@@ -86,6 +105,10 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
             const history = msg.history ?? [];
             const webSearch = msg.webSearch === true;
             const assistantMsgId = `assist_${Date.now()}`;
+
+            // §6b — cancel any in-flight chat request
+            _chatCts = resetCts(_chatCts);
+            const chatToken = _chatCts.token;
 
             try {
                 // Gather context from all tabs
@@ -111,7 +134,7 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
                             chunk,
                         });
                     },
-                    undefined,
+                    chatToken,
                     webSearch,
                 );
 
@@ -120,6 +143,7 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
                     messageId: assistantMsgId,
                 });
             } catch (e: unknown) {
+                if (chatToken.isCancellationRequested) { return true; }
                 const m = extractErrorMessage(e);
                 ctx.postMessage({
                     type: 'aiChatError',
@@ -138,6 +162,11 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
             const prompt = (msg.body as string | undefined) ?? '';
             const template = (msg.mode as string | undefined) ?? 'custom';
             const customSystemPrompt = (msg.systemPrompt as string | undefined) ?? '';
+
+            // §6c — cancel any in-flight agent request
+            _agentCts = resetCts(_agentCts);
+            const agentToken = _agentCts.token;
+
             try {
                 const contextData = await ctx.gatherContext();
                 ctx.outputChannel.appendLine(
@@ -155,7 +184,7 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
                             chunk,
                         });
                     },
-                    undefined,
+                    agentToken,
                     customSystemPrompt || undefined,
                 );
 
@@ -164,6 +193,7 @@ export const handleAiMessage: MessageHandler = async (ctx, msg) => {
                     content: result,
                 });
             } catch (e: unknown) {
+                if (agentToken.isCancellationRequested) { return true; }
                 const m = extractErrorMessage(e);
                 ctx.postMessage({
                     type: 'aiAgentError',

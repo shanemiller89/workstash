@@ -6,6 +6,7 @@ import { Archive, Plus, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Skeleton } from './ui/skeleton';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 
 /** Animated skeleton card shown while stashes are loading */
 const SkeletonCard: React.FC = () => (
@@ -107,64 +108,33 @@ export const StashList: React.FC = () => {
 
     const stashes = useMemo(() => filteredStashesFn(), [filteredStashesFn, allStashes, searchQuery]);
 
-    // 8b-v: Roving tabindex keyboard navigation
-    const [focusedIndex, setFocusedIndex] = useState(-1);
-    const listRef = useRef<HTMLDivElement>(null);
+    // Roving tabindex keyboard navigation (§7a)
     const searchRef = useRef<HTMLInputElement>(null);
-
-    const handleListKeyDown = useCallback(
-        (e: React.KeyboardEvent) => {
-            if (stashes.length === 0) return;
-
-            switch (e.key) {
-                case 'ArrowDown':
-                    e.preventDefault();
-                    setFocusedIndex((prev) => Math.min(prev + 1, stashes.length - 1));
-                    break;
-                case 'ArrowUp':
-                    e.preventDefault();
-                    setFocusedIndex((prev) => {
-                        if (prev <= 0) {
-                            searchRef.current?.focus();
-                            return -1;
-                        }
-                        return prev - 1;
-                    });
-                    break;
-                case 'Home':
-                    e.preventDefault();
-                    setFocusedIndex(0);
-                    break;
-                case 'End':
-                    e.preventDefault();
-                    setFocusedIndex(stashes.length - 1);
-                    break;
-                case 'Escape':
-                    e.preventDefault();
-                    if (searchQuery) {
-                        setSearchQuery('');
-                    } else {
-                        searchRef.current?.focus();
-                        setFocusedIndex(-1);
-                    }
-                    break;
+    const onStashSelect = useCallback(
+        (index: number) => {
+            const stash = stashes[index];
+            if (stash) {
+                useStashStore.getState().selectStash(stash.index);
             }
         },
-        [stashes.length, searchQuery, setSearchQuery],
+        [stashes],
     );
-
-    // Move focus to the card element when focusedIndex changes
-    useEffect(() => {
-        if (focusedIndex >= 0 && listRef.current) {
-            const cards = listRef.current.querySelectorAll<HTMLElement>('[data-stash-card]');
-            cards[focusedIndex]?.focus();
+    const onStashEscape = useCallback(() => {
+        if (searchQuery) {
+            setSearchQuery('');
+        } else {
+            searchRef.current?.focus();
         }
-    }, [focusedIndex]);
+    }, [searchQuery, setSearchQuery]);
 
-    // Reset focus when stashes change
-    useEffect(() => {
-        setFocusedIndex(-1);
-    }, [stashes.length]);
+    const { focusedIndex, listRef, containerProps, getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
+        useRovingTabIndex({
+            itemCount: stashes.length,
+            onSelect: onStashSelect,
+            searchRef,
+            onEscape: onStashEscape,
+            itemSelector: 'data-stash-card',
+        });
 
     return (
         <div className="flex flex-col h-full">
@@ -178,10 +148,8 @@ export const StashList: React.FC = () => {
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         onKeyDown={(e) => {
-                            if (e.key === 'ArrowDown' && stashes.length > 0) {
-                                e.preventDefault();
-                                setFocusedIndex(0);
-                            } else if (e.key === 'Escape' && searchQuery) {
+                            rovingSearchKeyDown(e);
+                            if (e.key === 'Escape' && searchQuery) {
                                 setSearchQuery('');
                             }
                         }}
@@ -215,9 +183,8 @@ export const StashList: React.FC = () => {
             <div
                 ref={listRef}
                 className="flex-1 overflow-y-auto px-2 py-2 flex flex-col gap-1.5"
-                role="listbox"
                 aria-label="Stash list"
-                onKeyDown={handleListKeyDown}
+                {...containerProps}
             >
                 {loading && stashes.length === 0 && (
                     <div className="flex flex-col gap-1.5">

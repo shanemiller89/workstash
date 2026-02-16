@@ -457,7 +457,7 @@ ${contextData}`;
 
     // ─── Agent templates ──────────────────────────────────────────
 
-    private static readonly AGENT_TEMPLATES: Record<string, string> = {
+    static readonly AGENT_TEMPLATES: Record<string, string> = {
         sprint: `You are a senior engineering manager creating a sprint status report.
 Analyze ALL the workspace data provided and produce a comprehensive sprint overview with these sections:
 ## Sprint Overview

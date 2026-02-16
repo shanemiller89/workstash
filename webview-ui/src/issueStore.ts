@@ -40,6 +40,7 @@ interface IssueStore {
     isCommentsLoading: boolean;
     isCommentSaving: boolean;
     isRepoNotFound: boolean;
+    error: string | null;
     searchQuery: string;
 
     // Actions
@@ -54,6 +55,7 @@ interface IssueStore {
     setCommentsLoading: (loading: boolean) => void;
     setCommentSaving: (saving: boolean) => void;
     setRepoNotFound: (notFound: boolean) => void;
+    setError: (error: string | null) => void;
     setSearchQuery: (query: string) => void;
     updateIssueState: (issueNumber: number, state: 'open' | 'closed') => void;
 
@@ -72,6 +74,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
     isCommentsLoading: false,
     isCommentSaving: false,
     isRepoNotFound: false,
+    error: null,
     searchQuery: '',
 
     setIssues: (issues) => {
@@ -81,6 +84,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
         set({
             issues,
             isLoading: false,
+            error: null,
             ...(stillExists
                 ? {}
                 : {
@@ -93,7 +97,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
 
     selectIssue: (issueNumber) => {
         const { selectedIssueNumber } = get();
-        if (issueNumber === selectedIssueNumber) return;
+        if (issueNumber === selectedIssueNumber) {return;}
         set({
             selectedIssueNumber: issueNumber,
             selectedIssueDetail: null,
@@ -134,6 +138,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
     setCommentsLoading: (loading) => set({ isCommentsLoading: loading }),
     setCommentSaving: (saving) => set({ isCommentSaving: saving }),
     setRepoNotFound: (notFound) => set({ isRepoNotFound: notFound, isLoading: false }),
+    setError: (error) => set({ error, isLoading: false }),
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
@@ -151,7 +156,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
     filteredIssues: () => {
         const { issues, searchQuery } = get();
         const q = searchQuery.trim().toLowerCase();
-        if (!q) return issues;
+        if (!q) {return issues;}
         return issues.filter(
             (issue) =>
                 issue.title.toLowerCase().includes(q) ||
@@ -162,7 +167,7 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
 
     selectedIssue: () => {
         const { issues, selectedIssueNumber } = get();
-        if (selectedIssueNumber === null) return undefined;
+        if (selectedIssueNumber === null) {return undefined;}
         return issues.find((i) => i.number === selectedIssueNumber);
     },
 }));

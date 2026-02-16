@@ -367,10 +367,10 @@ export const FloatingChat: React.FC = () => {
                         {chatMessages.length === 0 ? (
                             <div className="flex flex-col items-center justify-center h-full gap-2 p-4 text-center">
                                 <Bot size={24} className="text-fg/15" />
-                                <p className="text-[11px] text-fg/30 max-w-[220px]">
+                                <p className="text-[11px] text-fg/30 max-w-55">
                                     Ask me about your PRs, issues, stashes, projects, notes, or Mattermost messages
                                 </p>
-                                <div className="flex flex-col gap-1 mt-2 w-full max-w-[240px]">
+                                <div className="flex flex-col gap-1 mt-2 w-full max-w-60">
                                     {[
                                         'What PRs need my review?',
                                         'Summarize open issues',
@@ -420,7 +420,7 @@ export const FloatingChat: React.FC = () => {
                                 }}
                                 onKeyDown={handleKeyDown}
                                 placeholder="Ask about your workspace…"
-                                className="text-[11px] min-h-[32px] max-h-[240px] resize-none py-1.5 px-2.5"
+                                className="text-[11px] min-h-8 max-h-60 resize-none py-1.5 px-2.5"
                                 rows={1}
                                 disabled={isChatLoading}
                             />
@@ -468,7 +468,7 @@ export const FloatingChat: React.FC = () => {
                         </InputGroup>
                         {/* Model picker dropdown */}
                         {modelPickerOpen && (
-                            <div className="mt-1 border border-border rounded-md bg-[var(--vscode-editor-background)] p-1.5 max-h-[120px] overflow-y-auto">
+                            <div className="mt-1 border border-border rounded-md bg-[var(--vscode-editor-background)] p-1.5 max-h-30 overflow-y-auto">
                                 <button
                                     className={`w-full text-left px-2 py-1 rounded text-[9px] transition-colors ${
                                         !currentChatModelId

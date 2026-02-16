@@ -19,10 +19,10 @@ export function formatRelativeTimeCompact(date: Date): string {
     const diffHour = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHour / 24);
 
-    if (diffMin < 1) return 'just now';
-    if (diffMin < 60) return `${diffMin}m ago`;
-    if (diffHour < 24) return `${diffHour}h ago`;
-    if (diffDay < 7) return `${diffDay}d ago`;
+    if (diffMin < 1) {return 'just now';}
+    if (diffMin < 60) {return `${diffMin}m ago`;}
+    if (diffHour < 24) {return `${diffHour}h ago`;}
+    if (diffDay < 7) {return `${diffDay}d ago`;}
     return date.toLocaleDateString();
 }
 
@@ -51,9 +51,9 @@ export function formatChatTimestamp(iso: string): string {
         minute: '2-digit',
     });
 
-    if (diffDays === 0) return timeStr;
-    if (diffDays === 1) return `Yesterday ${timeStr}`;
-    if (diffDays < 7) return `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${timeStr}`;
+    if (diffDays === 0) {return timeStr;}
+    if (diffDays === 1) {return `Yesterday ${timeStr}`;}
+    if (diffDays < 7) {return `${date.toLocaleDateString(undefined, { weekday: 'short' })} ${timeStr}`;}
     return `${date.toLocaleDateString()} ${timeStr}`;
 }
 
@@ -72,15 +72,15 @@ export function formatRelativeTime(date: Date): string {
     const diffHour = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHour / 24);
 
-    if (diffSec < 60) return 'just now';
-    if (diffMin < 60) return `${diffMin} min ago`;
-    if (diffHour < 24) return diffHour === 1 ? '1 hour ago' : `${diffHour} hours ago`;
-    if (diffDay < 7) return diffDay === 1 ? '1 day ago' : `${diffDay} days ago`;
+    if (diffSec < 60) {return 'just now';}
+    if (diffMin < 60) {return `${diffMin} min ago`;}
+    if (diffHour < 24) {return diffHour === 1 ? '1 hour ago' : `${diffHour} hours ago`;}
+    if (diffDay < 7) {return diffDay === 1 ? '1 day ago' : `${diffDay} days ago`;}
 
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const month = months[date.getMonth()];
     const day = date.getDate();
 
-    if (diffDay < 365) return `${month} ${day}`;
+    if (diffDay < 365) {return `${month} ${day}`;}
     return `${month} ${day}, ${date.getFullYear()}`;
 }

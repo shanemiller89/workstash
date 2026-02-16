@@ -13,7 +13,7 @@ function Slider({
       className={cn(
         "relative flex w-full touch-none items-center select-none data-disabled:opacity-50",
         "data-horizontal:h-5",
-        "data-vertical:h-full data-vertical:min-h-[200px] data-vertical:w-5 data-vertical:flex-col",
+        "data-vertical:h-full data-vertical:min-h-50 data-vertical:w-5 data-vertical:flex-col",
         className
       )}
       {...props}

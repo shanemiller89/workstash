@@ -111,7 +111,7 @@ export const useStashStore = create<StashStore>((set, get) => ({
 
     filteredStashes: () => {
         const { stashes, searchQuery } = get();
-        if (!searchQuery.trim()) return stashes;
+        if (!searchQuery.trim()) {return stashes;}
         const q = searchQuery.toLowerCase();
         return stashes.filter(
             (s) =>
@@ -178,7 +178,7 @@ export const useStashStore = create<StashStore>((set, get) => ({
 
     selectedStash: () => {
         const { stashes, selectedStashIndex } = get();
-        if (selectedStashIndex === null) return undefined;
+        if (selectedStashIndex === null) {return undefined;}
         return stashes.find((s) => s.index === selectedStashIndex);
     },
 }));

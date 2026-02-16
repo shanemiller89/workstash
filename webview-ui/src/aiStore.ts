@@ -55,6 +55,8 @@ interface AIStore {
     agentPrompt: string;
     /** Per-template custom system prompt overrides (template key → prompt text) */
     agentSystemPrompts: Record<string, string>;
+    /** Default system prompts from extension (single source of truth) */
+    defaultSystemPrompts: Record<string, string>;
     agentResult: string;
     agentIsStreaming: boolean;
     agentError: string | null;
@@ -95,6 +97,7 @@ interface AIStore {
     setAgentTemplate: (template: string) => void;
     setAgentPrompt: (prompt: string) => void;
     setAgentSystemPrompt: (template: string, prompt: string) => void;
+    setDefaultSystemPrompts: (prompts: Record<string, string>) => void;
     agentStarted: () => void;
     agentAppendChunk: (chunk: string) => void;
     agentDone: (content: string) => void;
@@ -136,6 +139,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
     agentTemplate: 'sprint',
     agentPrompt: '',
     agentSystemPrompts: {},
+    defaultSystemPrompts: {},
     agentResult: '',
     agentIsStreaming: false,
     agentError: null,
@@ -275,6 +279,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
         set((s) => ({
             agentSystemPrompts: { ...s.agentSystemPrompts, [template]: prompt },
         })),
+    setDefaultSystemPrompts: (prompts) => set({ defaultSystemPrompts: prompts }),
     agentStarted: () => set({ agentIsStreaming: true, agentResult: '', agentError: null, agentPaneOpen: true }),
     agentAppendChunk: (chunk) => set((s) => ({ agentResult: s.agentResult + chunk })),
     agentDone: (content) => set({ agentResult: content, agentIsStreaming: false }),

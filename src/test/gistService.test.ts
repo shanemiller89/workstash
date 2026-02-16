@@ -1,5 +1,7 @@
 import * as assert from 'assert';
 import { GistService, GistNote, FetchFn } from '../gistService';
+import type { AuthService } from '../authService';
+import type * as vscode from 'vscode';
 
 /**
  * Unit tests for GistService — uses injectable FetchFn to mock GitHub API.
@@ -8,15 +10,23 @@ import { GistService, GistNote, FetchFn } from '../gistService';
  * We need a minimal AuthService mock that supplies tokens.
  */
 
+// ─── Mock Types ───────────────────────────────────────────────────
+
+/** Minimal subset of AuthService used by GistService. */
+type MockAuth = Pick<AuthService, 'getToken' | 'isAuthenticated' | 'getSession' | 'signIn' | 'signOut' | 'onDidChangeAuthentication' | 'dispose'>;
+
+/** Minimal subset of vscode.OutputChannel used by GistService. */
+type MockOutput = Pick<vscode.OutputChannel, 'appendLine' | 'append' | 'replace' | 'clear' | 'show' | 'hide' | 'dispose' | 'name'>;
+
 // ─── Mocks ────────────────────────────────────────────────────────
 
 /** Minimal AuthService mock */
-function mockAuthService(token = 'ghp_testtoken123') {
+function mockAuthService(token = 'ghp_testtoken123'): MockAuth {
     return {
         getToken: async () => token,
         isAuthenticated: async () => !!token,
-        getSession: async () => null,
-        signIn: async () => null,
+        getSession: async () => undefined,
+        signIn: async () => undefined,
         signOut: async () => {},
         onDidChangeAuthentication: () => ({ dispose: () => {} }),
         dispose: () => {},
@@ -24,7 +34,7 @@ function mockAuthService(token = 'ghp_testtoken123') {
 }
 
 /** Minimal OutputChannel mock */
-function mockOutputChannel() {
+function mockOutputChannel(): MockOutput & { lines: string[] } {
     const lines: string[] = [];
     return {
         appendLine: (line: string) => {
@@ -105,7 +115,7 @@ function createService(fetchFn: FetchFn, token = 'ghp_testtoken123'): GistServic
     const auth = mockAuthService(token);
     const output = mockOutputChannel();
     // GistService constructor: (authService, outputChannel, fetchFn?)
-    return new GistService(auth as any, output as any, fetchFn);
+    return new GistService(auth as unknown as AuthService, output as unknown as vscode.OutputChannel, fetchFn);
 }
 
 // ─── Tests ────────────────────────────────────────────────────────
@@ -404,7 +414,7 @@ suite('GistService Unit Tests', () => {
             const auth = mockAuthService('');
             // getToken returns empty string; service should check for falsy token
             const output = mockOutputChannel();
-            const svc = new GistService(auth as any, output as any);
+            const svc = new GistService(auth as unknown as AuthService, output as unknown as vscode.OutputChannel);
 
             await assert.rejects(() => svc.listNotes(), /not authenticated|sign in/i);
         });

@@ -93,10 +93,10 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
 
     selectNote: (id) => {
         const { notes, selectedNoteId, isDirty } = get();
-        if (id === selectedNoteId) return;
+        if (id === selectedNoteId) {return;}
         // If dirty, the caller should handle the save prompt
         const note = notes.find((n) => n.id === id);
-        if (!note) return;
+        if (!note) {return;}
         set({
             selectedNoteId: id,
             editingContent: note.content,
@@ -157,7 +157,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
 
     selectedNote: () => {
         const { notes, selectedNoteId } = get();
-        if (!selectedNoteId) return undefined;
+        if (!selectedNoteId) {return undefined;}
         return notes.find((n) => n.id === selectedNoteId);
     },
 

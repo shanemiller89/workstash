@@ -405,7 +405,7 @@ export const CalendarTab: React.FC = () => {
                             render={
                                 <button className="flex items-center gap-1 text-xs text-fg/50 hover:text-fg truncate rounded px-1 py-0.5 hover:bg-hover transition-colors">
                                     <UserCircle size={12} />
-                                    <span className="truncate max-w-[120px]">{accountEmail}</span>
+                                    <span className="truncate max-w-30">{accountEmail}</span>
                                 </button>
                             }
                         />

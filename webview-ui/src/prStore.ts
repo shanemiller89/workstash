@@ -22,6 +22,7 @@ export interface PullRequestData {
     labels: { name: string; color: string }[];
     isDraft: boolean;
     requestedReviewers: { login: string; avatarUrl: string }[];
+    assignees: { login: string; avatarUrl: string }[];
 }
 
 export interface PRCommentData {
@@ -48,6 +49,7 @@ export interface PRCommentData {
 }
 
 export type PRStateFilter = 'open' | 'closed' | 'merged' | 'all';
+export type PRAuthorFilter = 'all' | 'authored' | 'assigned' | 'review-requested';
 export type CommentResolvedFilter = 'all' | 'resolved' | 'unresolved';
 
 /** A group of comments sharing the same author */
@@ -74,10 +76,12 @@ interface PRStore {
     selectedPRDetail: PullRequestData | null;
     comments: PRCommentData[];
     stateFilter: PRStateFilter;
+    authorFilter: PRAuthorFilter;
     isLoading: boolean;
     isCommentsLoading: boolean;
     isCommentSaving: boolean;
     isRepoNotFound: boolean;
+    error: string | null;
     searchQuery: string;
 
     // Comment filter / grouping state
@@ -117,10 +121,12 @@ interface PRStore {
     updateComment: (id: number, patch: Partial<PRCommentData>) => void;
     updateThreadResolved: (threadId: string, isResolved: boolean, resolvedBy: string | null) => void;
     setStateFilter: (filter: PRStateFilter) => void;
+    setAuthorFilter: (filter: PRAuthorFilter) => void;
     setLoading: (loading: boolean) => void;
     setCommentsLoading: (loading: boolean) => void;
     setCommentSaving: (saving: boolean) => void;
     setRepoNotFound: (notFound: boolean) => void;
+    setError: (error: string | null) => void;
     setSearchQuery: (query: string) => void;
     setCommentUserFilter: (users: string[]) => void;
     setCommentResolvedFilter: (filter: CommentResolvedFilter) => void;
@@ -167,10 +173,12 @@ export const usePRStore = create<PRStore>((set, get) => ({
     selectedPRDetail: null,
     comments: [],
     stateFilter: 'open',
+    authorFilter: 'all',
     isLoading: false,
     isCommentsLoading: false,
     isCommentSaving: false,
     isRepoNotFound: false,
+    error: null,
     searchQuery: '',
     commentUserFilter: [],
     commentResolvedFilter: 'all',
@@ -205,6 +213,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
         set({
             prs,
             isLoading: false,
+            error: null,
             ...(stillExists
                 ? {}
                 : {
@@ -217,7 +226,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
     selectPR: (prNumber) => {
         const { selectedPRNumber } = get();
-        if (prNumber === selectedPRNumber) return;
+        if (prNumber === selectedPRNumber) {return;}
         set({
             selectedPRNumber: prNumber,
             selectedPRDetail: null,
@@ -268,10 +277,21 @@ export const usePRStore = create<PRStore>((set, get) => ({
             isLoading: true,
         }),
 
+    setAuthorFilter: (authorFilter) =>
+        set({
+            authorFilter,
+            selectedPRNumber: null,
+            selectedPRDetail: null,
+            comments: [],
+            prs: [],
+            isLoading: true,
+        }),
+
     setLoading: (loading) => set({ isLoading: loading }),
     setCommentsLoading: (loading) => set({ isCommentsLoading: loading }),
     setCommentSaving: (saving) => set({ isCommentSaving: saving }),
     setRepoNotFound: (notFound) => set({ isRepoNotFound: notFound, isLoading: false }),
+    setError: (error) => set({ error, isLoading: false }),
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
@@ -314,7 +334,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
     filteredPRs: () => {
         const { prs, searchQuery } = get();
         const q = searchQuery.trim().toLowerCase();
-        if (!q) return prs;
+        if (!q) {return prs;}
         return prs.filter(
             (pr) =>
                 pr.title.toLowerCase().includes(q) ||
@@ -325,7 +345,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
     selectedPR: () => {
         const { prs, selectedPRNumber } = get();
-        if (selectedPRNumber === null) return undefined;
+        if (selectedPRNumber === null) {return undefined;}
         return prs.find((pr) => pr.number === selectedPRNumber);
     },
 
@@ -412,7 +432,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
 
         // Sort threads: unresolved first, then by root comment date
         return [...threadMap.values()].sort((a, b) => {
-            if (a.isResolved !== b.isResolved) return a.isResolved ? 1 : -1;
+            if (a.isResolved !== b.isResolved) {return a.isResolved ? 1 : -1;}
             return (
                 new Date(a.rootComment.createdAt).getTime() -
                 new Date(b.rootComment.createdAt).getTime()
@@ -429,7 +449,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
     /** Get the thread for the active thread panel */
     activeThread: () => {
         const { activeThreadId } = get();
-        if (!activeThreadId) return null;
+        if (!activeThreadId) {return null;}
         const threads = get().reviewThreads();
         return threads.find((t) => t.threadId === activeThreadId) ?? null;
     },

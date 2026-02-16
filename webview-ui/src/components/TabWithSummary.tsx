@@ -53,7 +53,7 @@ export const TabWithSummary: React.FC<TabWithSummaryProps> = ({ tabKey, children
 
             {/* Right pane */}
             {isOpen && (
-                <div className="w-[280px] shrink-0 overflow-clip">
+                <div className="w-70 shrink-0 overflow-clip">
                     <ErrorBoundary label="AI Summary">
                         <SummaryPane tabKey={tabKey} label={displayLabel} />
                     </ErrorBoundary>

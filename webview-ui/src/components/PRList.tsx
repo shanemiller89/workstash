@@ -1,10 +1,12 @@
-import React, { useCallback, useMemo } from 'react';
-import { usePRStore, type PRStateFilter } from '../prStore';
+import React, { useCallback, useMemo, useRef } from 'react';
+import { usePRStore, type PRStateFilter, type PRAuthorFilter } from '../prStore';
 import { useNotesStore } from '../notesStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Badge } from './ui/badge';
+import { ErrorState } from './ErrorState';
+import { useRovingTabIndex } from '../hooks/useRovingTabIndex';
 import {
     GitPullRequest,
     GitMerge,
@@ -20,6 +22,13 @@ const stateFilters: { key: PRStateFilter; label: string }[] = [
     { key: 'merged', label: 'Merged' },
     { key: 'closed', label: 'Closed' },
     { key: 'all', label: 'All' },
+];
+
+const authorFilters: { key: PRAuthorFilter; label: string }[] = [
+    { key: 'all', label: 'All PRs' },
+    { key: 'authored', label: 'Mine' },
+    { key: 'assigned', label: 'Assigned' },
+    { key: 'review-requested', label: 'Review' },
 ];
 
 function formatRelative(iso: string): string {
@@ -64,9 +73,12 @@ export const PRList: React.FC = () => {
     const allPRs = usePRStore((s) => s.prs);
     const searchQuery = usePRStore((s) => s.searchQuery);
     const isLoading = usePRStore((s) => s.isLoading);
+    const error = usePRStore((s) => s.error);
     const isRepoNotFound = usePRStore((s) => s.isRepoNotFound);
     const stateFilter = usePRStore((s) => s.stateFilter);
+    const authorFilter = usePRStore((s) => s.authorFilter);
     const setStateFilter = usePRStore((s) => s.setStateFilter);
+    const setAuthorFilter = usePRStore((s) => s.setAuthorFilter);
     const selectPR = usePRStore((s) => s.selectPR);
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
     const setSearchQuery = usePRStore((s) => s.setSearchQuery);
@@ -87,9 +99,17 @@ export const PRList: React.FC = () => {
     const handleFilterChange = useCallback(
         (filter: PRStateFilter) => {
             setStateFilter(filter);
-            postMessage('prs.filter', { state: filter });
+            postMessage('prs.filter', { state: filter, authorFilter: usePRStore.getState().authorFilter });
         },
         [setStateFilter],
+    );
+
+    const handleAuthorFilterChange = useCallback(
+        (filter: PRAuthorFilter) => {
+            setAuthorFilter(filter);
+            postMessage('prs.filter', { state: usePRStore.getState().stateFilter, authorFilter: filter });
+        },
+        [setAuthorFilter],
     );
 
     const handleRefresh = useCallback(() => {
@@ -103,6 +123,18 @@ export const PRList: React.FC = () => {
         },
         [selectPR],
     );
+
+    // Keyboard navigation (§7b)
+    const searchRef = useRef<HTMLInputElement>(null);
+    const onPRSelect = useCallback(
+        (index: number) => {
+            const pr = prs[index];
+            if (pr) handleSelectPR(pr.number);
+        },
+        [prs, handleSelectPR],
+    );
+    const { listRef, containerProps, getItemProps, handleSearchKeyDown: rovingSearchKeyDown } =
+        useRovingTabIndex({ itemCount: prs.length, onSelect: onPRSelect, searchRef });
 
     // Not authenticated
     if (!isAuthenticated) {
@@ -137,7 +169,7 @@ export const PRList: React.FC = () => {
         <div className="h-full flex flex-col">
             {/* Header: filter pills + search + refresh */}
             <div className="shrink-0 border-b border-border">
-                {/* Filter pills */}
+                {/* State filter pills */}
                 <div className="flex items-center gap-1 px-3 py-2">
                     {stateFilters.map((f) => (
                         <Button
@@ -169,15 +201,32 @@ export const PRList: React.FC = () => {
                     </Button>
                 </div>
 
+                {/* Author filter pills */}
+                <div className="flex items-center gap-1 px-3 pb-2">
+                    {authorFilters.map((f) => (
+                        <Button
+                            key={f.key}
+                            variant={authorFilter === f.key ? 'outline' : 'ghost'}
+                            size="sm"
+                            className="h-auto px-2 py-0.5 text-[10px] rounded-full"
+                            onClick={() => handleAuthorFilterChange(f.key)}
+                        >
+                            {f.label}
+                        </Button>
+                    ))}
+                </div>
+
                 {/* Search bar */}
                 <div className="px-3 pb-2">
                     <div className="relative">
                         <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-fg/30" />
                         <Input
+                            ref={searchRef}
                             type="text"
                             placeholder="Search PRs..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
+                            onKeyDown={rovingSearchKeyDown}
                             className="pl-7 text-[11px]"
                         />
                     </div>
@@ -185,11 +234,19 @@ export const PRList: React.FC = () => {
             </div>
 
             {/* PR List */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={listRef} className="flex-1 overflow-y-auto" {...containerProps} aria-label="Pull request list">
                 {isLoading ? (
                     <div className="flex items-center justify-center py-8 text-fg/40 text-[11px]">
                         Loading pull requests…
                     </div>
+                ) : error ? (
+                    <ErrorState
+                        message={error}
+                        onRetry={() => {
+                            usePRStore.getState().setError(null);
+                            handleRefresh();
+                        }}
+                    />
                 ) : prs.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2">
                         <p className="text-fg/40 text-[11px]">
@@ -199,7 +256,7 @@ export const PRList: React.FC = () => {
                         </p>
                     </div>
                 ) : (
-                    prs.map((pr) => {
+                    prs.map((pr, i) => {
                         const isSelected = selectedPRNumber === pr.number;
                         return (
                             <Button
@@ -211,6 +268,7 @@ export const PRList: React.FC = () => {
                                         : 'border-l-2 border-l-transparent'
                                 }`}
                                 onClick={() => handleSelectPR(pr.number)}
+                                {...getItemProps(i)}
                             >
                                 <div className="flex items-start gap-2">
                                     <div className="mt-0.5 shrink-0">
