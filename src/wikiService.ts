@@ -1,4 +1,8 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
+import { execFile } from 'child_process';
 import { AuthService } from './authService';
 
 // ─── Data Models ──────────────────────────────────────────────────
@@ -252,9 +256,46 @@ export class WikiService {
 
     /**
      * List all wiki pages for a repository.
-     * Uses the Git Trees API against the wiki repo's default branch.
+     * Tries the REST API first (Git Trees), falls back to a shallow
+     * git clone when the API returns 404 (common with private repos).
      */
     async listPages(owner: string, repo: string): Promise<WikiPageSummary[]> {
+        try {
+            return await this._listPagesViaApi(owner, repo);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '';
+            // Fall back for 404 / "not found" / access-denied-masking-404 (common with private repos)
+            const is404 = msg.includes('not found') || msg.includes('Not Found') || msg.includes('404');
+            if (!is404) {
+                throw e;
+            }
+            this._outputChannel.appendLine(`[Wiki] REST API 404 for ${owner}/${repo}.wiki — falling back to git clone`);
+            return this._listPagesViaGit(owner, repo);
+        }
+    }
+
+    /**
+     * Fetch the raw markdown content of a specific wiki page.
+     * Tries the Contents API first, falls back to the local git clone.
+     */
+    async getPageContent(owner: string, repo: string, filename: string): Promise<WikiPage> {
+        try {
+            return await this._getPageContentViaApi(owner, repo, filename);
+        } catch (e: unknown) {
+            const msg = e instanceof Error ? e.message : '';
+            const is404 = msg.includes('not found') || msg.includes('Not Found') || msg.includes('404');
+            if (!is404) {
+                throw e;
+            }
+            this._outputChannel.appendLine(`[Wiki] REST API 404 for page content — falling back to git clone`);
+            return this._getPageContentViaGit(owner, repo, filename);
+        }
+    }
+
+    // ─── REST API Implementations ─────────────────────────────────
+
+    /** List pages via the Git Trees REST API. */
+    private async _listPagesViaApi(owner: string, repo: string): Promise<WikiPageSummary[]> {
         // The wiki repo is {owner}/{repo}.wiki — we use its git tree
         const { data } = await this._request<GitHubTreeResponse>(
             'GET',
@@ -288,11 +329,8 @@ export class WikiService {
         return pages;
     }
 
-    /**
-     * Fetch the raw markdown content of a specific wiki page.
-     * Uses the Contents API against the wiki repo.
-     */
-    async getPageContent(owner: string, repo: string, filename: string): Promise<WikiPage> {
+    /** Fetch page content via the Contents REST API. */
+    private async _getPageContentViaApi(owner: string, repo: string, filename: string): Promise<WikiPage> {
         const encodedPath = encodeURIComponent(filename);
         const { data } = await this._request<GitHubContentResponse>(
             'GET',
@@ -315,6 +353,154 @@ export class WikiService {
             content,
             sha: data.sha,
         };
+    }
+
+    // ─── Git CLI Fallback ─────────────────────────────────────────
+
+    /** Cache of cloned wiki directories keyed by "owner/repo" */
+    private _cloneCache = new Map<string, string>();
+
+    /**
+     * Run a git command and return stdout.
+     * Injects the GitHub token into the clone URL for auth.
+     */
+    private async _execGit(args: string[], cwd?: string): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const opts: { cwd?: string; maxBuffer: number; env: NodeJS.ProcessEnv } = {
+                maxBuffer: 10 * 1024 * 1024, // 10 MB
+                env: {
+                    ...process.env,
+                    GIT_TERMINAL_PROMPT: '0',
+                },
+            };
+            if (cwd) { opts.cwd = cwd; }
+
+            execFile('git', args, opts, (err, stdout, stderr) => {
+                if (err) {
+                    this._outputChannel.appendLine(`[Wiki/git] Error: ${stderr || err.message}`);
+                    reject(new Error(stderr || err.message));
+                } else {
+                    resolve(stdout);
+                }
+            });
+        });
+    }
+
+    /**
+     * Ensure a shallow clone of the wiki repo exists in a temp directory.
+     * Re-uses cached clones within the same session, pulls latest on subsequent calls.
+     */
+    private async _ensureWikiClone(owner: string, repo: string): Promise<string> {
+        const key = `${owner}/${repo}`;
+        const cached = this._cloneCache.get(key);
+
+        // If we already have a clone, pull latest
+        if (cached && fs.existsSync(cached)) {
+            this._outputChannel.appendLine(`[Wiki/git] Pulling latest for ${key}`);
+            try {
+                await this._execGit(['pull', '--ff-only'], cached);
+            } catch {
+                // Pull failed (e.g., force-pushed wiki) — re-clone
+                this._outputChannel.appendLine(`[Wiki/git] Pull failed, re-cloning ${key}`);
+                fs.rmSync(cached, { recursive: true, force: true });
+                this._cloneCache.delete(key);
+                return this._ensureWikiClone(owner, repo);
+            }
+            return cached;
+        }
+
+        // Fresh shallow clone
+        const token = await this._getToken();
+        const tmpDir = path.join(os.tmpdir(), 'superprompt-forge-wiki', `${owner}--${repo}`);
+
+        // Clean up any stale directory
+        if (fs.existsSync(tmpDir)) {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+        fs.mkdirSync(tmpDir, { recursive: true });
+
+        const cloneUrl = `https://x-access-token:${token}@github.com/${owner}/${repo}.wiki.git`;
+        this._outputChannel.appendLine(`[Wiki/git] Cloning wiki for ${key} into ${tmpDir}`);
+
+        await this._execGit(['clone', '--depth', '1', cloneUrl, tmpDir]);
+        this._cloneCache.set(key, tmpDir);
+        return tmpDir;
+    }
+
+    /** List wiki pages from the local git clone. */
+    private async _listPagesViaGit(owner: string, repo: string): Promise<WikiPageSummary[]> {
+        const wikiDir = await this._ensureWikiClone(owner, repo);
+
+        // List all files in the wiki directory
+        const entries = fs.readdirSync(wikiDir, { withFileTypes: true });
+        const pages: WikiPageSummary[] = [];
+
+        for (const entry of entries) {
+            if (!entry.isFile()) { continue; }
+            if (entry.name.startsWith('.')) { continue; } // skip .git etc.
+            if (!this._isWikiPage(entry.name)) { continue; }
+
+            const filePath = path.join(wikiDir, entry.name);
+            const stats = fs.statSync(filePath);
+
+            pages.push({
+                title: this._titleFromFilename(entry.name),
+                filename: entry.name,
+                sha: '', // No SHA available from local clone listing
+                size: stats.size,
+            });
+        }
+
+        // Sort: Home first, then alphabetical by title
+        pages.sort((a, b) => {
+            if (a.title === 'Home') { return -1; }
+            if (b.title === 'Home') { return 1; }
+            return a.title.localeCompare(b.title);
+        });
+
+        this._outputChannel.appendLine(`[Wiki/git] Found ${pages.length} pages via git clone`);
+        return pages;
+    }
+
+    /** Read wiki page content from the local git clone. */
+    private async _getPageContentViaGit(owner: string, repo: string, filename: string): Promise<WikiPage> {
+        const wikiDir = await this._ensureWikiClone(owner, repo);
+        const filePath = path.join(wikiDir, filename);
+
+        if (!fs.existsSync(filePath)) {
+            throw new Error(`Wiki page not found: ${filename}`);
+        }
+
+        const content = fs.readFileSync(filePath, 'utf-8');
+        const stats = fs.statSync(filePath);
+
+        // Try to get the blob SHA from git
+        let sha = '';
+        try {
+            const lsTree = await this._execGit(['ls-tree', 'HEAD', filename], wikiDir);
+            const parts = lsTree.trim().split(/\s+/);
+            if (parts.length >= 3) { sha = parts[2]; }
+        } catch { /* sha is optional */ }
+
+        return {
+            title: this._titleFromFilename(filename),
+            filename,
+            content,
+            sha,
+        };
+    }
+
+    /**
+     * Invalidate the cached wiki clone for a repo (e.g. on repo switch).
+     */
+    invalidateCache(owner: string, repo: string): void {
+        const key = `${owner}/${repo}`;
+        const cached = this._cloneCache.get(key);
+        if (cached) {
+            this._cloneCache.delete(key);
+            // Clean up async, don't block
+            try { fs.rmSync(cached, { recursive: true, force: true }); } catch { /* ignore */ }
+        }
     }
 
     /**
