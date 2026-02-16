@@ -1,7 +1,7 @@
 /**
  * usePRMessages — dispatches extension→webview PR messages to the store.
  */
-import { usePRStore, type PullRequestData, type PRCommentData } from '../prStore';
+import { usePRStore, type PullRequestData, type PRCommentData, type PRFileData, type PRReviewData } from '../prStore';
 import { useAppStore } from '../appStore';
 import { postMessage } from '../vscode';
 
@@ -119,6 +119,48 @@ export function handlePRMessage(msg: Msg): boolean {
             return true;
         case 'prBodySaveError':
             s.setBodySaving(false);
+            return true;
+
+        // ─── PR files (changed files) ───
+        case 'prFilesLoading':
+            s.setFilesLoading(true);
+            return true;
+        case 'prFiles':
+            s.setPRFiles(msg.files as PRFileData[]);
+            return true;
+        case 'prFilesError':
+            s.setFilesError(msg.message as string);
+            return true;
+
+        // ─── PR reviews (review statuses) ───
+        case 'prReviews':
+            s.setReviews(msg.reviews as PRReviewData[]);
+            return true;
+
+        // ─── Review submission ───
+        case 'prReviewSubmitting':
+            s.setSubmittingReview(true);
+            return true;
+        case 'prReviewSubmitted':
+            s.addReview(msg.review as PRReviewData);
+            return true;
+        case 'prReviewError':
+            s.setReviewError(msg.message as string);
+            return true;
+
+        // ─── PR merge ───
+        case 'prMerging':
+            s.setMerging(true);
+            return true;
+        case 'prMerged':
+            s.setMerging(false);
+            // Update the PR state to merged in the store
+            if (s.selectedPRDetail) {
+                s.setPRDetail({ ...s.selectedPRDetail, state: 'merged' });
+            }
+            return true;
+        case 'prMergeError':
+            s.setMergeError(msg.message as string);
             return true;
 
         // ─── Deep-link: open a specific PR ───

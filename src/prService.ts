@@ -103,6 +103,70 @@ export interface PRCommentData {
     resolvedBy?: string | null;
 }
 
+// ─── PR Files & Review Models ─────────────────────────────────────
+
+/** A file changed in a pull request. */
+export interface PRFile {
+    filename: string;
+    status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch?: string;
+    sha: string;
+    previousFilename?: string;
+}
+
+/** Webview-safe version of PRFile. */
+export interface PRFileData {
+    filename: string;
+    status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch?: string;
+    sha: string;
+    previousFilename?: string;
+}
+
+/** Review event types for submitting a PR review. */
+export type PRReviewEvent = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+
+/** A review submitted on a pull request. */
+export interface PRReview {
+    id: number;
+    user: string;
+    userAvatarUrl: string;
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
+    body: string;
+    submittedAt: Date | null;
+    htmlUrl: string;
+}
+
+/** Webview-safe version of PRReview (dates as ISO strings). */
+export interface PRReviewData {
+    id: number;
+    user: string;
+    userAvatarUrl: string;
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
+    body: string;
+    submittedAt: string | null;
+    htmlUrl: string;
+}
+
+/** An inline comment to include when submitting a review. */
+export interface PendingInlineComment {
+    path: string;
+    /** The line number in the diff (new-file side) to attach the comment to. */
+    line: number;
+    /** Which side of the diff: LEFT (deletion) or RIGHT (addition/context). */
+    side?: 'LEFT' | 'RIGHT';
+    body: string;
+}
+
+/** Merge method options. */
+export type PRMergeMethod = 'merge' | 'squash' | 'rebase';
+
 // ─── GitHub API Response Types ────────────────────────────────────
 
 /** Raw GitHub Pull Request API response (partial — only fields we use) */
@@ -155,6 +219,35 @@ interface GitHubReviewComment {
     diff_hunk: string;
     in_reply_to_id?: number;
     pull_request_review_id: number;
+}
+
+/** Raw GitHub PR file response */
+interface GitHubPRFile {
+    sha: string;
+    filename: string;
+    status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch?: string;
+    previous_filename?: string;
+}
+
+/** Raw GitHub PR review response */
+interface GitHubPRReview {
+    id: number;
+    user: { login: string; avatar_url: string } | null;
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
+    body: string;
+    submitted_at: string | null;
+    html_url: string;
+}
+
+/** Raw GitHub merge response */
+interface GitHubMergeResult {
+    sha: string;
+    merged: boolean;
+    message: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -839,6 +932,159 @@ export class PrService {
         return this._parsePR(data);
     }
 
+    // ─── PR Files (Changed Files) ────────────────────────────────
+
+    /**
+     * Get the list of files changed in a pull request, with diffs.
+     * Handles pagination for PRs with many files (> 30).
+     */
+    async getPullRequestFiles(
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<PRFile[]> {
+        const allFiles: PRFile[] = [];
+        let page = 1;
+        const perPage = 100;
+
+        // Paginate through all files
+        while (true) {
+            const { data } = await this._request<GitHubPRFile[]>(
+                'GET',
+                `/repos/${owner}/${repo}/pulls/${prNumber}/files?per_page=${perPage}&page=${page}`,
+            );
+
+            for (const f of data) {
+                allFiles.push({
+                    filename: f.filename,
+                    status: f.status,
+                    additions: f.additions,
+                    deletions: f.deletions,
+                    changes: f.changes,
+                    patch: f.patch,
+                    sha: f.sha,
+                    previousFilename: f.previous_filename,
+                });
+            }
+
+            if (data.length < perPage) {
+                break;
+            }
+            page++;
+        }
+
+        return allFiles;
+    }
+
+    // ─── PR Reviews ──────────────────────────────────────────────
+
+    /**
+     * Get all reviews submitted on a pull request.
+     */
+    async getReviews(
+        owner: string,
+        repo: string,
+        prNumber: number,
+    ): Promise<PRReview[]> {
+        const { data } = await this._request<GitHubPRReview[]>(
+            'GET',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/reviews?per_page=100`,
+        );
+
+        return data.map((r) => ({
+            id: r.id,
+            user: r.user?.login ?? 'unknown',
+            userAvatarUrl: r.user?.avatar_url ?? '',
+            state: r.state,
+            body: r.body,
+            submittedAt: r.submitted_at ? new Date(r.submitted_at) : null,
+            htmlUrl: r.html_url,
+        }));
+    }
+
+    /**
+     * Submit a review on a pull request.
+     * @param event    APPROVE, REQUEST_CHANGES, or COMMENT
+     * @param body     Optional review body text
+     * @param comments Optional inline comments to attach to the review
+     */
+    async submitReview(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        event: PRReviewEvent,
+        body?: string,
+        comments?: PendingInlineComment[],
+    ): Promise<PRReview> {
+        const payload: Record<string, unknown> = { event };
+        if (body?.trim()) {
+            payload.body = body.trim();
+        }
+        if (comments && comments.length > 0) {
+            payload.comments = comments.map((c) => ({
+                path: c.path,
+                line: c.line,
+                side: c.side ?? 'RIGHT',
+                body: c.body,
+            }));
+        }
+
+        const { data } = await this._request<GitHubPRReview>(
+            'POST',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/reviews`,
+            payload,
+        );
+
+        return {
+            id: data.id,
+            user: data.user?.login ?? 'unknown',
+            userAvatarUrl: data.user?.avatar_url ?? '',
+            state: data.state,
+            body: data.body,
+            submittedAt: data.submitted_at ? new Date(data.submitted_at) : null,
+            htmlUrl: data.html_url,
+        };
+    }
+
+    // ─── Merge PR ────────────────────────────────────────────────
+
+    /**
+     * Merge a pull request.
+     * @param mergeMethod  'merge', 'squash', or 'rebase'
+     * @param commitTitle  Optional custom commit title
+     * @param commitMessage Optional custom commit message
+     */
+    async mergePullRequest(
+        owner: string,
+        repo: string,
+        prNumber: number,
+        mergeMethod: PRMergeMethod = 'merge',
+        commitTitle?: string,
+        commitMessage?: string,
+    ): Promise<{ sha: string; merged: boolean; message: string }> {
+        const payload: Record<string, unknown> = {
+            merge_method: mergeMethod,
+        };
+        if (commitTitle?.trim()) {
+            payload.commit_title = commitTitle.trim();
+        }
+        if (commitMessage?.trim()) {
+            payload.commit_message = commitMessage.trim();
+        }
+
+        const { data } = await this._request<GitHubMergeResult>(
+            'PUT',
+            `/repos/${owner}/${repo}/pulls/${prNumber}/merge`,
+            payload,
+        );
+
+        return {
+            sha: data.sha,
+            merged: data.merged,
+            message: data.message,
+        };
+    }
+
     // ─── Static Converters ────────────────────────────────────────
 
     /** Convert a PullRequest to its webview-safe data shape. */
@@ -886,6 +1132,33 @@ export class PrService {
             threadId: comment.threadId,
             isResolved: comment.isResolved,
             resolvedBy: comment.resolvedBy,
+        };
+    }
+
+    /** Convert a PRFile to its webview-safe data shape. */
+    static toFileData(file: PRFile): PRFileData {
+        return {
+            filename: file.filename,
+            status: file.status,
+            additions: file.additions,
+            deletions: file.deletions,
+            changes: file.changes,
+            patch: file.patch,
+            sha: file.sha,
+            previousFilename: file.previousFilename,
+        };
+    }
+
+    /** Convert a PRReview to its webview-safe data shape. */
+    static toReviewData(review: PRReview): PRReviewData {
+        return {
+            id: review.id,
+            user: review.user,
+            userAvatarUrl: review.userAvatarUrl,
+            state: review.state,
+            body: review.body,
+            submittedAt: review.submittedAt?.toISOString() ?? null,
+            htmlUrl: review.htmlUrl,
         };
     }
 }

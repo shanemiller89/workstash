@@ -52,6 +52,46 @@ export type PRStateFilter = 'open' | 'closed' | 'merged' | 'all';
 export type PRAuthorFilter = 'all' | 'authored' | 'assigned' | 'review-requested';
 export type CommentResolvedFilter = 'all' | 'resolved' | 'unresolved';
 
+/** A file changed in a pull request. */
+export interface PRFileData {
+    filename: string;
+    status: 'added' | 'removed' | 'modified' | 'renamed' | 'copied' | 'changed' | 'unchanged';
+    additions: number;
+    deletions: number;
+    changes: number;
+    patch?: string;
+    sha: string;
+    previousFilename?: string;
+}
+
+/** A review submitted on a pull request. */
+export interface PRReviewData {
+    id: number;
+    user: string;
+    userAvatarUrl: string;
+    state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED' | 'PENDING';
+    body: string;
+    submittedAt: string | null;
+    htmlUrl: string;
+}
+
+/** Review event types for submitting a PR review. */
+export type PRReviewEvent = 'APPROVE' | 'REQUEST_CHANGES' | 'COMMENT';
+
+/** Merge method options. */
+export type PRMergeMethod = 'merge' | 'squash' | 'rebase';
+
+/** An inline comment to include when submitting a review. */
+export interface PendingInlineComment {
+    path: string;
+    line: number;
+    side?: 'LEFT' | 'RIGHT';
+    body: string;
+}
+
+/** The active sub-tab in the PR detail view. */
+export type PRDetailTab = 'conversation' | 'files';
+
 /** A group of comments sharing the same author */
 export interface CommentGroup {
     author: string;
@@ -111,6 +151,19 @@ interface PRStore {
     isEditingBody: boolean;
     isBodySaving: boolean;
 
+    // PR files & review state
+    prFiles: PRFileData[];
+    isFilesLoading: boolean;
+    filesError: string | null;
+    selectedFilePath: string | null;
+    reviews: PRReviewData[];
+    pendingReviewComments: PendingInlineComment[];
+    isSubmittingReview: boolean;
+    reviewError: string | null;
+    isMerging: boolean;
+    mergeError: string | null;
+    detailTab: PRDetailTab;
+
     // Actions
     setPRs: (prs: PullRequestData[]) => void;
     selectPR: (prNumber: number) => void;
@@ -154,6 +207,22 @@ interface PRStore {
     // Body editing actions
     setEditingBody: (editing: boolean) => void;
     setBodySaving: (saving: boolean) => void;
+
+    // PR files & review actions
+    setPRFiles: (files: PRFileData[]) => void;
+    setFilesLoading: (loading: boolean) => void;
+    setFilesError: (error: string | null) => void;
+    selectFile: (filePath: string | null) => void;
+    setReviews: (reviews: PRReviewData[]) => void;
+    addReview: (review: PRReviewData) => void;
+    setSubmittingReview: (submitting: boolean) => void;
+    setReviewError: (error: string | null) => void;
+    addPendingComment: (comment: PendingInlineComment) => void;
+    removePendingComment: (index: number) => void;
+    clearPendingComments: () => void;
+    setMerging: (merging: boolean) => void;
+    setMergeError: (error: string | null) => void;
+    setDetailTab: (tab: PRDetailTab) => void;
 
     // Comment selectors
     commentAuthors: () => string[];
@@ -206,6 +275,19 @@ export const usePRStore = create<PRStore>((set, get) => ({
     isEditingBody: false,
     isBodySaving: false,
 
+    // PR files & review state
+    prFiles: [],
+    isFilesLoading: false,
+    filesError: null,
+    selectedFilePath: null,
+    reviews: [],
+    pendingReviewComments: [],
+    isSubmittingReview: false,
+    reviewError: null,
+    isMerging: false,
+    mergeError: null,
+    detailTab: 'conversation',
+
     setPRs: (prs) => {
         const { selectedPRNumber } = get();
         const stillExists =
@@ -243,6 +325,17 @@ export const usePRStore = create<PRStore>((set, get) => ({
             isCommentsLoading: false,
             commentUserFilter: [],
             commentResolvedFilter: 'all',
+            prFiles: [],
+            isFilesLoading: false,
+            filesError: null,
+            selectedFilePath: null,
+            reviews: [],
+            pendingReviewComments: [],
+            isSubmittingReview: false,
+            reviewError: null,
+            isMerging: false,
+            mergeError: null,
+            detailTab: 'conversation',
         }),
 
     setPRDetail: (pr) => set({ selectedPRDetail: pr }),
@@ -330,6 +423,22 @@ export const usePRStore = create<PRStore>((set, get) => ({
     // Body editing actions
     setEditingBody: (editing) => set({ isEditingBody: editing, generatedSummary: null, summaryError: null }),
     setBodySaving: (saving) => set({ isBodySaving: saving }),
+
+    // PR files & review actions
+    setPRFiles: (prFiles) => set({ prFiles, isFilesLoading: false, filesError: null }),
+    setFilesLoading: (loading) => set({ isFilesLoading: loading }),
+    setFilesError: (error) => set({ filesError: error, isFilesLoading: false }),
+    selectFile: (filePath) => set({ selectedFilePath: filePath }),
+    setReviews: (reviews) => set({ reviews }),
+    addReview: (review) => set((state) => ({ reviews: [...state.reviews, review], isSubmittingReview: false, reviewError: null, pendingReviewComments: [] })),
+    setSubmittingReview: (submitting) => set({ isSubmittingReview: submitting }),
+    setReviewError: (error) => set({ reviewError: error, isSubmittingReview: false }),
+    addPendingComment: (comment) => set((state) => ({ pendingReviewComments: [...state.pendingReviewComments, comment] })),
+    removePendingComment: (index) => set((state) => ({ pendingReviewComments: state.pendingReviewComments.filter((_, i) => i !== index) })),
+    clearPendingComments: () => set({ pendingReviewComments: [] }),
+    setMerging: (merging) => set({ isMerging: merging }),
+    setMergeError: (error) => set({ mergeError: error, isMerging: false }),
+    setDetailTab: (tab) => set({ detailTab: tab }),
 
     filteredPRs: () => {
         const { prs, searchQuery } = get();

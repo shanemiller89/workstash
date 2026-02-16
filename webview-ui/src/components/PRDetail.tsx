@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect, useMemo } from 'react';
-import { usePRStore, type PRCommentData, type CommentResolvedFilter, type CommentGroup, type ReviewThread } from '../prStore';
+import { usePRStore, type PRCommentData, type CommentResolvedFilter, type CommentGroup, type ReviewThread, type PRDetailTab } from '../prStore';
 import { postMessage } from '../vscode';
 import {
     GitPullRequest,
@@ -29,6 +29,7 @@ import {
     Save,
     Sparkles,
     Settings2,
+    ShieldCheck,
 } from 'lucide-react';
 import { MarkdownBody } from './MarkdownBody';
 import { Button } from './ui/button';
@@ -36,9 +37,16 @@ import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Checkbox } from './ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 import { Separator } from './ui/separator';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
+
+import { PRFileTree } from './PRFileTree';
+import { PRFileDiff } from './PRFileDiff';
+import { PRReviewForm } from './PRReviewForm';
+import { PRReviewStatus } from './PRReviewStatus';
+import { PRMergeButton } from './PRMergeButton';
 
 function formatDate(iso: string): string {
     return new Date(iso).toLocaleString();
@@ -790,12 +798,42 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
     const [editBody, setEditBody] = useState('');
     const [showPromptEditor, setShowPromptEditor] = useState(false);
 
+    // PR files & review state
+    const detailTab = usePRStore((s) => s.detailTab);
+    const setDetailTab = usePRStore((s) => s.setDetailTab);
+    const prFiles = usePRStore((s) => s.prFiles);
+    const isFilesLoading = usePRStore((s) => s.isFilesLoading);
+    const filesError = usePRStore((s) => s.filesError);
+    const reviews = usePRStore((s) => s.reviews);
+    const pendingComments = usePRStore((s) => s.pendingReviewComments);
+    const [showReviewForm, setShowReviewForm] = useState(false);
+    const [filesFetched, setFilesFetched] = useState(false);
+
     // When AI generates a summary, populate the edit body
     useEffect(() => {
         if (generatedSummary && isEditingBody) {
             setEditBody(generatedSummary);
         }
     }, [generatedSummary, isEditingBody]);
+
+    // Lazy-fetch files and reviews when switching to the files tab
+    const handleTabChange = useCallback(
+        (value: string | number | null) => {
+            const tab = value as PRDetailTab;
+            setDetailTab(tab);
+            if (tab === 'files' && !filesFetched && selectedPRNumber !== null) {
+                setFilesFetched(true);
+                postMessage('prs.getFiles', { prNumber: selectedPRNumber });
+                postMessage('prs.getReviews', { prNumber: selectedPRNumber });
+            }
+        },
+        [filesFetched, selectedPRNumber, setDetailTab],
+    );
+
+    // Reset fetched flag when PR changes
+    useEffect(() => {
+        setFilesFetched(false);
+    }, [selectedPRNumber]);
 
     const selectedPR = useMemo(() => {
         if (selectedPRNumber === null) {return undefined;}
@@ -1027,12 +1065,48 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                 {pr.state === 'open' && (
                     <ReviewerSection prNumber={pr.number} prAuthor={pr.author} />
                 )}
+
+                {/* Review status bar */}
+                {reviews.length > 0 && (
+                    <div className="mt-2">
+                        <PRReviewStatus />
+                    </div>
+                )}
             </div>
 
-            {/* Body + Comments scrollable area */}
-            <div className="flex-1 overflow-y-auto">
-                {/* PR description — editable */}
-                <div className="px-3 py-3 border-b border-border">
+            {/* Tabbed content: Conversation / Files Changed */}
+            <Tabs
+                value={detailTab}
+                onValueChange={handleTabChange}
+                className="flex-1 flex flex-col min-h-0"
+            >
+                <TabsList variant="line" className="shrink-0 px-3 pt-1">
+                    <TabsTrigger value="conversation" className="text-[11px] gap-1 px-2 py-1">
+                        <MessageSquare size={12} />
+                        Conversation
+                    </TabsTrigger>
+                    <TabsTrigger value="files" className="text-[11px] gap-1 px-2 py-1">
+                        <FileDiff size={12} />
+                        Files Changed
+                        {selectedPRDetail && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 ml-0.5 border-fg/15 text-fg/50">
+                                {pr.changedFiles}
+                            </Badge>
+                        )}
+                        {pendingComments.length > 0 && (
+                            <Badge variant="outline" className="text-[9px] px-1 py-0 ml-0.5 border-yellow-400/30 text-yellow-400 bg-yellow-400/10">
+                                {pendingComments.length}
+                            </Badge>
+                        )}
+                    </TabsTrigger>
+                </TabsList>
+
+                {/* Conversation tab */}
+                <TabsContent value="conversation" keepMounted className="flex-1 flex flex-col min-h-0">
+                    {/* Body + Comments scrollable area */}
+                    <div className="flex-1 overflow-y-auto">
+                        {/* PR description — editable */}
+                        <div className="px-3 py-3 border-b border-border">
                     <div className="flex items-center gap-2 mb-1.5">
                         <span className="text-[10px] text-fg/40 uppercase tracking-wider font-medium">
                             Description
@@ -1252,33 +1326,112 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                         </div>
                     )}
                 </div>
-            </div>
+                    </div>
+                </TabsContent>
 
-            {/* New comment input */}
+                {/* Files Changed tab */}
+                <TabsContent value="files" className="flex-1 flex flex-col min-h-0">
+                    {isFilesLoading ? (
+                        <div className="flex-1 flex items-center justify-center text-fg/40 text-[11px]">
+                            <Loader2 size={14} className="animate-spin mr-2" />
+                            Loading files…
+                        </div>
+                    ) : filesError ? (
+                        <div className="flex-1 flex items-center justify-center text-red-400 text-[11px]">
+                            {filesError}
+                        </div>
+                    ) : (
+                        <div className="flex-1 flex flex-col min-h-0">
+                            {/* File tree */}
+                            <div className="shrink-0 max-h-[40%] overflow-y-auto border-b border-border">
+                                <PRFileTree />
+                            </div>
+                            {/* File diff viewer */}
+                            <div className="flex-1 min-h-0">
+                                <PRFileDiff />
+                            </div>
+                        </div>
+                    )}
+                </TabsContent>
+            </Tabs>
+
+            {/* Footer: comment input + review/merge actions */}
             <div className="shrink-0 border-t border-border p-3">
-                <div className="flex gap-2">
-                    <Textarea
-                        value={newComment}
-                        onChange={(e) => setNewComment(e.target.value)}
-                        onKeyDown={handleKeyDown}
-                        placeholder="Leave a comment… (⌘+Enter to submit)"
-                        rows={2}
-                        className="flex-1 text-[11px]"
-                    />
-                    <Button
-                        className="self-end"
-                        size="icon"
-                        onClick={handleSubmitComment}
-                        disabled={!newComment.trim() || isCommentSaving}
-                        title="Post comment"
-                    >
-                        <Send size={13} />
-                    </Button>
-                </div>
-                {isCommentSaving && (
-                    <div className="text-[10px] text-fg/40 mt-1">Posting comment…</div>
+                {detailTab === 'conversation' ? (
+                    /* Conversation tab footer: comment input */
+                    <div>
+                        <div className="flex gap-2">
+                            <Textarea
+                                value={newComment}
+                                onChange={(e) => setNewComment(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder="Leave a comment… (⌘+Enter to submit)"
+                                rows={2}
+                                className="flex-1 text-[11px]"
+                            />
+                            <Button
+                                className="self-end"
+                                size="icon"
+                                onClick={handleSubmitComment}
+                                disabled={!newComment.trim() || isCommentSaving}
+                                title="Post comment"
+                            >
+                                <Send size={13} />
+                            </Button>
+                        </div>
+                        {isCommentSaving && (
+                            <div className="text-[10px] text-fg/40 mt-1">Posting comment…</div>
+                        )}
+                    </div>
+                ) : (
+                    /* Files tab footer: review + merge actions */
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {pendingComments.length > 0 && (
+                            <Badge
+                                variant="outline"
+                                className="text-[10px] px-1.5 py-0.5 border-yellow-400/30 text-yellow-400 bg-yellow-400/10 gap-1"
+                            >
+                                <MessageSquare size={10} />
+                                {pendingComments.length} pending comment{pendingComments.length !== 1 ? 's' : ''}
+                            </Badge>
+                        )}
+                        <div className="flex-1" />
+                        {pr.state === 'open' && (
+                            <>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-7 gap-1 text-[11px]"
+                                    onClick={() => setShowReviewForm(true)}
+                                >
+                                    <ShieldCheck size={12} />
+                                    Submit Review
+                                    {pendingComments.length > 0 && (
+                                        <Badge variant="outline" className="text-[8px] px-1 py-0 ml-0.5 border-yellow-400/30 text-yellow-400 bg-yellow-400/10">
+                                            {pendingComments.length}
+                                        </Badge>
+                                    )}
+                                </Button>
+                                <PRMergeButton
+                                    prNumber={pr.number}
+                                    prTitle={pr.title}
+                                    baseBranch={pr.baseBranch}
+                                    headBranch={pr.branch}
+                                />
+                            </>
+                        )}
+                    </div>
                 )}
             </div>
+
+            {/* Review form dialog */}
+            {selectedPRNumber !== null && (
+                <PRReviewForm
+                    open={showReviewForm}
+                    onOpenChange={setShowReviewForm}
+                    prNumber={selectedPRNumber}
+                />
+            )}
         </div>
     );
 };

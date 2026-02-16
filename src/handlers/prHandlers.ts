@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { AiService } from '../aiService';
-import { PrService } from '../prService';
+import { PrService, type PRReviewEvent, type PRMergeMethod, type PendingInlineComment } from '../prService';
 import { extractErrorMessage } from '../utils';
 import type { MessageHandler } from './types';
 
@@ -404,6 +404,143 @@ List each changed file, a brief description of what changed in that file, and wh
                     type: 'prSummaryError',
                     error: m,
                 });
+            }
+            return true;
+        }
+
+        // ─── PR Files (Changed Files) ───
+        case 'prs.getFiles': {
+            if (msg.prNumber !== undefined && ctx.prService) {
+                try {
+                    const repoInfo = await ctx.getRepoInfo();
+                    if (!repoInfo) { return true; }
+                    ctx.postMessage({ type: 'prFilesLoading' });
+                    const files = await ctx.prService.getPullRequestFiles(
+                        repoInfo.owner,
+                        repoInfo.repo,
+                        msg.prNumber as number,
+                    );
+                    ctx.postMessage({
+                        type: 'prFiles',
+                        files: files.map(PrService.toFileData),
+                    });
+                } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
+                    vscode.window.showErrorMessage(`Failed to fetch PR files: ${m}`);
+                    ctx.postMessage({ type: 'prFilesError', message: m });
+                }
+            }
+            return true;
+        }
+
+        // ─── PR Reviews (review statuses) ───
+        case 'prs.getReviews': {
+            if (msg.prNumber !== undefined && ctx.prService) {
+                try {
+                    const repoInfo = await ctx.getRepoInfo();
+                    if (!repoInfo) { return true; }
+                    const reviews = await ctx.prService.getReviews(
+                        repoInfo.owner,
+                        repoInfo.repo,
+                        msg.prNumber as number,
+                    );
+                    ctx.postMessage({
+                        type: 'prReviews',
+                        reviews: reviews.map(PrService.toReviewData),
+                    });
+                } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
+                    vscode.window.showErrorMessage(`Failed to fetch reviews: ${m}`);
+                    ctx.postMessage({ type: 'prError', message: m });
+                }
+            }
+            return true;
+        }
+
+        // ─── Submit Review (approve / request changes / comment) ───
+        case 'prs.submitReview': {
+            if (msg.prNumber !== undefined && msg.event && ctx.prService) {
+                try {
+                    const repoInfo = await ctx.getRepoInfo();
+                    if (!repoInfo) { return true; }
+                    ctx.postMessage({ type: 'prReviewSubmitting' });
+
+                    const review = await ctx.prService.submitReview(
+                        repoInfo.owner,
+                        repoInfo.repo,
+                        msg.prNumber as number,
+                        msg.event as PRReviewEvent,
+                        msg.body as string | undefined,
+                        msg.comments as PendingInlineComment[] | undefined,
+                    );
+
+                    ctx.postMessage({
+                        type: 'prReviewSubmitted',
+                        review: PrService.toReviewData(review),
+                    });
+
+                    const eventLabel = msg.event === 'APPROVE'
+                        ? 'approved'
+                        : msg.event === 'REQUEST_CHANGES'
+                            ? 'requested changes on'
+                            : 'commented on';
+                    vscode.window.showInformationMessage(
+                        `Successfully ${eventLabel} PR #${msg.prNumber}`,
+                    );
+
+                    // Refresh comments to pick up any new inline review comments
+                    await ctx.sendPRComments(msg.prNumber as number);
+                } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
+                    vscode.window.showErrorMessage(`Failed to submit review: ${m}`);
+                    ctx.postMessage({ type: 'prReviewError', message: m });
+                }
+            }
+            return true;
+        }
+
+        // ─── Merge PR ───
+        case 'prs.mergePR': {
+            if (msg.prNumber !== undefined && ctx.prService) {
+                try {
+                    const repoInfo = await ctx.getRepoInfo();
+                    if (!repoInfo) { return true; }
+                    ctx.postMessage({ type: 'prMerging' });
+
+                    const result = await ctx.prService.mergePullRequest(
+                        repoInfo.owner,
+                        repoInfo.repo,
+                        msg.prNumber as number,
+                        (msg.mergeMethod as PRMergeMethod) ?? 'merge',
+                        msg.commitTitle as string | undefined,
+                        msg.commitMessage as string | undefined,
+                    );
+
+                    if (result.merged) {
+                        ctx.postMessage({
+                            type: 'prMerged',
+                            sha: result.sha,
+                            message: result.message,
+                        });
+                        vscode.window.showInformationMessage(
+                            `PR #${msg.prNumber} merged successfully`,
+                        );
+                        // Refresh PR list to update state
+                        await ctx.refreshPRs();
+                    } else {
+                        ctx.postMessage({
+                            type: 'prMergeError',
+                            message: result.message || 'Merge failed',
+                        });
+                        vscode.window.showErrorMessage(
+                            `Failed to merge PR #${msg.prNumber}: ${result.message}`,
+                        );
+                    }
+                } catch (e: unknown) {
+                    const m = extractErrorMessage(e);
+                    vscode.window.showErrorMessage(`Failed to merge PR: ${m}`);
+                    ctx.postMessage({ type: 'prMergeError', message: m });
+                }
             }
             return true;
         }
