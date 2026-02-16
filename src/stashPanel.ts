@@ -839,6 +839,22 @@ export class StashPanel {
                 }
                 break;
 
+            case 'notes.migrate':
+                if (msg.noteId && this._gistService) {
+                    try {
+                        const migrated = await this._gistService.migrateToSpf(msg.noteId);
+                        this._panel.webview.postMessage({
+                            type: 'noteMigrated',
+                            note: GistService.toData(migrated),
+                        });
+                        vscode.window.showInformationMessage('Note migrated to SPF format');
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        vscode.window.showErrorMessage(`Failed to migrate note: ${m}`);
+                    }
+                }
+                break;
+
             // ─── PR messages from webview ───
 
             case 'prs.refresh':

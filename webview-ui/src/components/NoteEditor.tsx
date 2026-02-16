@@ -32,6 +32,7 @@ import {
     WrapText,
     FolderGit2,
     Unlink,
+    Stamp,
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -497,6 +498,20 @@ export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
                             <span>Link</span>
                         </Button>
                     ) : null}
+
+                    {/* Add SPF marker */}
+                    {!note.hasSpfMarker && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto px-1 py-0.5 text-[11px] gap-1 opacity-50 hover:opacity-100"
+                            onClick={() => postMessage('notes.migrate', { noteId: note.id })}
+                            title="Add SPF marker — migrates to Superprompt Forge naming"
+                        >
+                            <Stamp size={12} />
+                            <span>Add SPF Marker</span>
+                        </Button>
+                    )}
 
                     {/* Copy link */}
                     <Button

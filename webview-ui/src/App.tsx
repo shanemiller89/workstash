@@ -198,6 +198,11 @@ export const App: React.FC = () => {
                         linkedRepo: (msg.linkedRepo as string) ?? null,
                     });
                     break;
+                case 'noteMigrated': {
+                    const migratedNote = msg.note as GistNoteData;
+                    notesStore.updateNoteInList(migratedNote.id, migratedNote);
+                    break;
+                }
 
                 // ─── PR messages ───
                 case 'prsData': {

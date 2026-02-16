@@ -10,6 +10,7 @@ export interface GistNoteData {
     updatedAt: string;
     htmlUrl: string;
     linkedRepo: string | null;
+    hasSpfMarker: boolean;
 }
 
 export type NotesFilterMode = 'all' | 'workspace';
