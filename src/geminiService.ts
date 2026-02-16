@@ -39,7 +39,7 @@ export interface GeminiModelInfo {
 }
 
 /** Available Gemini models that support generateContent. */
-const GEMINI_MODELS: GeminiModelInfo[] = [
+export const GEMINI_MODELS: GeminiModelInfo[] = [
     { id: 'gemini-2.5-flash', name: 'Gemini 2.5 Flash', displayName: 'Gemini 2.5 Flash' },
     { id: 'gemini-2.5-pro', name: 'Gemini 2.5 Pro', displayName: 'Gemini 2.5 Pro' },
     { id: 'gemini-2.0-flash', name: 'Gemini 2.0 Flash', displayName: 'Gemini 2.0 Flash' },

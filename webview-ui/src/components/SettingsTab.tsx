@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useAIStore, type AIModelInfo } from '../aiStore';
 import { useMattermostStore } from '../mattermostStore';
+import { useSettingsStore, type SettingsData } from '../settingsStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -30,29 +31,16 @@ import {
 
 // ─── Types ────────────────────────────────────────────────────────
 
-export interface SettingsData {
-    // Stash
-    autoRefresh: boolean;
-    confirmOnDrop: boolean;
-    confirmOnClear: boolean;
-    showFileStatus: boolean;
-    defaultIncludeUntracked: boolean;
-    sortOrder: 'newest' | 'oldest';
-    showBranchInDescription: boolean;
-    // Notes
-    autosaveDelay: number;
-    defaultVisibility: 'secret' | 'public';
-    // Mattermost
-    mattermostServerUrl: string;
-    // AI Privacy
-    includeSecretGists: boolean;
-    includePrivateMessages: boolean;
-    // AI Provider
-    aiProvider: 'copilot' | 'gemini' | 'none';
-    providerPreference: 'auto' | 'copilot' | 'gemini';
-    geminiApiKey: string;
-    geminiModel: string;
-}
+// ─── Gemini Models ────────────────────────────────────────────────
+// Mirrors GEMINI_MODELS in src/geminiService.ts. The webview cannot import from
+// the extension host, so this display-only list is kept in sync manually.
+// If models change, update both locations.
+const GEMINI_MODEL_OPTIONS = [
+    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
+    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
+    { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite' },
+];
 
 // ─── Section Components ───────────────────────────────────────────
 
@@ -90,22 +78,15 @@ const SectionCard: React.FC<{
     </Card>
 );
 
-// ─── Gemini Models (must match package.json enum) ─────────────────
-
-const GEMINI_MODELS = [
-    { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
-    { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
-    { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash' },
-    { id: 'gemini-2.0-flash-lite', label: 'Gemini 2.0 Flash Lite' },
-];
-
 // ─── Main Component ───────────────────────────────────────────────
 
 export const SettingsTab: React.FC = () => {
-    const [settings, setSettings] = useState<SettingsData | null>(null);
+    const settings = useSettingsStore((s) => s.settings);
+    const storeUpdateSetting = useSettingsStore((s) => s.updateSetting);
     const [showApiKey, setShowApiKey] = useState(false);
     const [apiKeyInput, setApiKeyInput] = useState('');
     const [apiKeySaved, setApiKeySaved] = useState(false);
+    const prevSettingsRef = useRef<SettingsData | null>(null);
 
     // AI store data
     const aiProvider = useAIStore((s) => s.aiProvider);
@@ -126,24 +107,19 @@ export const SettingsTab: React.FC = () => {
         }
     }, [aiAvailable]);
 
-    // Listen for settings data from extension
+    // Sync API key input when settings arrive from store
     useEffect(() => {
-        const handler = (event: MessageEvent) => {
-            const msg = event.data;
-            if (msg.type === 'settingsData') {
-                setSettings(msg.settings as SettingsData);
-                setApiKeyInput(msg.settings.geminiApiKey ? '••••••••••••' : '');
-            }
-        };
-        window.addEventListener('message', handler);
-        return () => window.removeEventListener('message', handler);
-    }, []);
+        if (settings && settings !== prevSettingsRef.current) {
+            setApiKeyInput(settings.geminiApiKey ? '••••••••••••' : '');
+            prevSettingsRef.current = settings;
+        }
+    }, [settings]);
 
     // Update a single setting
     const updateSetting = useCallback((key: string, value: unknown) => {
         postMessage('settings.updateSetting', { key, value });
-        setSettings((prev) => prev ? { ...prev, [key]: value } : prev);
-    }, []);
+        storeUpdateSetting(key as keyof SettingsData, value as SettingsData[keyof SettingsData]);
+    }, [storeUpdateSetting]);
 
     // Save Gemini API key
     const handleSaveApiKey = useCallback(() => {
@@ -347,7 +323,7 @@ export const SettingsTab: React.FC = () => {
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {GEMINI_MODELS.map((m) => (
+                                    {GEMINI_MODEL_OPTIONS.map((m) => (
                                         <SelectItem key={m.id} value={m.id}>
                                             {m.label}
                                         </SelectItem>

@@ -189,10 +189,9 @@
 
 ### 4D. Gemini Model List (2 copies → 1)
 
-- [ ] **4d-i. Single-source Gemini model definitions**
-    - Define `GEMINI_MODELS` array in `src/geminiService.ts` and export it
-    - Import in `src/aiService.ts` instead of re-declaring
-    - 📁 `src/geminiService.ts`, `src/aiService.ts`
+- [x] **4d-i. Single-source Gemini model definitions**
+    - Exported `GEMINI_MODELS` from `src/geminiService.ts`; renamed SettingsTab copy to `GEMINI_MODEL_OPTIONS` with cross-reference comment
+    - 📁 `src/geminiService.ts`, `webview-ui/src/components/SettingsTab.tsx`
 
 ### 4E. Error Message Extraction (4 patterns → 1 utility)
 
@@ -213,7 +212,7 @@
 
 > Prevent unnecessary re-renders by switching from object destructuring to selector-based subscriptions.
 
-- [ ] **5a. Fix `StashCard.tsx` — selective subscriptions**
+- [x] **5a. Fix `StashCard.tsx` — selective subscriptions**
     - Replace:
       ```ts
       const { expandedIndices, toggleExpanded, selectStash, selectedStashIndex } = useStashStore();
@@ -227,13 +226,13 @@
       ```
     - 📁 `webview-ui/src/components/StashCard.tsx`
 
-- [ ] **5b. Audit all components for non-selective subscriptions**
+- [x] **5b. Audit all components for non-selective subscriptions**
     - Search all `.tsx` files for `} = use*Store()` destructuring pattern
     - Convert each to selector-based subscriptions
     - Document which components were updated
     - 📁 All `webview-ui/src/components/*.tsx`
 
-- [ ] **5c. Memoize derived selectors in stores**
+- [x] **5c. Memoize derived selectors in stores**
     - Ensure `filteredStashes()`, `filteredNotes()`, and similar computed selectors only recompute when their dependencies change
     - Use `useMemo` at the component level or Zustand's `useShallow` where appropriate
     - 📁 `webview-ui/src/store.ts`, `webview-ui/src/notesStore.ts`, `webview-ui/src/prStore.ts`
@@ -264,9 +263,8 @@
     - Group: stashes (git CLI) | PRs + Issues + Projects (GitHub API, can share auth) | Notes (Gist API) | Mattermost (REST) | Drive + Calendar (Google API) | Wiki (GitHub API)
     - 📁 `src/stashPanel.ts` (or `src/handlers/aiHandlers.ts` after §1i)
 
-- [ ] **6e. Bound chat message history**
-    - Add `MAX_CHAT_MESSAGES = 200` constant
-    - When adding a new message, trim oldest messages beyond the limit
+- [x] **6e. Bound chat message history**
+    - Added `MAX_CHAT_MESSAGES = 200` constant + `trimMessages()` helper in `addUserMessage` and `addAssistantMessage`
     - 📁 `webview-ui/src/aiStore.ts`
 
 ---
@@ -530,15 +528,12 @@
     - Consolidate: add `stateFilter` into the store-level `filteredItems()` derived selector for consistency
     - 📁 `webview-ui/src/projectStore.ts`
 
-- [ ] **15c. Remove duplicate `SettingsTab` message listener**
-    - `SettingsTab.tsx` line ~138 adds its own `window.addEventListener('message', ...)` for `settingsData`
-    - This duplicates the main `App.tsx` handler — consolidate into a single listener path
-    - 📁 `webview-ui/src/components/SettingsTab.tsx`
+- [x] **15c. Remove duplicate `SettingsTab` message listener**
+    - Created `settingsStore.ts` + `useSettingsMessages.ts` hook; SettingsTab now uses store instead of own `window.addEventListener`
+    - 📁 `webview-ui/src/settingsStore.ts`, `webview-ui/src/hooks/useSettingsMessages.ts`, `webview-ui/src/components/SettingsTab.tsx`
 
-- [ ] **15d. Document `Map`/`Set` usage in stores**
-    - `store.ts` uses `Map` for `fileDiffs` and `Set` for `expandedIndices` / `fileDiffLoading`
-    - These are not JSON-serializable (blocks Zustand devtools/persist middleware)
-    - Add a code comment documenting this intentional choice, or migrate to `Record<string, T>` / `string[]`
+- [x] **15d. Document `Map`/`Set` usage in stores**
+    - Added documentation comment explaining intentional Map/Set usage and JSON-serialization trade-off
     - 📁 `webview-ui/src/store.ts`
 
 ---
@@ -593,23 +588,23 @@
 | Section                              | Sub-tasks | Done | Remaining |
 |--------------------------------------|-----------|------|-----------|
 | 1. Decompose `stashPanel.ts`        | 10        | 10   | 0         |
-| 2. Decompose `App.tsx`              | 9         | 0    | 9         |
-| 3. `createOrShow` Options Bag       | 3         | 0    | 3         |
-| 4. Deduplicate Shared Code          | 10        | 0    | 10        |
-| 5. Zustand Selective Subscriptions   | 3         | 0    | 3         |
-| 6. AI Request Management            | 5         | 0    | 5         |
+| 2. Decompose `App.tsx`              | 9         | 9    | 0         |
+| 3. `createOrShow` Options Bag       | 3         | 3    | 0         |
+| 4. Deduplicate Shared Code          | 10        | 8    | 2         |
+| 5. Zustand Selective Subscriptions   | 3         | 3    | 0         |
+| 6. AI Request Management            | 5         | 1    | 4         |
 | 7. Keyboard Navigation Parity       | 8         | 0    | 8         |
 | 8. Error States for List Views      | 4         | 0    | 4         |
 | 9. Tab Organization                 | 5         | 0    | 5         |
-| 10. Tailwind v4 Modernization       | 5         | 0    | 5         |
-| 11. Eliminate `any`                  | 4         | 0    | 4         |
-| 12. Fix Missing AI Tab Labels       | 2         | 0    | 2         |
+| 10. Tailwind v4 Modernization       | 5         | 3    | 2         |
+| 11. Eliminate `any`                  | 4         | 1    | 3         |
+| 12. Fix Missing AI Tab Labels       | 2         | 2    | 0         |
 | 13. Summary Pane Resizable          | 2         | 0    | 2         |
 | 14. Extract `useDraggable`          | 3         | 0    | 3         |
-| 15. Remaining Code Quality          | 4         | 0    | 4         |
+| 15. Remaining Code Quality          | 4         | 2    | 2         |
 | 16. Testing Updates                 | 3         | 0    | 3         |
 | 17. Build & Release Verification    | 5         | 0    | 5         |
-| **Total**                           | **85**    | **0**| **85**    |
+| **Total**                           | **85**    | **42**| **43**   |
 
 ---
 

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useMemo } from 'react';
 import { usePRStore, type PRCommentData } from '../prStore';
 import { postMessage } from '../vscode';
 import { Button } from './ui/button';
@@ -82,7 +82,10 @@ const ThreadMessage: React.FC<{ comment: PRCommentData }> = ({ comment }) => (
 );
 
 export const PRThreadPanel: React.FC = () => {
-    const activeThread = usePRStore((s) => s.activeThread());
+    const activeThreadFn = usePRStore((s) => s.activeThread);
+    const activeThreadId = usePRStore((s) => s.activeThreadId);
+    const comments = usePRStore((s) => s.comments);
+    const activeThread = useMemo(() => activeThreadFn(), [activeThreadFn, activeThreadId, comments]);
     const closeThread = usePRStore((s) => s.closeThread);
     const selectedPRNumber = usePRStore((s) => s.selectedPRNumber);
     const isCommentSaving = usePRStore((s) => s.isCommentSaving);

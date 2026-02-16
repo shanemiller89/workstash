@@ -11,7 +11,10 @@ export const StashCard: React.FC<{
     tabIndex?: number;
     isFocused?: boolean;
 }> = ({ stash, tabIndex = -1, isFocused = false }) => {
-    const { expandedIndices, toggleExpanded, selectStash, selectedStashIndex } = useStashStore();
+    const expandedIndices = useStashStore((s) => s.expandedIndices);
+    const toggleExpanded = useStashStore((s) => s.toggleExpanded);
+    const selectStash = useStashStore((s) => s.selectStash);
+    const selectedStashIndex = useStashStore((s) => s.selectedStashIndex);
     const isExpanded = expandedIndices.has(stash.index);
     const isSelected = selectedStashIndex === stash.index;
     const isWip = stash.message.toLowerCase().startsWith('wip');

@@ -112,6 +112,16 @@ function genId(): string {
     return `msg_${Date.now()}_${_nextId++}`;
 }
 
+/** Maximum number of chat messages retained in the store. Oldest are trimmed. */
+const MAX_CHAT_MESSAGES = 200;
+
+/** Trim a message array to the last MAX_CHAT_MESSAGES entries. */
+function trimMessages(msgs: AIChatMessage[]): AIChatMessage[] {
+    return msgs.length > MAX_CHAT_MESSAGES
+        ? msgs.slice(msgs.length - MAX_CHAT_MESSAGES)
+        : msgs;
+}
+
 export const useAIStore = create<AIStore>((set, get) => ({
     aiAvailable: false,
     aiProvider: 'none' as const,
@@ -197,7 +207,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
     addUserMessage: (content) => {
         const id = genId();
         set((s) => ({
-            chatMessages: [
+            chatMessages: trimMessages([
                 ...s.chatMessages,
                 {
                     id,
@@ -205,7 +215,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
                     content,
                     timestamp: new Date().toISOString(),
                 },
-            ],
+            ]),
             chatInput: '',
             isChatLoading: true,
         }));
@@ -214,7 +224,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
 
     addAssistantMessage: (id) => {
         set((s) => ({
-            chatMessages: [
+            chatMessages: trimMessages([
                 ...s.chatMessages,
                 {
                     id,
@@ -223,7 +233,7 @@ export const useAIStore = create<AIStore>((set, get) => ({
                     timestamp: new Date().toISOString(),
                     isStreaming: true,
                 },
-            ],
+            ]),
         }));
     },
 

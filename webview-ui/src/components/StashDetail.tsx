@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useStashStore, type StashData, type StashFileData } from '../store';
 import { postMessage } from '../vscode';
 import { DiffView } from './DiffView';
@@ -25,7 +25,10 @@ const statusConfig: Record<string, { label: string; color: string; fullLabel: st
 };
 
 export const StashDetail: React.FC<{ onClose: () => void }> = ({ onClose }) => {
-    const stash = useStashStore((s) => s.selectedStash());
+    const selectedStashFn = useStashStore((s) => s.selectedStash);
+    const stashes = useStashStore((s) => s.stashes);
+    const selectedStashIndex = useStashStore((s) => s.selectedStashIndex);
+    const stash = useMemo(() => selectedStashFn(), [selectedStashFn, stashes, selectedStashIndex]);
     const fileDiffs = useStashStore((s) => s.fileDiffs);
     const fileDiffLoading = useStashStore((s) => s.fileDiffLoading);
     const expandedDetailFiles = useStashStore((s) => s.expandedDetailFiles);

@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { useStashStore } from '../store';
 import { StashCard } from './StashCard';
 import { postMessage } from '../vscode';
@@ -100,9 +100,12 @@ export const StashList: React.FC = () => {
     const loading = useStashStore((s) => s.loading);
     const searchQuery = useStashStore((s) => s.searchQuery);
     const setSearchQuery = useStashStore((s) => s.setSearchQuery);
-    const stashes = useStashStore((s) => s.filteredStashes());
+    const allStashes = useStashStore((s) => s.stashes);
+    const filteredStashesFn = useStashStore((s) => s.filteredStashes);
     const showCreateForm = useStashStore((s) => s.showCreateForm);
     const setShowCreateForm = useStashStore((s) => s.setShowCreateForm);
+
+    const stashes = useMemo(() => filteredStashesFn(), [filteredStashesFn, allStashes, searchQuery]);
 
     // 8b-v: Roving tabindex keyboard navigation
     const [focusedIndex, setFocusedIndex] = useState(-1);

@@ -30,6 +30,12 @@ export interface StashData {
 
 interface StashStore {
     stashes: StashData[];
+    /**
+     * NOTE: `Set` and `Map` are intentionally used here for O(1) lookup performance.
+     * Trade-off: they are not JSON-serializable, which blocks Zustand devtools/persist
+     * middleware. If devtools support is needed later, migrate to `Record<string, T>`
+     * / `string[]` and adjust the `.has()` / `.get()` call sites.
+     */
     expandedIndices: Set<number>;
     loading: boolean;
     searchQuery: string;

@@ -89,7 +89,10 @@ md.use(taskLists, { enabled: true, label: true, labelAfter: true });
 // ─── Component ────────────────────────────────────────────────────
 
 export const NoteEditor: React.FC<{ onClose?: () => void }> = ({ onClose }) => {
-    const note = useNotesStore((s) => s.selectedNote());
+    const selectedNoteFn = useNotesStore((s) => s.selectedNote);
+    const allNotes = useNotesStore((s) => s.notes);
+    const selectedNoteId = useNotesStore((s) => s.selectedNoteId);
+    const note = useMemo(() => selectedNoteFn(), [selectedNoteFn, allNotes, selectedNoteId]);
     const editingContent = useNotesStore((s) => s.editingContent);
     const editingTitle = useNotesStore((s) => s.editingTitle);
     const isDirty = useNotesStore((s) => s.isDirty);

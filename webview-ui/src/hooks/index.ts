@@ -19,6 +19,7 @@ import { handleDriveMessage } from './useDriveMessages';
 import { handleCalendarMessage } from './useCalendarMessages';
 import { handleWikiMessage } from './useWikiMessages';
 import { handleAppMessage } from './useAppMessages';
+import { handleSettingsMessage } from './useSettingsMessages';
 
 export {
     handleStashMessage,
@@ -32,6 +33,7 @@ export {
     handleCalendarMessage,
     handleWikiMessage,
     handleAppMessage,
+    handleSettingsMessage,
 };
 
 type Msg = { type: string; [key: string]: unknown };
@@ -54,4 +56,5 @@ export const handlerRegistry: MessageHandler[] = [
     handleDriveMessage,
     handleCalendarMessage,
     handleWikiMessage,
+    handleSettingsMessage,
 ];
