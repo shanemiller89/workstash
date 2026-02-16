@@ -109,7 +109,7 @@
 
 > The 12-parameter factory method is called 6 times in `extension.ts` with identical args.
 
-- [ ] **3a. Define `PanelServices` interface**
+- [x] **3a. Define `PanelServices` interface**
     - ```ts
       interface PanelServices {
           gitService: GitService;
@@ -127,11 +127,11 @@
       ```
     - 📁 `src/panelContext.ts` (or inline in `stashPanel.ts`)
 
-- [ ] **3b. Refactor `createOrShow` signature**
+- [x] **3b. Refactor `createOrShow` signature**
     - Change to `createOrShow(extensionUri: vscode.Uri, services: PanelServices): StashPanel`
     - 📁 `src/stashPanel.ts`
 
-- [ ] **3c. Create `services` constant in `extension.ts`**
+- [x] **3c. Create `services` constant in `extension.ts`**
     - Build the services bag once, pass it to all 6 call sites
     - Reduces 6 × 12-arg calls to 6 × 2-arg calls referencing a shared `services` local
     - 📁 `src/extension.ts`
@@ -144,20 +144,20 @@
 
 ### 4A. `formatRelativeTime` (3 copies → 1)
 
-- [ ] **4a-i. Audit all copies**
+- [x] **4a-i. Audit all copies**
     - `src/utils.ts` (canonical)
     - `webview-ui/src/components/NotesList.tsx` → `formatRelativeTimeSimple()` (line 284)
     - `src/stashPanel.ts` → if a private `_formatRelativeTime()` copy exists
     - Identify differences in logic (if any)
     - 📁 Audit only
 
-- [ ] **4a-ii. Create shared `formatRelativeTime` for webview**
+- [x] **4a-ii. Create shared `formatRelativeTime` for webview**
     - New file: `webview-ui/src/lib/formatRelativeTime.ts` exporting the canonical implementation
     - Update `NotesList.tsx` to import from `@/lib/formatRelativeTime`
     - Update any other webview consumers
     - 📁 `webview-ui/src/lib/formatRelativeTime.ts`, `webview-ui/src/components/NotesList.tsx`
 
-- [ ] **4a-iii. Remove private copy from `stashPanel.ts` (if exists)**
+- [x] **4a-iii. Remove private copy from `stashPanel.ts` (if exists)**
     - Use the `src/utils.ts` import (already imported)
     - 📁 `src/stashPanel.ts`
 
@@ -175,14 +175,14 @@
 
 ### 4C. Google OAuth Credential Prompting (3 copies → 1)
 
-- [ ] **4c-i. Extract `ensureGoogleCredentials()` in extension**
+- [x] **4c-i. Extract `ensureGoogleCredentials()` in extension**
     - Shared helper function used by:
       - `extension.ts` → `superprompt-forge.drive.signIn` command
       - `stashPanel.ts` → Drive sign-in handler
       - `stashPanel.ts` → Calendar sign-in handler
     - 📁 `src/utils.ts` (or new `src/googleUtils.ts`)
 
-- [ ] **4c-ii. Update all 3 call sites**
+- [x] **4c-ii. Update all 3 call sites**
     - Replace inline credential prompting with the shared helper
     - 📁 `src/extension.ts`, `src/stashPanel.ts` (2 places)
 
@@ -195,11 +195,11 @@
 
 ### 4E. Error Message Extraction (4 patterns → 1 utility)
 
-- [ ] **4e-i. Create `extractErrorMessage(e: unknown): string` utility**
+- [x] **4e-i. Create `extractErrorMessage(e: unknown): string` utility**
     - Canonical pattern: `e instanceof Error ? e.message : String(e)`
     - 📁 `src/utils.ts`
 
-- [ ] **4e-ii. Replace all inline error extraction across `stashPanel.ts` and `extension.ts`**
+- [x] **4e-ii. Replace all inline error extraction across `stashPanel.ts` and `extension.ts`**
     - Replace `e instanceof Error ? e.message : 'Unknown error'`
     - Replace `String(e)`
     - Replace `(e as Error).message`
@@ -402,16 +402,16 @@
 
 > Bulk-update deprecated Tailwind utility classes to v4 equivalents.
 
-- [ ] **10a. `flex-shrink-0` → `shrink-0`**
+- [x] **10a. `flex-shrink-0` → `shrink-0`**
     - ~100 instances across 20+ component files
     - Automated find-and-replace within `className` strings
     - 📁 All `webview-ui/src/components/*.tsx`
 
-- [ ] **10b. `flex-grow` → `grow`, `flex-grow-0` → `grow-0`**
+- [x] **10b. `flex-grow` → `grow`, `flex-grow-0` → `grow-0`**
     - Scan and replace all instances
     - 📁 All `webview-ui/src/components/*.tsx`
 
-- [ ] **10c. `overflow-hidden` → `overflow-clip` (where appropriate)**
+- [x] **10c. `overflow-hidden` → `overflow-clip` (where appropriate)**
     - Only replace where clipping behavior is desired (not where scrollable overflow is needed)
     - Review each usage contextually — some `overflow-hidden` is intentional for scrollable containers
     - 📁 Selective replacement
@@ -446,7 +446,7 @@
 
 ### 11B. `extension.ts` — Catch Clauses (3 instances)
 
-- [ ] **11b-i. Replace `catch (error: any)` with `catch (error: unknown)`**
+- [x] **11b-i. Replace `catch (error: any)` with `catch (error: unknown)`**
     - Lines 606, 629, 727 — use `extractErrorMessage()` utility from §4e
     - 📁 `src/extension.ts`
 
@@ -463,14 +463,14 @@
 
 > `_buildSummaryPrompt()` in `aiService.ts` is missing labels for `drive`, `calendar`, `wiki`.
 
-- [ ] **12a. Add missing tab labels**
+- [x] **12a. Add missing tab labels**
     - Add to `tabLabels` map in `_buildSummaryPrompt()`:
       - `drive` → `'Google Drive'`
       - `calendar` → `'Google Calendar'`
       - `wiki` → `'Wiki'`
     - 📁 `src/aiService.ts`
 
-- [ ] **12b. Verify `stashes` label exists**
+- [x] **12b. Verify `stashes` label exists**
     - Confirm `stashes` → `'Git Stashes'` is present (it is)
     - 📁 Verification only
 

@@ -11,7 +11,8 @@ import { GoogleDriveService } from './googleDriveService';
 import { GoogleCalendarService } from './calendarService';
 import { WikiService } from './wikiService';
 import { AiService } from './aiService';
-import { formatRelativeTime, getConfig } from './utils';
+import { formatRelativeTime, getConfig, extractErrorMessage } from './utils';
+import { PanelServices, ensureGoogleCredentials } from './panelContext';
 
 /**
  * Manages the Superprompt Forge webview panel — a rich, interactive stash explorer
@@ -93,7 +94,7 @@ export class StashPanel {
                 repos,
             });
         } catch (e: unknown) {
-            this._outputChannel.appendLine(`[RepoContext] Error: ${e instanceof Error ? e.message : e}`);
+            this._outputChannel.appendLine(`[RepoContext] Error: ${extractErrorMessage(e)}`);
         }
     }
 
@@ -120,24 +121,14 @@ export class StashPanel {
             });
         } catch (e: unknown) {
             this._outputChannel.appendLine(
-                `[RepoSwitcher] Failed to fetch user repos: ${e instanceof Error ? e.message : e}`,
+                `[RepoSwitcher] Failed to fetch user repos: ${extractErrorMessage(e)}`,
             );
         }
     }
 
     public static createOrShow(
         extensionUri: vscode.Uri,
-        gitService: GitService,
-        outputChannel: vscode.OutputChannel,
-        authService?: AuthService,
-        gistService?: GistService,
-        prService?: PrService,
-        issueService?: IssueService,
-        mattermostService?: MattermostService,
-        projectService?: ProjectService,
-        driveService?: GoogleDriveService,
-        calendarService?: GoogleCalendarService,
-        wikiService?: WikiService,
+        services: PanelServices,
     ): StashPanel {
         const column = vscode.window.activeTextEditor?.viewColumn ?? vscode.ViewColumn.One;
 
@@ -153,53 +144,29 @@ export class StashPanel {
             localResourceRoots: [vscode.Uri.joinPath(extensionUri, 'dist')],
         });
 
-        StashPanel._instance = new StashPanel(
-            panel,
-            extensionUri,
-            gitService,
-            outputChannel,
-            authService,
-            gistService,
-            prService,
-            issueService,
-            mattermostService,
-            projectService,
-            driveService,
-            calendarService,
-            wikiService,
-        );
+        StashPanel._instance = new StashPanel(panel, extensionUri, services);
         return StashPanel._instance;
     }
 
     private constructor(
         panel: vscode.WebviewPanel,
         extensionUri: vscode.Uri,
-        gitService: GitService,
-        outputChannel: vscode.OutputChannel,
-        authService?: AuthService,
-        gistService?: GistService,
-        prService?: PrService,
-        issueService?: IssueService,
-        mattermostService?: MattermostService,
-        projectService?: ProjectService,
-        driveService?: GoogleDriveService,
-        calendarService?: GoogleCalendarService,
-        wikiService?: WikiService,
+        services: PanelServices,
     ) {
         this._panel = panel;
         this._extensionUri = extensionUri;
-        this._gitService = gitService;
-        this._outputChannel = outputChannel;
-        this._authService = authService;
-        this._gistService = gistService;
-        this._prService = prService;
-        this._issueService = issueService;
-        this._mattermostService = mattermostService;
-        this._projectService = projectService;
-        this._driveService = driveService;
-        this._calendarService = calendarService;
-        this._wikiService = wikiService;
-        this._aiService = new AiService(outputChannel);
+        this._gitService = services.gitService;
+        this._outputChannel = services.outputChannel;
+        this._authService = services.authService;
+        this._gistService = services.gistService;
+        this._prService = services.prService;
+        this._issueService = services.issueService;
+        this._mattermostService = services.mattermostService;
+        this._projectService = services.projectService;
+        this._driveService = services.driveService;
+        this._calendarService = services.calendarService;
+        this._wikiService = services.wikiService;
+        this._aiService = new AiService(services.outputChannel);
 
         this._panel.iconPath = new vscode.ThemeIcon('archive');
         this._panel.webview.html = this._getHtml();
@@ -210,7 +177,7 @@ export class StashPanel {
                 try {
                     await this._handleMessage(msg);
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : String(e);
+                    const m = extractErrorMessage(e);
                     this._outputChannel.appendLine(`[Message] Unhandled error for "${msg?.type}": ${m}`);
                 }
             },
@@ -446,7 +413,7 @@ export class StashPanel {
                         await step.fn();
                         this._outputChannel.appendLine(`[Init] ✓ ${step.label}`);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : String(e);
+                        const m = extractErrorMessage(e);
                         this._outputChannel.appendLine(`[Init] ⚠ ${step.label} failed: ${m}`);
                     }
                 }
@@ -545,7 +512,7 @@ export class StashPanel {
                         vscode.window.showInformationMessage(`Dropped stash@{${msg.index}}`);
                         await this._refresh();
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to drop: ${m}`);
                     }
                 }
@@ -569,7 +536,7 @@ export class StashPanel {
                             { preview: true },
                         );
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to show diff: ${m}`);
                     }
                 }
@@ -616,7 +583,7 @@ export class StashPanel {
                             : 'Changes stashed successfully',
                     );
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     vscode.window.showErrorMessage(`Stash failed: ${m}`);
                 }
                 await this._refresh();
@@ -663,7 +630,7 @@ export class StashPanel {
                             note: GistService.toData(note),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to create note: ${m}`);
                         this._panel.webview.postMessage({ type: 'notesError', message: m });
                     }
@@ -687,7 +654,7 @@ export class StashPanel {
                             updatedAt: saved.updatedAt.toISOString(),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to save note: ${m}`);
                         this._panel.webview.postMessage({ type: 'notesError', message: m });
                     }
@@ -712,7 +679,7 @@ export class StashPanel {
                             noteId: msg.noteId,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to delete note: ${m}`);
                         this._panel.webview.postMessage({ type: 'notesError', message: m });
                     }
@@ -744,7 +711,7 @@ export class StashPanel {
                             content: fullNote.content,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         this._panel.webview.postMessage({ type: 'notesError', message: m });
                     }
                 }
@@ -770,7 +737,7 @@ export class StashPanel {
                             note: GistService.toData(toggled),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to toggle visibility: ${m}`);
                         this._panel.webview.postMessage({ type: 'notesError', message: m });
                     }
@@ -817,7 +784,7 @@ export class StashPanel {
                         });
                         vscode.window.showInformationMessage(`Note linked to ${repoSlug}`);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to link note: ${m}`);
                     }
                 }
@@ -834,7 +801,7 @@ export class StashPanel {
                         });
                         vscode.window.showInformationMessage('Note unlinked from workspace');
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to unlink note: ${m}`);
                     }
                 }
@@ -850,7 +817,7 @@ export class StashPanel {
                         });
                         vscode.window.showInformationMessage('Note migrated to SPF format');
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to migrate note: ${m}`);
                     }
                 }
@@ -900,7 +867,7 @@ export class StashPanel {
                             comment: PrService.toCommentData(comment),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to post comment: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -933,7 +900,7 @@ export class StashPanel {
                             comment: PrService.toCommentData(reply),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to post reply: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -951,7 +918,7 @@ export class StashPanel {
                             resolvedBy: result.resolvedBy,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to resolve thread: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -969,7 +936,7 @@ export class StashPanel {
                             resolvedBy: result.resolvedBy,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to unresolve thread: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -1014,7 +981,7 @@ export class StashPanel {
                             collaborators,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to fetch collaborators: ${m}`);
                     }
                 }
@@ -1040,7 +1007,7 @@ export class StashPanel {
                             `Review requested from ${msg.reviewers.join(', ')}`,
                         );
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to request review: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -1072,7 +1039,7 @@ export class StashPanel {
                             'Copilot code review requested',
                         );
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to request Copilot review: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -1095,7 +1062,7 @@ export class StashPanel {
                             reviewer: msg.reviewer,
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to remove review request: ${m}`);
                         this._panel.webview.postMessage({ type: 'prError', message: m });
                     }
@@ -1112,7 +1079,7 @@ export class StashPanel {
                         currentBranch: currentBranch ?? null,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'prError', message: m });
                 }
                 break;
@@ -1135,7 +1102,7 @@ export class StashPanel {
                             prDetail: PrService.toData(updated),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to update PR: ${m}`);
                         this._panel.webview.postMessage({ type: 'prBodySaveError', error: m });
                     }
@@ -1168,7 +1135,7 @@ export class StashPanel {
                         // Refresh the PR list to include the new PR
                         await this._refreshPRs();
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to create PR: ${m}`);
                         this._panel.webview.postMessage({ type: 'prCreateError', message: m });
                     }
@@ -1251,7 +1218,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         summary: result,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'AI error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({
                         type: 'prSummaryError',
                         error: m,
@@ -1301,7 +1268,7 @@ List each changed file, a brief description of what changed in that file, and wh
                             comment: IssueService.toCommentData(comment),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to post comment: ${m}`);
                         this._panel.webview.postMessage({ type: 'issueError', message: m });
                     }
@@ -1327,7 +1294,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                         vscode.window.showInformationMessage(`Closed issue #${msg.issueNumber}`);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to close issue: ${m}`);
                         this._panel.webview.postMessage({ type: 'issueError', message: m });
                     }
@@ -1351,7 +1318,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                         vscode.window.showInformationMessage(`Reopened issue #${msg.issueNumber}`);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to reopen issue: ${m}`);
                         this._panel.webview.postMessage({ type: 'issueError', message: m });
                     }
@@ -1399,7 +1366,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         const items = result.items.map((i) => ProjectService.toItemData(i));
                         this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to load project: ${m}`);
                         this._panel.webview.postMessage({ type: 'projectError', message: m });
                     }
@@ -1420,7 +1387,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         // Refresh items to get updated values
                         await this._refreshProjectItems(msg.projectId as string);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to update field: ${m}`);
                         this._panel.webview.postMessage({ type: 'projectError', message: m });
                     }
@@ -1440,7 +1407,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                         vscode.window.showInformationMessage('Item removed from project');
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to delete item: ${m}`);
                         this._panel.webview.postMessage({ type: 'projectError', message: m });
                     }
@@ -1459,7 +1426,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         // Refresh items to include the new item
                         await this._refreshProjectItems(msg.projectId as string);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to add draft issue: ${m}`);
                         this._panel.webview.postMessage({ type: 'projectError', message: m });
                     }
@@ -1476,7 +1443,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         vscode.window.showInformationMessage('Item added to project');
                         await this._refreshProjectItems(msg.projectId as string);
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         vscode.window.showErrorMessage(`Failed to add item: ${m}`);
                         this._panel.webview.postMessage({ type: 'projectError', message: m });
                     }
@@ -1587,7 +1554,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         }).catch(() => { /* non-critical — custom emojis just won't render */ });
                     }
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1652,7 +1619,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         }).catch(() => { /* ignore avatar fetch errors */ });
                     }
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1677,7 +1644,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
                     }
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     if (pendingId) {
                         this._panel.webview.postMessage({ type: 'mattermostPostFailed', pendingId, error: m });
                     } else {
@@ -1728,7 +1695,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         payload,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1749,7 +1716,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const postData = MattermostService.toPostData(post, username, files);
                     this._panel.webview.postMessage({ type: 'mattermostPostCreated', post: postData });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1763,7 +1730,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     await this._mattermostService.addReaction(msg.postId, msg.emojiName);
                     // WebSocket will relay the reaction_added event
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1775,7 +1742,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     await this._mattermostService.removeReaction(msg.postId, msg.emojiName);
                     // WebSocket will relay the reaction_removed event
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1799,7 +1766,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         payload,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1814,7 +1781,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const channelData = MattermostService.toChannelData(channel);
                     this._panel.webview.postMessage({ type: 'mattermostDmCreated', channel: channelData });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1827,7 +1794,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const channelData = MattermostService.toChannelData(channel);
                     this._panel.webview.postMessage({ type: 'mattermostDmCreated', channel: channelData });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1840,7 +1807,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const payload = users.map((u) => MattermostService.toUserData(u));
                     this._panel.webview.postMessage({ type: 'mattermostUserSearchResults', payload });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1872,7 +1839,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     ];
                     this._fetchBulkUnreads(allChannelIds).catch(() => { /* ignore */ });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1885,7 +1852,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const payload = statuses.map((s) => MattermostService.toUserStatusData(s));
                     this._panel.webview.postMessage({ type: 'mattermostUserStatuses', payload });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1900,7 +1867,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         payload: MattermostService.toChannelUnreadData(unread),
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1915,7 +1882,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         channelId: msg.channelId,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1931,7 +1898,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     const postData = MattermostService.toPostData(post, username);
                     this._panel.webview.postMessage({ type: 'mattermostPostEdited', post: postData });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1943,7 +1910,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     await this._mattermostService.deletePost(msg.postId);
                     this._panel.webview.postMessage({ type: 'mattermostPostDeleted', postId: msg.postId });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1959,7 +1926,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         isPinned: true,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -1975,7 +1942,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         isPinned: false,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2000,7 +1967,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     }));
                     this._panel.webview.postMessage({ type: 'mattermostSearchResults', payload });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2017,7 +1984,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         payload: posts.map((p) => p.id),
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2033,7 +2000,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         flagged: true,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2049,7 +2016,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         flagged: false,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2063,7 +2030,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     await this._mattermostService.setOwnStatus(msg.status as 'online' | 'away' | 'offline' | 'dnd', msg.dndEndTime);
                     // WebSocket will relay the status_change event
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2086,7 +2053,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         avatarUrl,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2103,7 +2070,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         payload: MattermostService.toChannelData(channel),
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2158,7 +2125,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         files: fileInfoDatas,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                     this._panel.webview.postMessage({ type: 'mattermostFileUploadFailed' });
                 }
@@ -2182,7 +2149,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     }
                     this._panel.webview.postMessage({ type: 'mattermostEmojiAutocomplete', payload });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({ type: 'mattermostError', message: m });
                 }
                 break;
@@ -2253,7 +2220,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         },
                     );
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'Unknown error';
+                    const m = extractErrorMessage(e);
                     vscode.window.showErrorMessage(`Export failed: ${m}`);
                 }
                 break;
@@ -2276,7 +2243,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     });
                 } catch (e: unknown) {
                     this._outputChannel.appendLine(
-                        `[AI] Failed to list models: ${e instanceof Error ? e.message : e}`,
+                        `[AI] Failed to list models: ${extractErrorMessage(e)}`,
                     );
                 }
                 break;
@@ -2325,7 +2292,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         content: result,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'AI error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({
                         type: 'aiSummaryError',
                         tabKey,
@@ -2381,7 +2348,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         messageId: assistantMsgId,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'AI error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({
                         type: 'aiChatError',
                         messageId: assistantMsgId,
@@ -2425,7 +2392,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         content: result,
                     });
                 } catch (e: unknown) {
-                    const m = e instanceof Error ? e.message : 'AI error';
+                    const m = extractErrorMessage(e);
                     this._panel.webview.postMessage({
                         type: 'aiAgentError',
                         error: m,
@@ -2534,42 +2501,15 @@ List each changed file, a brief description of what changed in that file, and wh
 
             case 'drive.signIn': {
                 if (this._driveService) {
-                    // Ensure credentials are configured — prompt if missing
-                    const config = vscode.workspace.getConfiguration('superprompt-forge.google');
-                    let clientId = config.get<string>('clientId', '').trim();
-                    let clientSecret = config.get<string>('clientSecret', '').trim();
-
-                    if (!clientId) {
-                        const input = await vscode.window.showInputBox({
-                            title: 'Google OAuth — Client ID',
-                            prompt: 'Enter your Google OAuth 2.0 Client ID (from Google Cloud Console → APIs & Services → Credentials)',
-                            placeHolder: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com',
-                            ignoreFocusOut: true,
-                        });
-                        if (!input) { break; }
-                        clientId = input.trim();
-                        await config.update('clientId', clientId, vscode.ConfigurationTarget.Global);
-                    }
-
-                    if (!clientSecret) {
-                        const input = await vscode.window.showInputBox({
-                            title: 'Google OAuth — Client Secret',
-                            prompt: 'Enter your Google OAuth 2.0 Client Secret',
-                            placeHolder: 'GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxx',
-                            password: true,
-                            ignoreFocusOut: true,
-                        });
-                        if (!input) { break; }
-                        clientSecret = input.trim();
-                        await config.update('clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
-                    }
+                    const configured = await ensureGoogleCredentials();
+                    if (!configured) { break; }
 
                     try {
                         await this._driveService.signIn();
                         await this._sendDriveAuthStatus();
                     } catch (e: unknown) {
                         vscode.window.showErrorMessage(
-                            `Google sign-in failed: ${e instanceof Error ? e.message : e}`,
+                            `Google sign-in failed: ${extractErrorMessage(e)}`,
                         );
                     }
                 }
@@ -2595,7 +2535,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] listFiles error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] listFiles error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveFiles',
@@ -2616,7 +2556,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] search error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] search error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveSearchResults',
@@ -2637,7 +2577,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] getStarred error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] getStarred error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveStarredFiles',
@@ -2658,7 +2598,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] getRecent error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] getRecent error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveRecentFiles',
@@ -2679,7 +2619,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] getSharedDrives error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] getSharedDrives error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveSharedDrives',
@@ -2700,7 +2640,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         this._outputChannel.appendLine(
-                            `[Drive] listSharedDriveFiles error: ${e instanceof Error ? e.message : e}`,
+                            `[Drive] listSharedDriveFiles error: ${extractErrorMessage(e)}`,
                         );
                         this._panel.webview.postMessage({
                             type: 'driveSharedDriveFiles',
@@ -2717,7 +2657,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         await this._driveService.openInBrowser(msg.fileId);
                     } catch (e: unknown) {
                         vscode.window.showErrorMessage(
-                            `Failed to open file: ${e instanceof Error ? e.message : e}`,
+                            `Failed to open file: ${extractErrorMessage(e)}`,
                         );
                     }
                 }
@@ -2753,7 +2693,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         }
                     } catch (e: unknown) {
                         vscode.window.showErrorMessage(
-                            `Download failed: ${e instanceof Error ? e.message : e}`,
+                            `Download failed: ${extractErrorMessage(e)}`,
                         );
                     }
                 }
@@ -2798,7 +2738,7 @@ List each changed file, a brief description of what changed in that file, and wh
                     } catch (e: unknown) {
                         this._panel.webview.postMessage({ type: 'driveUploadDone' });
                         vscode.window.showErrorMessage(
-                            `Upload failed: ${e instanceof Error ? e.message : e}`,
+                            `Upload failed: ${extractErrorMessage(e)}`,
                         );
                     }
                 }
@@ -2816,7 +2756,7 @@ List each changed file, a brief description of what changed in that file, and wh
                         });
                     } catch (e: unknown) {
                         vscode.window.showErrorMessage(
-                            `Failed to update star: ${e instanceof Error ? e.message : e}`,
+                            `Failed to update star: ${extractErrorMessage(e)}`,
                         );
                     }
                 }
@@ -2864,31 +2804,8 @@ List each changed file, a brief description of what changed in that file, and wh
 
             case 'calendar.signIn': {
                 if (this._calendarService) {
-                    // Check for OAuth credentials first
-                    const config = vscode.workspace.getConfiguration('superprompt-forge');
-                    let clientId = config.get<string>('google.clientId', '');
-                    let clientSecret = config.get<string>('google.clientSecret', '');
-
-                    if (!clientId || !clientSecret) {
-                        const idInput = await vscode.window.showInputBox({
-                            prompt: 'Enter your Google Cloud OAuth Client ID',
-                            placeHolder: 'xxxxxxxx.apps.googleusercontent.com',
-                            ignoreFocusOut: true,
-                        });
-                        if (!idInput) { break; }
-                        clientId = idInput;
-
-                        const secretInput = await vscode.window.showInputBox({
-                            prompt: 'Enter your Google Cloud OAuth Client Secret',
-                            password: true,
-                            ignoreFocusOut: true,
-                        });
-                        if (!secretInput) { break; }
-                        clientSecret = secretInput;
-
-                        await config.update('google.clientId', clientId, vscode.ConfigurationTarget.Global);
-                        await config.update('google.clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
-                    }
+                    const configured = await ensureGoogleCredentials();
+                    if (!configured) { break; }
 
                     try {
                         await this._calendarService.signIn();
@@ -2898,8 +2815,8 @@ List each changed file, a brief description of what changed in that file, and wh
                             authenticated: isAuth,
                         });
                     } catch (e: unknown) {
-                        this._outputChannel.appendLine(`[Calendar] Sign-in error: ${e instanceof Error ? e.message : e}`);
-                        vscode.window.showErrorMessage(`Google sign-in failed: ${e instanceof Error ? e.message : e}`);
+                        this._outputChannel.appendLine(`[Calendar] Sign-in error: ${extractErrorMessage(e)}`);
+                        vscode.window.showErrorMessage(`Google sign-in failed: ${extractErrorMessage(e)}`);
                     }
                 }
                 break;
@@ -2927,7 +2844,7 @@ List each changed file, a brief description of what changed in that file, and wh
                             calendars,
                         });
                     } catch (e: unknown) {
-                        const errorMsg = e instanceof Error ? e.message : String(e);
+                        const errorMsg = extractErrorMessage(e);
                         this._outputChannel.appendLine(`[Calendar] List calendars error: ${errorMsg}`);
                         this._panel.webview.postMessage({
                             type: 'calendarError',
@@ -2987,7 +2904,7 @@ List each changed file, a brief description of what changed in that file, and wh
                             });
                         }
                     } catch (e: unknown) {
-                        const errorMsg = e instanceof Error ? e.message : String(e);
+                        const errorMsg = extractErrorMessage(e);
                         this._outputChannel.appendLine(`[Calendar] List events error: ${errorMsg}`);
                         this._panel.webview.postMessage({
                             type: 'calendarError',
@@ -3033,7 +2950,7 @@ List each changed file, a brief description of what changed in that file, and wh
                             page: WikiService.toPageData(page),
                         });
                     } catch (e: unknown) {
-                        const m = e instanceof Error ? e.message : 'Unknown error';
+                        const m = extractErrorMessage(e);
                         this._panel.webview.postMessage({ type: 'wikiError', message: m });
                     }
                 }
@@ -3504,7 +3421,7 @@ List each changed file, a brief description of what changed in that file, and wh
                 pages: pages.map(WikiService.toSummaryData),
             });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._outputChannel.appendLine(`[Wiki] Error refreshing: ${m}`);
             this._panel.webview.postMessage({ type: 'wikiError', message: m });
         }
@@ -3585,7 +3502,7 @@ List each changed file, a brief description of what changed in that file, and wh
             const payload = notes.map((n) => GistService.toData(n));
             this._panel.webview.postMessage({ type: 'notesData', payload });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._outputChannel.appendLine(`[Notes] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'notesError', message: m });
         }
@@ -3631,7 +3548,7 @@ List each changed file, a brief description of what changed in that file, and wh
             const payload = prs.map((pr) => PrService.toData(pr));
             this._panel.webview.postMessage({ type: 'prsData', payload });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._outputChannel.appendLine(`[PRs] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'prError', message: m });
         }
@@ -3663,7 +3580,7 @@ List each changed file, a brief description of what changed in that file, and wh
                 comments: comments.map((c) => PrService.toCommentData(c)),
             });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._panel.webview.postMessage({ type: 'prError', message: m });
         }
     }
@@ -3700,7 +3617,7 @@ List each changed file, a brief description of what changed in that file, and wh
             const payload = issues.map((i) => IssueService.toData(i));
             this._panel.webview.postMessage({ type: 'issuesData', payload });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._outputChannel.appendLine(`[Issues] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'issueError', message: m });
         }
@@ -3731,7 +3648,7 @@ List each changed file, a brief description of what changed in that file, and wh
                 comments: comments.map((c) => IssueService.toCommentData(c)),
             });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._panel.webview.postMessage({ type: 'issueError', message: m });
         }
     }
@@ -3781,7 +3698,7 @@ List each changed file, a brief description of what changed in that file, and wh
             const items = result.items.map((i) => ProjectService.toItemData(i));
             this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._panel.webview.postMessage({ type: 'projectError', message: m });
         }
     }
@@ -3797,7 +3714,7 @@ List each changed file, a brief description of what changed in that file, and wh
             const items = result.items.map((i) => ProjectService.toItemData(i));
             this._panel.webview.postMessage({ type: 'projectItemsData', payload: items });
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._panel.webview.postMessage({ type: 'projectError', message: m });
         }
     }
@@ -3865,7 +3782,7 @@ List each changed file, a brief description of what changed in that file, and wh
             // Connect WebSocket for real-time events
             await this._connectMattermostWebSocket();
         } catch (e: unknown) {
-            const m = e instanceof Error ? e.message : 'Unknown error';
+            const m = extractErrorMessage(e);
             this._panel.webview.postMessage({ type: 'mattermostError', message: m });
         }
     }

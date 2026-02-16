@@ -33,6 +33,7 @@ import { ForgeOverviewProvider } from './forgeProvider';
 import { WikiService } from './wikiService';
 import { pickStash } from './uiUtils';
 import { extractErrorMessage, getConfig } from './utils';
+import { PanelServices, ensureGoogleCredentials } from './panelContext';
 
 export function activate(context: vscode.ExtensionContext) {
     console.log('Superprompt Forge extension is now active!');
@@ -204,6 +205,21 @@ export function activate(context: vscode.ExtensionContext) {
 
     // WikiService — GitHub Wiki API
     const wikiService = new WikiService(authService, outputChannel);
+
+    // §3c: Services bag — shared across all StashPanel.createOrShow() calls
+    const panelServices: PanelServices = {
+        gitService,
+        outputChannel,
+        authService,
+        gistService,
+        prService,
+        issueService,
+        mattermostService,
+        projectService,
+        driveService,
+        calendarService,
+        wikiService,
+    };
 
     // GoogleDriveProvider — tree data provider for Google Drive sidebar
     const driveProvider = new GoogleDriveProvider(driveService, outputChannel);
@@ -495,7 +511,7 @@ export function activate(context: vscode.ExtensionContext) {
                     }
                 }, 500);
             } catch (error: unknown) {
-                const msg = error instanceof Error ? error.message : 'Unknown error';
+                const msg = extractErrorMessage(error);
                 vscode.window.showErrorMessage(`Failed to create stash: ${msg}`);
             }
         }),
@@ -654,7 +670,7 @@ export function activate(context: vscode.ExtensionContext) {
                     preview: true,
                 });
             } catch (error: unknown) {
-                const message = error instanceof Error ? error.message : 'Unknown error';
+                const message = extractErrorMessage(error);
                 vscode.window.showErrorMessage(`Failed to show file diff: ${message}`);
             }
         }),
@@ -662,7 +678,7 @@ export function activate(context: vscode.ExtensionContext) {
 
     context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.openPanel', () => {
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
         }),
     );
 
@@ -692,7 +708,7 @@ export function activate(context: vscode.ExtensionContext) {
                 });
                 await vscode.window.showTextDocument(document, { preview: true });
             } catch (error: unknown) {
-                const msg = error instanceof Error ? error.message : 'Unknown error';
+                const msg = extractErrorMessage(error);
                 vscode.window.showErrorMessage(`Failed to show stash stats: ${msg}`);
             }
         }),
@@ -882,7 +898,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Note "${title}" created`);
                 gistNotesProvider.refresh('post-command');
             } catch (error: unknown) {
-                const msg = error instanceof Error ? error.message : 'Unknown error';
+                const msg = extractErrorMessage(error);
                 vscode.window.showErrorMessage(`Failed to create note: ${msg}`);
             }
         }),
@@ -894,7 +910,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the note in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
             StashPanel.currentPanel?.openNote(item.note.id);
         }),
     );
@@ -929,7 +945,7 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage(`Note "${item.note.title}" deleted`);
                 gistNotesProvider.refresh('post-command');
             } catch (error: unknown) {
-                const msg = error instanceof Error ? error.message : 'Unknown error';
+                const msg = extractErrorMessage(error);
                 vscode.window.showErrorMessage(`Failed to delete note: ${msg}`);
             }
         }),
@@ -980,7 +996,7 @@ export function activate(context: vscode.ExtensionContext) {
                     vscode.window.showInformationMessage(`Note is now ${targetVis}`);
                     gistNotesProvider.refresh('post-command');
                 } catch (error: unknown) {
-                    const msg = error instanceof Error ? error.message : 'Unknown error';
+                    const msg = extractErrorMessage(error);
                     vscode.window.showErrorMessage(`Failed to toggle visibility: ${msg}`);
                 }
             },
@@ -1093,7 +1109,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the PR in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
             StashPanel.currentPanel?.openPR(item.pr.number);
         }),
     );
@@ -1183,7 +1199,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the issue in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
             StashPanel.currentPanel?.openIssue(item.issue.number);
         }),
     );
@@ -1287,7 +1303,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the channel in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
             StashPanel.currentPanel?.openChannel(item.channel.id, item.channel.displayName);
         }),
     );
@@ -1339,7 +1355,7 @@ export function activate(context: vscode.ExtensionContext) {
                 return;
             }
             // Open the project item in the webview panel
-            StashPanel.createOrShow(context.extensionUri, gitService, outputChannel, authService, gistService, prService, issueService, mattermostService, projectService, driveService, calendarService, wikiService);
+            StashPanel.createOrShow(context.extensionUri, panelServices);
             StashPanel.currentPanel?.openProjectItem(item.projectItem.id);
         }),
     );
@@ -1411,20 +1427,15 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.drive.signIn', async () => {
             // Ensure credentials are configured before attempting sign-in
-            const config = vscode.workspace.getConfiguration('superprompt-forge.google');
-            const hasId = !!config.get<string>('clientId', '').trim();
-            const hasSecret = !!config.get<string>('clientSecret', '').trim();
-            if (!hasId || !hasSecret) {
-                const configured = await promptForGoogleCredentials();
-                if (!configured) {
-                    return;
-                }
+            const configured = await ensureGoogleCredentials();
+            if (!configured) {
+                return;
             }
             try {
                 await driveService.signIn();
             } catch (e: unknown) {
                 vscode.window.showErrorMessage(
-                    `Google sign-in failed: ${e instanceof Error ? e.message : e}`,
+                    `Google sign-in failed: ${extractErrorMessage(e)}`,
                 );
             }
         }),
@@ -1436,51 +1447,9 @@ export function activate(context: vscode.ExtensionContext) {
         }),
     );
 
-    /**
-     * Prompt for Google OAuth Client ID and Client Secret via input boxes.
-     * Returns true if both are now configured, false if the user cancelled.
-     */
-    const promptForGoogleCredentials = async (): Promise<boolean> => {
-        const config = vscode.workspace.getConfiguration('superprompt-forge.google');
-        let clientId = config.get<string>('clientId', '').trim();
-        let clientSecret = config.get<string>('clientSecret', '').trim();
-
-        if (!clientId) {
-            const input = await vscode.window.showInputBox({
-                title: 'Google OAuth — Client ID',
-                prompt: 'Enter your Google OAuth 2.0 Client ID (from Google Cloud Console → APIs & Services → Credentials)',
-                placeHolder: 'xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com',
-                ignoreFocusOut: true,
-            });
-            if (!input) {
-                return false;
-            }
-            clientId = input.trim();
-            await config.update('clientId', clientId, vscode.ConfigurationTarget.Global);
-        }
-
-        if (!clientSecret) {
-            const input = await vscode.window.showInputBox({
-                title: 'Google OAuth — Client Secret',
-                prompt: 'Enter your Google OAuth 2.0 Client Secret',
-                placeHolder: 'GOCSPX-xxxxxxxxxxxxxxxxxxxxxxxxxx',
-                password: true,
-                ignoreFocusOut: true,
-            });
-            if (!input) {
-                return false;
-            }
-            clientSecret = input.trim();
-            await config.update('clientSecret', clientSecret, vscode.ConfigurationTarget.Global);
-        }
-
-        updateGoogleConfiguredContext();
-        return true;
-    };
-
     context.subscriptions.push(
         vscode.commands.registerCommand('superprompt-forge.drive.configure', async () => {
-            await promptForGoogleCredentials();
+            await ensureGoogleCredentials();
         }),
     );
 
