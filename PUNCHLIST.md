@@ -70,38 +70,39 @@
 
 > Same pattern as §1 but for the webview side. Split the `useEffect` message handler into composable hooks.
 
-- [ ] **2a. Create `useStashMessages` hook**
-    - Handles `stashList`, `fileDiff`, stash operation result messages
+- [x] **2a. Create `useStashMessages` hook**
+    - Handles `stashData`, `loading`, `fileDiff` messages
     - Dispatches to `useStashStore`
     - 📁 `webview-ui/src/hooks/useStashMessages.ts`
 
-- [ ] **2b. Create `useNotesMessages` hook**
-    - Handles `notesData`, `noteContent`, `noteSaved`, `noteCreated`, `noteDeleted`, `authStatus`, `notesLoading`, `notesError`
+- [x] **2b. Create `useNotesMessages` hook**
+    - Handles `notesData`, `noteContent`, `noteSaved`, `noteCreated`, `noteDeleted`, `authStatus`, `notesLoading`, `notesError`, etc.
     - Dispatches to `useNotesStore`
     - 📁 `webview-ui/src/hooks/useNotesMessages.ts`
 
-- [ ] **2c. Create `usePRMessages` hook**
+- [x] **2c. Create `usePRMessages` hook**
     - 📁 `webview-ui/src/hooks/usePRMessages.ts`
 
-- [ ] **2d. Create `useIssueMessages` hook**
+- [x] **2d. Create `useIssueMessages` hook**
     - 📁 `webview-ui/src/hooks/useIssueMessages.ts`
 
-- [ ] **2e. Create `useMattermostMessages` hook**
+- [x] **2e. Create `useMattermostMessages` hook**
     - 📁 `webview-ui/src/hooks/useMattermostMessages.ts`
 
-- [ ] **2f. Create `useProjectMessages` hook**
+- [x] **2f. Create `useProjectMessages` hook**
     - 📁 `webview-ui/src/hooks/useProjectMessages.ts`
 
-- [ ] **2g. Create `useDriveMessages`, `useCalendarMessages`, `useWikiMessages` hooks**
+- [x] **2g. Create `useDriveMessages`, `useCalendarMessages`, `useWikiMessages` hooks**
     - 📁 `webview-ui/src/hooks/useDriveMessages.ts`, `useCalendarMessages.ts`, `useWikiMessages.ts`
 
-- [ ] **2h. Create `useAIMessages` hook**
+- [x] **2h. Create `useAIMessages` hook**
     - 📁 `webview-ui/src/hooks/useAIMessages.ts`
 
-- [ ] **2i. Compose all hooks in `App.tsx`**
-    - `App.tsx` calls each `use*Messages()` hook, which internally calls `onMessage()` and handles its own subset
-    - App.tsx should shrink to ~200 lines (layout, tab routing, hook composition)
-    - 📁 `webview-ui/src/App.tsx`
+- [x] **2i. Compose all hooks in `App.tsx`**
+    - Created `useAppMessages` hook for repo-context messages + `hooks/index.ts` barrel with `handlerRegistry`
+    - `App.tsx` useEffect dispatches via handler registry loop (same pattern as §1)
+    - App.tsx: 1193 → 134 lines (−89%)
+    - 📁 `webview-ui/src/App.tsx`, `webview-ui/src/hooks/index.ts`, `webview-ui/src/hooks/useAppMessages.ts`
 
 ---
 
