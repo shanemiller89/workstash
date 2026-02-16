@@ -25,6 +25,8 @@ export interface GistNoteData {
     updatedAt: string;
     htmlUrl: string;
     linkedRepo: string | null;
+    /** true when the gist description starts with [Superprompt Forge] */
+    hasSpfMarker: boolean;
 }
 
 // ─── Convention Constants (16c) ───────────────────────────────────
@@ -32,8 +34,20 @@ export interface GistNoteData {
 /** Prefix in gist description to identify Superprompt Forge notes */
 const MARKER_PREFIX = '[Superprompt Forge] ';
 
+/** Legacy prefix from before the extension was renamed */
+const LEGACY_MARKER_PREFIX = '[Workstash] ';
+
+/** All accepted description prefixes (newest first) */
+const ACCEPTED_PREFIXES = [MARKER_PREFIX, LEGACY_MARKER_PREFIX];
+
 /** Marker file included in every Superprompt Forge note gist for discovery */
 const MARKER_FILENAME = '.superprompt-forge-note';
+
+/** Legacy marker filename from before the extension was renamed */
+const LEGACY_MARKER_FILENAME = '.workstash-note';
+
+/** All accepted marker filenames (newest first) */
+const ACCEPTED_MARKER_FILENAMES = [MARKER_FILENAME, LEGACY_MARKER_FILENAME];
 
 /** Marker file content — JSON metadata for forward-compatible versioning */
 const MARKER_CONTENT = JSON.stringify({ v: 1 });
@@ -211,23 +225,25 @@ export class GistService {
 
     /** Parse a raw GitHub Gist into our GistNote model. */
     private _parseGist(gist: GitHubGist): GistNote | undefined {
-        // Must have the marker file
-        const markerFile = gist.files[MARKER_FILENAME];
+        // Must have a marker file (accept both current and legacy filenames)
+        const markerFile = ACCEPTED_MARKER_FILENAMES
+            .map((fn) => gist.files[fn])
+            .find((f) => f !== undefined);
         if (!markerFile) {
             return undefined;
         }
 
-        // Must have the [Superprompt Forge] description prefix
+        // Extract title from description — strip any known prefix, otherwise use full description
         const description = gist.description ?? '';
-        if (!description.startsWith(MARKER_PREFIX)) {
-            return undefined;
-        }
+        const matchedPrefix = ACCEPTED_PREFIXES.find((p) => description.startsWith(p));
+        const title = matchedPrefix
+            ? description.slice(matchedPrefix.length)
+            : description || 'Untitled';
 
-        const title = description.slice(MARKER_PREFIX.length);
-
-        // Find the .md content file
+        // Find the .md content file (exclude all known marker filenames)
+        const markerNames = new Set(ACCEPTED_MARKER_FILENAMES);
         const mdFile = Object.values(gist.files).find(
-            (f) => f && f.filename !== MARKER_FILENAME && f.filename.endsWith('.md'),
+            (f) => f && !markerNames.has(f.filename) && f.filename.endsWith('.md'),
         );
 
         // Extract linked repo from marker file content
@@ -253,6 +269,19 @@ export class GistService {
             .replace(/\s+/g, '-')
             .slice(0, 100);
         return `${safe || 'note'}.md`;
+    }
+
+    /**
+     * Detect which marker filename a gist uses (legacy or current).
+     * Returns the current MARKER_FILENAME for new gists or if detection fails.
+     */
+    private _detectMarkerFilename(gist: GitHubGist): string {
+        for (const fn of ACCEPTED_MARKER_FILENAMES) {
+            if (gist.files[fn]) {
+                return fn;
+            }
+        }
+        return MARKER_FILENAME;
     }
 
     // ─── CRUD Methods (16d) ───────────────────────────────────────
@@ -321,14 +350,19 @@ export class GistService {
 
     /** Update an existing note (title and/or content). */
     async updateNote(id: string, title: string, content: string): Promise<GistNote> {
-        // First get the current gist to find the old .md filename
-        const current = await this.getNote(id);
+        // Fetch the raw gist to find the old .md filename and detect marker filename
+        const { data: rawGist } = await this._request<GitHubGist>('GET', `/gists/${id}`);
+        const current = this._parseGist(rawGist);
+        if (!current) {
+            throw new Error('Gist is not a Superprompt Forge note.');
+        }
+        const actualMarker = this._detectMarkerFilename(rawGist);
         const oldFilename = this._titleToFilename(current.title);
         const newFilename = this._titleToFilename(title);
 
         const files: Record<string, { content: string } | null> = {
             [newFilename]: { content },
-            [MARKER_FILENAME]: { content: buildMarkerContent(current.linkedRepo) },
+            [actualMarker]: { content: buildMarkerContent(current.linkedRepo) },
         };
 
         // If the title changed, delete the old file
@@ -376,9 +410,12 @@ export class GistService {
     /** Link a note to a workspace repository. */
     async linkToRepo(id: string, repoSlug: string): Promise<GistNote> {
         this._outputChannel.appendLine(`[GIST] Linking note ${id} to repo ${repoSlug}`);
+        // Detect which marker filename the gist uses (legacy or current)
+        const { data: rawGist } = await this._request<GitHubGist>('GET', `/gists/${id}`);
+        const actualMarker = this._detectMarkerFilename(rawGist);
         await this._request('PATCH', `/gists/${id}`, {
             files: {
-                [MARKER_FILENAME]: { content: buildMarkerContent(repoSlug) },
+                [actualMarker]: { content: buildMarkerContent(repoSlug) },
             },
         });
         return this.getNote(id);
@@ -387,11 +424,47 @@ export class GistService {
     /** Unlink a note from its workspace repository. */
     async unlinkFromRepo(id: string): Promise<GistNote> {
         this._outputChannel.appendLine(`[GIST] Unlinking note ${id} from repo`);
+        // Detect which marker filename the gist uses (legacy or current)
+        const { data: rawGist } = await this._request<GitHubGist>('GET', `/gists/${id}`);
+        const actualMarker = this._detectMarkerFilename(rawGist);
         await this._request('PATCH', `/gists/${id}`, {
             files: {
-                [MARKER_FILENAME]: { content: buildMarkerContent(null) },
+                [actualMarker]: { content: buildMarkerContent(null) },
             },
         });
+        return this.getNote(id);
+    }
+
+    /**
+     * Migrate a legacy note to the current Superprompt Forge naming convention.
+     * Updates description prefix to [Superprompt Forge] and ensures the current
+     * marker filename is present (adds it if only the legacy one exists).
+     */
+    async migrateToSpf(id: string): Promise<GistNote> {
+        this._outputChannel.appendLine(`[GIST] Migrating note ${id} to SPF marker`);
+        const { data: rawGist } = await this._request<GitHubGist>('GET', `/gists/${id}`);
+        const note = this._parseGist(rawGist);
+        if (!note) {
+            throw new Error('Gist is not a recognized note.');
+        }
+
+        const files: Record<string, { content: string } | null> = {};
+
+        // If using the legacy marker filename, add the current one and remove the old
+        const oldMarker = this._detectMarkerFilename(rawGist);
+        if (oldMarker !== MARKER_FILENAME) {
+            files[MARKER_FILENAME] = { content: rawGist.files[oldMarker]?.content ?? MARKER_CONTENT };
+            files[oldMarker] = null; // delete legacy marker file
+        }
+
+        // Update description to use current prefix
+        const newDescription = `${MARKER_PREFIX}${note.title}`;
+
+        await this._request('PATCH', `/gists/${id}`, {
+            description: newDescription,
+            ...(Object.keys(files).length > 0 ? { files } : {}),
+        });
+
         return this.getNote(id);
     }
 
@@ -406,6 +479,7 @@ export class GistService {
             updatedAt: note.updatedAt.toISOString(),
             htmlUrl: note.htmlUrl,
             linkedRepo: note.linkedRepo,
+            hasSpfMarker: note.description.startsWith(MARKER_PREFIX),
         };
     }
 }

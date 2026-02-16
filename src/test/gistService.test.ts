@@ -146,6 +146,31 @@ suite('GistService Unit Tests', () => {
             assert.strictEqual(notes[1].isPublic, true);
         });
 
+        test('parses legacy [Workstash] notes alongside current notes', async () => {
+            const currentGist = makeGist({ id: 'new1', title: 'New Note' });
+            const legacyGist = {
+                id: 'old1',
+                description: '[Workstash] Legacy Note',
+                public: false,
+                html_url: 'https://gist.github.com/old1',
+                created_at: '2026-01-01T00:00:00Z',
+                updated_at: '2026-01-15T00:00:00Z',
+                files: {
+                    '.workstash-note': { filename: '.workstash-note', content: '{"v":1}' },
+                    'Legacy-Note.md': { filename: 'Legacy-Note.md', content: '# Legacy' },
+                },
+            };
+
+            const fetch = mockFetch([{ status: 200, body: [currentGist, legacyGist] }]);
+            const svc = createService(fetch);
+            const notes = await svc.listNotes();
+
+            assert.strictEqual(notes.length, 2);
+            assert.strictEqual(notes[0].title, 'New Note');
+            assert.strictEqual(notes[1].title, 'Legacy Note');
+            assert.strictEqual(notes[1].content, '# Legacy');
+        });
+
         test('stops pagination when fewer than PER_PAGE results', async () => {
             const gists = Array.from({ length: 50 }, (_, i) =>
                 makeGist({ id: `g${i}`, title: `Note ${i}` }),

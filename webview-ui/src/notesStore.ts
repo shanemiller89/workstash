@@ -28,9 +28,11 @@ interface NotesStore {
     previewMode: boolean;
     filterMode: NotesFilterMode;
     currentRepo: string | null;
+    error: string | null;
 
     // Actions
     setNotes: (notes: GistNoteData[]) => void;
+    setError: (error: string | null) => void;
     selectNote: (id: string) => void;
     clearSelection: () => void;
     setEditingContent: (content: string) => void;
@@ -66,6 +68,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
     previewMode: true,
     filterMode: 'all',
     currentRepo: null,
+    error: null,
 
     setNotes: (notes) => {
         const { selectedNoteId } = get();
@@ -73,6 +76,7 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
         set({
             notes,
             isLoading: false,
+            error: null,
             ...(stillExists
                 ? {}
                 : {
@@ -83,6 +87,8 @@ export const useNotesStore = create<NotesStore>((set, get) => ({
                   }),
         });
     },
+
+    setError: (error) => set({ error, isLoading: false }),
 
     selectNote: (id) => {
         const { notes, selectedNoteId, isDirty } = get();

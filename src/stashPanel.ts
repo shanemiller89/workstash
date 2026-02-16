@@ -79,18 +79,22 @@ export class StashPanel {
      * webview so it can render the repo switcher.
      */
     private async _sendRepoContext(): Promise<void> {
-        const current = await this._getRepoInfo();
-        const allRemotes = await this._gitService.getAllGitHubRemotes();
-        const repos = allRemotes.map((r) => ({
-            owner: r.owner,
-            repo: r.repo,
-            remote: r.remote,
-        }));
-        this._panel.webview.postMessage({
-            type: 'repoContext',
-            current: current ? { owner: current.owner, repo: current.repo } : null,
-            repos,
-        });
+        try {
+            const current = await this._getRepoInfo();
+            const allRemotes = await this._gitService.getAllGitHubRemotes();
+            const repos = allRemotes.map((r) => ({
+                owner: r.owner,
+                repo: r.repo,
+                remote: r.remote,
+            }));
+            this._panel.webview.postMessage({
+                type: 'repoContext',
+                current: current ? { owner: current.owner, repo: current.repo } : null,
+                repos,
+            });
+        } catch (e: unknown) {
+            this._outputChannel.appendLine(`[RepoContext] Error: ${e instanceof Error ? e.message : e}`);
+        }
     }
 
     /**
@@ -202,7 +206,14 @@ export class StashPanel {
 
         // Handle messages from the React webview
         this._panel.webview.onDidReceiveMessage(
-            async (msg) => this._handleMessage(msg),
+            async (msg) => {
+                try {
+                    await this._handleMessage(msg);
+                } catch (e: unknown) {
+                    const m = e instanceof Error ? e.message : String(e);
+                    this._outputChannel.appendLine(`[Message] Unhandled error for "${msg?.type}": ${m}`);
+                }
+            },
             null,
             this._disposables,
         );
@@ -411,19 +422,34 @@ export class StashPanel {
         filename?: string;
     }): Promise<void> {
         switch (msg.type) {
-            case 'ready':
+            case 'ready': {
                 this._isReady = true;
-                await this._refresh();
-                await this._sendAuthStatus();
-                await this._sendRepoContext();
-                await this._refreshNotes();
-                await this._refreshPRs();
-                await this._refreshIssues();
-                await this._refreshProjects();
-                await this._refreshMattermost();
-                await this._sendDriveAuthStatus();
-                await this._sendCalendarAuthStatus();
-                await this._refreshWiki();
+                this._outputChannel.appendLine('[Init] Webview ready — starting initialisation...');
+                // Each init call is wrapped in its own try/catch so one failure
+                // does not prevent subsequent sections from loading.
+                const initSteps: Array<{ label: string; fn: () => Promise<void> }> = [
+                    { label: 'refresh', fn: () => this._refresh() },
+                    { label: 'authStatus', fn: () => this._sendAuthStatus() },
+                    { label: 'repoContext', fn: () => this._sendRepoContext() },
+                    { label: 'notes', fn: () => this._refreshNotes() },
+                    { label: 'PRs', fn: () => this._refreshPRs() },
+                    { label: 'issues', fn: () => this._refreshIssues() },
+                    { label: 'projects', fn: () => this._refreshProjects() },
+                    { label: 'mattermost', fn: () => this._refreshMattermost() },
+                    { label: 'driveAuth', fn: () => this._sendDriveAuthStatus() },
+                    { label: 'calendarAuth', fn: () => this._sendCalendarAuthStatus() },
+                    { label: 'wiki', fn: () => this._refreshWiki() },
+                ];
+                for (const step of initSteps) {
+                    try {
+                        await step.fn();
+                        this._outputChannel.appendLine(`[Init] ✓ ${step.label}`);
+                    } catch (e: unknown) {
+                        const m = e instanceof Error ? e.message : String(e);
+                        this._outputChannel.appendLine(`[Init] ⚠ ${step.label} failed: ${m}`);
+                    }
+                }
+                this._outputChannel.appendLine('[Init] All init steps complete');
                 // Fire-and-forget: pre-fetch user repos for the repo switcher
                 this._fetchUserRepos();
                 // Inform webview whether AI features are available and which provider
@@ -438,6 +464,7 @@ export class StashPanel {
                 }
                 this._pendingDeepLinks = [];
                 break;
+            }
 
             case 'refresh':
                 await this._refresh();
@@ -446,20 +473,24 @@ export class StashPanel {
             // ─── Repo switcher ───
             case 'switchRepo':
                 if (msg.owner && msg.repo) {
-                    this._repoOverride = { owner: msg.owner, repo: msg.repo };
+                    this._repoOverride = { owner: msg.owner as string, repo: msg.repo as string };
+                    this._outputChannel.appendLine(`[SwitchRepo] Switching to ${msg.owner}/${msg.repo}`);
                 } else {
                     // Reset to auto-detect from git origin
                     this._repoOverride = undefined;
+                    this._outputChannel.appendLine('[SwitchRepo] Resetting to auto-detect');
                 }
                 await this._sendRepoContext();
+                this._outputChannel.appendLine('[SwitchRepo] Repo context sent, starting data refresh...');
                 // Re-fetch all GitHub-dependent data with the new repo
                 await Promise.all([
-                    this._refreshPRs(),
-                    this._refreshIssues(),
-                    this._refreshProjects(),
-                    this._refreshWiki(),
-                    this._refreshNotes(),
+                    this._refreshPRs().then(() => this._outputChannel.appendLine('[SwitchRepo] ✓ PRs done')),
+                    this._refreshIssues().then(() => this._outputChannel.appendLine('[SwitchRepo] ✓ Issues done')),
+                    this._refreshProjects().then(() => this._outputChannel.appendLine('[SwitchRepo] ✓ Projects done')),
+                    this._refreshWiki().then(() => this._outputChannel.appendLine('[SwitchRepo] ✓ Wiki done')),
+                    this._refreshNotes().then(() => this._outputChannel.appendLine('[SwitchRepo] ✓ Notes done')),
                 ]);
+                this._outputChannel.appendLine('[SwitchRepo] All refreshes complete');
                 break;
 
             case 'apply':
@@ -3335,11 +3366,13 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Send current auth status to the webview. */
     private async _sendAuthStatus(): Promise<void> {
         if (!this._authService) {
+            this._outputChannel.appendLine('[Auth] Skipped: authService not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             const session = isAuth ? await this._authService.getSession() : null;
+            this._outputChannel.appendLine(`[Auth] authenticated=${isAuth}, user=${session?.account.label ?? '(none)'}`);
             this._panel.webview.postMessage({
                 type: 'authStatus',
                 authenticated: isAuth,
@@ -3357,11 +3390,13 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Refresh wiki pages for the current repo and send to webview. */
     private async _refreshWiki(): Promise<void> {
         if (!this._wikiService || !this._authService) {
+            this._outputChannel.appendLine('[Wiki] Skipped: service not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                this._outputChannel.appendLine('[Wiki] Not authenticated, sending authRequired');
                 // Let the webview know auth is needed so it can show the sign-in prompt
                 this._panel.webview.postMessage({ type: 'wikiAuthRequired' });
                 return;
@@ -3369,19 +3404,23 @@ List each changed file, a brief description of what changed in that file, and wh
 
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
+                this._outputChannel.appendLine('[Wiki] No repo info available');
                 this._panel.webview.postMessage({ type: 'wikiError', message: 'No GitHub repository detected. Open a repo or use the repo switcher.' });
                 return;
             }
 
+            this._outputChannel.appendLine(`[Wiki] Checking wiki for ${repoInfo.owner}/${repoInfo.repo}`);
             this._panel.webview.postMessage({ type: 'wikiLoading' });
 
             const hasWiki = await this._wikiService.hasWiki(repoInfo.owner, repoInfo.repo);
             if (!hasWiki) {
+                this._outputChannel.appendLine('[Wiki] No wiki found');
                 this._panel.webview.postMessage({ type: 'wikiNoWiki' });
                 return;
             }
 
             const pages = await this._wikiService.listPages(repoInfo.owner, repoInfo.repo);
+            this._outputChannel.appendLine(`[Wiki] Loaded ${pages.length} pages`);
             this._panel.webview.postMessage({
                 type: 'wikiPages',
                 pages: pages.map(WikiService.toSummaryData),
@@ -3447,11 +3486,13 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Fetch notes from GistService and send to webview. */
     private async _refreshNotes(): Promise<void> {
         if (!this._gistService || !this._authService) {
+            this._outputChannel.appendLine('[Notes] Skipped: service not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                this._outputChannel.appendLine('[Notes] Skipped: not authenticated');
                 return;
             }
 
@@ -3462,10 +3503,12 @@ List each changed file, a brief description of what changed in that file, and wh
 
             this._panel.webview.postMessage({ type: 'notesLoading' });
             const notes = await this._gistService.listNotes();
+            this._outputChannel.appendLine(`[Notes] Loaded ${notes.length} notes`);
             const payload = notes.map((n) => GistService.toData(n));
             this._panel.webview.postMessage({ type: 'notesData', payload });
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
+            this._outputChannel.appendLine(`[Notes] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'notesError', message: m });
         }
     }
@@ -3473,20 +3516,24 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Fetch PRs from PrService and send to webview. */
     private async _refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all'): Promise<void> {
         if (!this._prService || !this._authService) {
+            this._outputChannel.appendLine('[PRs] Skipped: service not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                this._outputChannel.appendLine('[PRs] Skipped: not authenticated');
                 return;
             }
 
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
+                this._outputChannel.appendLine('[PRs] No repo info — sending prRepoNotFound');
                 this._panel.webview.postMessage({ type: 'prRepoNotFound' });
                 return;
             }
 
+            this._outputChannel.appendLine(`[PRs] Fetching PRs for ${repoInfo.owner}/${repoInfo.repo} (state=${state ?? 'open'})`);
             this._panel.webview.postMessage({ type: 'prsLoading' });
 
             let username: string | undefined;
@@ -3502,10 +3549,12 @@ List each changed file, a brief description of what changed in that file, and wh
                 state ?? 'open',
                 username,
             );
+            this._outputChannel.appendLine(`[PRs] Loaded ${prs.length} PRs`);
             const payload = prs.map((pr) => PrService.toData(pr));
             this._panel.webview.postMessage({ type: 'prsData', payload });
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
+            this._outputChannel.appendLine(`[PRs] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'prError', message: m });
         }
     }
@@ -3544,20 +3593,24 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Fetch issues from IssueService and send to webview. */
     private async _refreshIssues(state?: 'open' | 'closed' | 'all'): Promise<void> {
         if (!this._issueService || !this._authService) {
+            this._outputChannel.appendLine('[Issues] Skipped: service not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                this._outputChannel.appendLine('[Issues] Skipped: not authenticated');
                 return;
             }
 
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
+                this._outputChannel.appendLine('[Issues] No repo info — sending issueRepoNotFound');
                 this._panel.webview.postMessage({ type: 'issueRepoNotFound' });
                 return;
             }
 
+            this._outputChannel.appendLine(`[Issues] Fetching issues for ${repoInfo.owner}/${repoInfo.repo} (state=${state ?? 'open'})`);
             this._panel.webview.postMessage({ type: 'issuesLoading' });
 
             const issues = await this._issueService.listIssues(
@@ -3565,10 +3618,12 @@ List each changed file, a brief description of what changed in that file, and wh
                 repoInfo.repo,
                 state ?? 'open',
             );
+            this._outputChannel.appendLine(`[Issues] Loaded ${issues.length} issues`);
             const payload = issues.map((i) => IssueService.toData(i));
             this._panel.webview.postMessage({ type: 'issuesData', payload });
         } catch (e: unknown) {
             const m = e instanceof Error ? e.message : 'Unknown error';
+            this._outputChannel.appendLine(`[Issues] Error: ${m}`);
             this._panel.webview.postMessage({ type: 'issueError', message: m });
         }
     }
@@ -3606,16 +3661,19 @@ List each changed file, a brief description of what changed in that file, and wh
     /** Discover projects for the current repo and load the first one. */
     private async _refreshProjects(): Promise<void> {
         if (!this._projectService || !this._authService) {
+            this._outputChannel.appendLine('[Projects] Skipped: service not available');
             return;
         }
         try {
             const isAuth = await this._authService.isAuthenticated();
             if (!isAuth) {
+                this._outputChannel.appendLine('[Projects] Skipped: not authenticated');
                 return;
             }
 
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
+                this._outputChannel.appendLine('[Projects] No repo info — sending projectsRepoNotFound');
                 this._panel.webview.postMessage({ type: 'projectsRepoNotFound' });
                 return;
             }

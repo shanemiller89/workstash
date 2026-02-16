@@ -108,6 +108,7 @@ export const App: React.FC = () => {
                     break;
                 case 'notesLoading':
                     notesStore.setLoading(true);
+                    notesStore.setError(null);
                     break;
                 case 'notesSaving':
                     notesStore.setSaving(true);
@@ -169,6 +170,7 @@ export const App: React.FC = () => {
                 case 'notesError':
                     notesStore.setLoading(false);
                     notesStore.setSaving(false);
+                    notesStore.setError((msg.message as string) ?? 'An unknown error occurred');
                     break;
 
                 // ─── Deep-link: open a specific note ───

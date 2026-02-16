@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useState, useMemo } from 'react';
 import { useNotesStore, type GistNoteData, type NotesFilterMode } from '../notesStore';
 import { postMessage } from '../vscode';
-import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library } from 'lucide-react';
+import { Lock, Globe, StickyNote, Plus, X, ShieldCheck, FolderGit2, Library, AlertCircle, RefreshCw } from 'lucide-react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Skeleton } from './ui/skeleton';
@@ -20,6 +20,7 @@ const SkeletonCard: React.FC = () => (
 export const NotesList: React.FC = () => {
     const isLoading = useNotesStore((s) => s.isLoading);
     const isAuthenticated = useNotesStore((s) => s.isAuthenticated);
+    const error = useNotesStore((s) => s.error);
     const searchQuery = useNotesStore((s) => s.searchQuery);
     const setSearchQuery = useNotesStore((s) => s.setSearchQuery);
     const allNotes = useNotesStore((s) => s.notes);
@@ -200,7 +201,20 @@ export const NotesList: React.FC = () => {
 
             {/* Note list */}
             <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1.5">
-                {isLoading ? (
+                {error ? (
+                    <div className="flex flex-col items-center justify-center h-full text-center gap-3 py-8">
+                        <AlertCircle size={24} className="text-destructive opacity-80" />
+                        <span className="text-[12px] opacity-70">{error}</span>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[11px] gap-1"
+                            onClick={() => postMessage('notes.refresh')}
+                        >
+                            <RefreshCw size={11} /> Retry
+                        </Button>
+                    </div>
+                ) : isLoading ? (
                     <>
                         <SkeletonCard />
                         <SkeletonCard />
