@@ -168,6 +168,7 @@ interface PRStore {
     filesSummary: string | null;
     isFilesSummaryLoading: boolean;
     filesSummaryError: string | null;
+    fileReviewSystemPrompt: string;
 
     // PR summary pane state
     prSummaryPaneOpen: boolean;
@@ -241,6 +242,7 @@ interface PRStore {
     setFilesSummaryLoading: (loading: boolean) => void;
     setFilesSummary: (summary: string | null) => void;
     setFilesSummaryError: (error: string | null) => void;
+    setFileReviewSystemPrompt: (prompt: string) => void;
 
     // PR summary pane actions
     setPRSummaryPaneOpen: (open: boolean) => void;
@@ -318,6 +320,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
     filesSummary: null,
     isFilesSummaryLoading: false,
     filesSummaryError: null,
+    fileReviewSystemPrompt: '',
 
     // PR summary pane state
     prSummaryPaneOpen: false,
@@ -492,6 +495,7 @@ export const usePRStore = create<PRStore>((set, get) => ({
     setFilesSummaryLoading: (loading) => set({ isFilesSummaryLoading: loading, filesSummaryError: null }),
     setFilesSummary: (summary) => set({ filesSummary: summary, isFilesSummaryLoading: false, filesSummaryError: null, filesSummaryPaneOpen: !!summary }),
     setFilesSummaryError: (error) => set({ filesSummaryError: error, isFilesSummaryLoading: false }),
+    setFileReviewSystemPrompt: (prompt) => set({ fileReviewSystemPrompt: prompt }),
 
     // PR summary pane actions
     setPRSummaryPaneOpen: (open) => set({ prSummaryPaneOpen: open }),
