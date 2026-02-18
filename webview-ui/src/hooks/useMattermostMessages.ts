@@ -140,35 +140,36 @@ export function handleMattermostMessage(msg: Msg): boolean {
             return true;
         case 'mattermostNewPost': {
             const newPost = msg.post as MattermostPostData;
-            const isThreadReply = newPost.rootId && newPost.rootId !== '';
 
             if (newPost.channelId === s.selectedChannelId) {
-                if (!isThreadReply) {
-                    // Root-level post — add to main channel feed
-                    const alreadyExists = s.posts.some((p) => p.id === newPost.id);
-                    if (!alreadyExists) {
-                        // Check for pending optimistic match
-                        const pendingMatch = s.posts.find(
-                            (p) =>
-                                p._pending &&
-                                p.userId === newPost.userId &&
-                                p.channelId === newPost.channelId &&
-                                p.message === newPost.message &&
-                                (p.rootId ?? '') === (newPost.rootId ?? ''),
-                        );
-                        if (pendingMatch) {
-                            s.confirmPendingPost(pendingMatch.id, newPost);
-                        } else {
-                            s.prependNewPost(newPost);
-                        }
+                const alreadyExists = s.posts.some((p) => p.id === newPost.id);
+                if (!alreadyExists) {
+                    // Check if there's a pending optimistic post for this message.
+                    // This handles the race where the WebSocket event arrives before
+                    // the REST API response (mattermostPostConfirmed).
+                    // Match on message + rootId to avoid cross-matching when multiple
+                    // messages are in flight simultaneously.
+                    const pendingMatch = s.posts.find(
+                        (p) =>
+                            p._pending &&
+                            p.userId === newPost.userId &&
+                            p.channelId === newPost.channelId &&
+                            p.message === newPost.message &&
+                            (p.rootId ?? '') === (newPost.rootId ?? ''),
+                    );
+                    if (pendingMatch) {
+                        // Replace the pending post with the real server post
+                        s.confirmPendingPost(pendingMatch.id, newPost);
+                    } else {
+                        // Add to posts array — threadedGroups handles display filtering
+                        // so thread replies won't appear as standalone messages.
+                        s.prependNewPost(newPost);
                     }
                 }
-                // Thread replies do NOT go into the main posts array.
-                // They will appear inline when the user expands the thread.
             }
 
             // Add to thread panel if it's a reply to the active thread
-            if (isThreadReply && newPost.rootId === s.activeThreadRootId) {
+            if (newPost.rootId && newPost.rootId === s.activeThreadRootId) {
                 const alreadyInThread = s.threadPosts.some((p) => p.id === newPost.id);
                 if (!alreadyInThread) {
                     // Check for pending match in thread posts
