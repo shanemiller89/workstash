@@ -417,13 +417,20 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     // ─── Posts ────────────────────────────────────────────────────
     setPosts: (posts) => set({ posts }),
     appendOlderPosts: (olderPosts) =>
-        set((state) => ({
-            posts: [...state.posts, ...olderPosts],
-        })),
+        set((state) => {
+            // Deduplicate: skip posts that already exist in the list
+            const existingIds = new Set(state.posts.map((p) => p.id));
+            const unique = olderPosts.filter((p) => !existingIds.has(p.id));
+            return { posts: [...state.posts, ...unique] };
+        }),
     prependNewPost: (post) =>
-        set((state) => ({
-            posts: [post, ...state.posts],
-        })),
+        set((state) => {
+            // Deduplicate: don't add if already present
+            if (state.posts.some((p) => p.id === post.id)) {
+                return state;
+            }
+            return { posts: [post, ...state.posts] };
+        }),
     updatePost: (updatedPost) =>
         set((state) => ({
             posts: state.posts.map((p) => (p.id === updatedPost.id ? updatedPost : p)),
@@ -440,15 +447,29 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
     setHasMorePosts: (hasMorePosts) => set({ hasMorePosts }),
     setSearchQuery: (searchQuery) => set({ searchQuery }),
     confirmPendingPost: (pendingId, realPost) =>
-        set((state) => ({
-            posts: state.posts.map((p) =>
-                p.id === pendingId ? { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined } : p,
-            ),
-            // Also update thread posts if applicable
-            threadPosts: state.threadPosts.map((p) =>
-                p.id === pendingId ? { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined } : p,
-            ),
-        })),
+        set((state) => {
+            const confirmed = { ...realPost, _pending: undefined, _failedError: undefined, _sendParams: undefined };
+            const isThreadReply = confirmed.rootId && confirmed.rootId !== '';
+
+            // Update posts: replace pending if found (only for root-level posts)
+            let updatedPosts = state.posts;
+            const pendingInPosts = state.posts.some((p) => p.id === pendingId);
+            if (pendingInPosts) {
+                if (isThreadReply) {
+                    // Remove the pending thread reply from main posts if it somehow got there
+                    updatedPosts = state.posts.filter((p) => p.id !== pendingId);
+                } else {
+                    updatedPosts = state.posts.map((p) => p.id === pendingId ? confirmed : p);
+                }
+            }
+
+            // Update thread posts: replace pending if found
+            const updatedThreadPosts = state.threadPosts.map((p) =>
+                p.id === pendingId ? confirmed : p,
+            );
+
+            return { posts: updatedPosts, threadPosts: updatedThreadPosts };
+        }),
     failPendingPost: (pendingId, error) =>
         set((state) => ({
             posts: state.posts.map((p) =>
@@ -486,11 +507,25 @@ export const useMattermostStore = create<MattermostStore>((set) => ({
             threadPosts: EMPTY_POSTS,
             isLoadingThread: false,
         }),
-    setThreadPosts: (threadPosts) => set({ threadPosts, isLoadingThread: false }),
+    setThreadPosts: (threadPosts) => {
+        // Sort thread posts chronologically (oldest first) for display
+        const sorted = [...threadPosts].sort(
+            (a, b) => new Date(a.createAt).getTime() - new Date(b.createAt).getTime(),
+        );
+        return set({ threadPosts: sorted, isLoadingThread: false });
+    },
     appendThreadPost: (post) =>
-        set((state) => ({
-            threadPosts: [...state.threadPosts, post],
-        })),
+        set((state) => {
+            // Deduplicate: don't add if already present
+            if (state.threadPosts.some((p) => p.id === post.id)) {
+                return state;
+            }
+            // Insert in chronological order
+            const updated = [...state.threadPosts, post].sort(
+                (a, b) => new Date(a.createAt).getTime() - new Date(b.createAt).getTime(),
+            );
+            return { threadPosts: updated };
+        }),
     setLoadingThread: (isLoadingThread) => set({ isLoadingThread }),
 
     // ─── Statuses ─────────────────────────────────────────────────

@@ -764,45 +764,39 @@ export const MattermostChat: React.FC<{
         });
     }, []);
 
-    // Group posts: root posts in order, with their inline replies collected
+    // Group posts: root posts in order, with their inline replies collected.
+    // Replies are always grouped with their root post regardless of date boundaries.
     const threadedGroups = useMemo(() => {
+        // Build a flat chronological list of all posts (oldest first)
+        const allPosts = dateGroups.flatMap((g) => g.posts);
+
+        // Build a global reply map: rootId → replies (across all date groups)
+        const globalReplyMap = new Map<string, MattermostPostData[]>();
+        const replyIds = new Set<string>();
+        for (const post of allPosts) {
+            if (post.rootId && post.rootId !== '') {
+                const existing = globalReplyMap.get(post.rootId) ?? [];
+                existing.push(post);
+                globalReplyMap.set(post.rootId, existing);
+                replyIds.add(post.id);
+            }
+        }
+
+        // Build date groups with only root-level posts (replies attached to their root)
         return dateGroups.map((group) => {
-            const rootPosts: { root: MattermostPostData; replies: MattermostPostData[] }[] = [];
-            const replyMap = new Map<string, MattermostPostData[]>();
+            const threads: { root: MattermostPostData; replies: MattermostPostData[] }[] = [];
 
-            // First pass: collect replies by rootId
             for (const post of group.posts) {
-                if (post.rootId && post.rootId !== '') {
-                    const existing = replyMap.get(post.rootId) ?? [];
-                    existing.push(post);
-                    replyMap.set(post.rootId, existing);
-                }
+                // Skip reply posts — they'll appear under their root
+                if (replyIds.has(post.id)) { continue; }
+
+                threads.push({
+                    root: post,
+                    replies: globalReplyMap.get(post.id) ?? [],
+                });
             }
 
-            // Second pass: build root + replies groups (skip standalone replies whose root is in a different date group)
-            for (const post of group.posts) {
-                if (!post.rootId || post.rootId === '') {
-                    rootPosts.push({
-                        root: post,
-                        replies: replyMap.get(post.id) ?? [],
-                    });
-                }
-            }
-
-            // Also include orphan replies (root post is in a different date group)
-            const usedReplyIds = new Set(rootPosts.flatMap((rp) => rp.replies.map((r) => r.id)));
-            for (const post of group.posts) {
-                if (post.rootId && post.rootId !== '' && !usedReplyIds.has(post.id)) {
-                    // Check if the root is in this group
-                    const rootInGroup = group.posts.some((p) => p.id === post.rootId);
-                    if (!rootInGroup) {
-                        // Show as standalone reply bubble
-                        rootPosts.push({ root: post, replies: [] });
-                    }
-                }
-            }
-
-            return { date: group.date, threads: rootPosts };
+            return { date: group.date, threads };
         });
     }, [dateGroups]);
 
@@ -905,8 +899,13 @@ export const MattermostChat: React.FC<{
         };
 
         const mmStore = useMattermostStore.getState();
-        mmStore.prependNewPost(optimisticPost);
-        if (optimisticPost.rootId && optimisticPost.rootId === mmStore.activeThreadRootId) {
+        const isThreadReply = optimisticPost.rootId && optimisticPost.rootId !== '';
+        if (!isThreadReply) {
+            // Root-level message — show in main channel feed
+            mmStore.prependNewPost(optimisticPost);
+        }
+        if (isThreadReply && optimisticPost.rootId === mmStore.activeThreadRootId) {
+            // Reply to the active thread — show in thread panel
             mmStore.appendThreadPost(optimisticPost);
         }
 

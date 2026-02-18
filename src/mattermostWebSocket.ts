@@ -86,6 +86,14 @@ export class MattermostWebSocket implements vscode.Disposable {
     private readonly _onChannelViewed = new vscode.EventEmitter<MmWsEvent>();
     readonly onChannelViewed = this._onChannelViewed.event;
 
+    private readonly _onDirectAdded = new vscode.EventEmitter<MmWsEvent>();
+    /** Fires when the user is added to a direct-message or group-message channel */
+    readonly onDirectAdded = this._onDirectAdded.event;
+
+    private readonly _onChannelUpdated = new vscode.EventEmitter<MmWsEvent>();
+    /** Fires when a channel's metadata (header, purpose, etc.) is updated */
+    readonly onChannelUpdated = this._onChannelUpdated.event;
+
     private readonly _onConnectionChange = new vscode.EventEmitter<boolean>();
     /** Fires `true` on connect, `false` on disconnect */
     readonly onConnectionChange = this._onConnectionChange.event;
@@ -202,13 +210,16 @@ export class MattermostWebSocket implements vscode.Disposable {
             return;
         }
 
-        // Auth success response
+        // Auth success response (seq_reply === 1 is the auth challenge response)
         if (msg.status === 'OK' && msg.seq_reply !== undefined) {
-            this._outputChannel.appendLine('[MM-WS] Authenticated successfully');
-            this._connected = true;
-            this._reconnectAttempts = 0;
-            this._onConnectionChange.fire(true);
-            this._startHeartbeat();
+            if (!this._connected) {
+                this._outputChannel.appendLine('[MM-WS] Authenticated successfully');
+                this._connected = true;
+                this._reconnectAttempts = 0;
+                this._onConnectionChange.fire(true);
+                this._startHeartbeat();
+            }
+            // Otherwise this is a pong/ack response to a ping — ignore
             return;
         }
 
@@ -261,6 +272,16 @@ export class MattermostWebSocket implements vscode.Disposable {
                 break;
             case 'channel_viewed':
                 this._onChannelViewed.fire(event);
+                break;
+            case 'direct_added':
+            case 'group_added':
+                this._onDirectAdded.fire(event);
+                break;
+            case 'channel_updated':
+                this._onChannelUpdated.fire(event);
+                break;
+            // Pong responses to our heartbeat pings — silently ignore
+            case 'pong':
                 break;
             // Other events logged for debugging
             default:
@@ -331,6 +352,8 @@ export class MattermostWebSocket implements vscode.Disposable {
         this._onReactionAdded.dispose();
         this._onReactionRemoved.dispose();
         this._onChannelViewed.dispose();
+        this._onDirectAdded.dispose();
+        this._onChannelUpdated.dispose();
         this._onConnectionChange.dispose();
     }
 }

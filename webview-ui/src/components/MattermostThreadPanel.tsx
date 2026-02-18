@@ -400,8 +400,9 @@ export const MattermostThreadPanel: React.FC = () => {
         };
 
         const mmStore = useMattermostStore.getState();
+        // Only add to thread panel — thread replies should NOT appear as
+        // standalone messages in the main channel feed.
         mmStore.appendThreadPost(optimisticPost);
-        mmStore.prependNewPost(optimisticPost);
 
         postMessage('mattermost.sendPost', { ...sendParams, pendingId });
         setReplyText('');

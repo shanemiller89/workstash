@@ -1515,6 +1515,75 @@ export class StashPanel {
             }
         });
 
+        // Channel viewed — clear unread counts when viewed on another client
+        ws.onChannelViewed((evt) => {
+            const channelId = evt.broadcast.channel_id || (evt.data as Record<string, unknown>).channel_id as string;
+            if (channelId) {
+                this._panel.webview.postMessage({
+                    type: 'mattermostMarkedRead',
+                    channelId,
+                });
+            }
+        });
+
+        // Direct/group message channel created — refresh DM list so new DMs appear instantly
+        ws.onDirectAdded(async (evt) => {
+            if (!this._mattermostService) { return; }
+            try {
+                const channelId = (evt.data as Record<string, unknown>).channel_id as string
+                    ?? evt.broadcast.channel_id;
+                if (!channelId) { return; }
+
+                const channel = await this._mattermostService.getChannel(channelId);
+                const me = await this._mattermostService.getMe();
+                const channelData = MattermostService.toChannelData(channel);
+
+                // For DMs, resolve the other user's display name
+                if (channel.type === 'D') {
+                    const otherUserId = this._mattermostService.getDmOtherUserId(channel, me.id);
+                    const displayName = await this._mattermostService.resolveDmDisplayName(channel, me.id);
+                    this._panel.webview.postMessage({
+                        type: 'mattermostDmChannelAdded',
+                        channel: { ...channelData, displayName, otherUserId },
+                    });
+                } else {
+                    this._panel.webview.postMessage({
+                        type: 'mattermostDmChannelAdded',
+                        channel: channelData,
+                    });
+                }
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling direct_added: ${e}`);
+            }
+        });
+
+        // Channel updated — relay metadata changes (header, purpose, etc.)
+        ws.onChannelUpdated((evt) => {
+            try {
+                const rawChannel = evt.data.channel as string;
+                if (rawChannel) {
+                    const parsed = JSON.parse(rawChannel) as {
+                        id: string; team_id: string; name: string; display_name: string;
+                        type: string; header: string; purpose: string;
+                    };
+                    this._panel.webview.postMessage({
+                        type: 'mattermostChannelUpdated',
+                        channel: {
+                            id: parsed.id,
+                            teamId: parsed.team_id,
+                            name: parsed.name,
+                            displayName: parsed.display_name,
+                            type: parsed.type,
+                            header: parsed.header,
+                            purpose: parsed.purpose,
+                        },
+                    });
+                }
+            } catch (e) {
+                this._outputChannel.appendLine(`[MM WS] Error handling channel_updated: ${e}`);
+            }
+        });
+
         // Start the connection
         ws.connect(serverUrl, token);
     }

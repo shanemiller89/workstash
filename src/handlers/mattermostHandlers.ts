@@ -259,6 +259,8 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
                     } catch { /* ignore */ }
                 }
                 const postData = MattermostService.toPostData(post, username, files);
+                // Use mattermostPostCreated — the webview handler correctly
+                // routes thread replies to the thread panel only.
                 ctx.postMessage({ type: 'mattermostPostCreated', post: postData });
             } catch (e: unknown) {
                 const m = extractErrorMessage(e);
