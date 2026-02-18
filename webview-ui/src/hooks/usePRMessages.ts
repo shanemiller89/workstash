@@ -84,14 +84,16 @@ export function handlePRMessage(msg: Msg): boolean {
         case 'prCreating':
             s.setCreatingPR(true);
             return true;
-        case 'prCreated':
+        case 'prCreated': {
             s.setCreatingPR(false);
             s.setShowCreatePR(false);
-            if (msg.prNumber) {
-                s.selectPR(msg.prNumber as number);
-                postMessage('prs.getComments', { prNumber: msg.prNumber as number });
+            const createdPR = msg.pr as PullRequestData | undefined;
+            if (createdPR) {
+                s.selectPR(createdPR.number);
+                postMessage('prs.getComments', { prNumber: createdPR.number });
             }
             return true;
+        }
         case 'prCreateError':
             s.setCreateError(msg.error as string);
             return true;

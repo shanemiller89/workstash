@@ -267,7 +267,7 @@ export const handlePrMessage: MessageHandler = async (ctx, msg) => {
         }
 
         case 'prs.updateBody': {
-            if (msg.prNumber && ctx.prService) {
+            if (msg.prNumber !== undefined && ctx.prService) {
                 try {
                     const repoInfo = await ctx.getRepoInfo();
                     if (!repoInfo) { return true; }

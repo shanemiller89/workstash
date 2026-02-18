@@ -16,7 +16,7 @@ function escapeHtml(str: string): string {
 }
 
 const md = new MarkdownIt({
-    html: false,
+    html: true, // Allow HTML so GitHub <img> tags render in PR bodies/comments
     linkify: true,
     typographer: true,
     breaks: true, // GitHub-style line breaks
@@ -31,6 +31,52 @@ const md = new MarkdownIt({
         return `<pre class="hljs"><code>${escapeHtml(str)}</code></pre>`;
     },
 });
+
+// ─── HTML Sanitization ────────────────────────────────────────────
+
+/** Allowlisted HTML tags that are safe to render (GitHub-flavored content). */
+const SAFE_TAGS = new Set([
+    'img', 'br', 'hr', 'p', 'div', 'span',
+    'b', 'i', 'em', 'strong', 'u', 's', 'del', 'ins', 'sub', 'sup', 'mark',
+    'a', 'code', 'pre', 'kbd', 'samp', 'var',
+    'ul', 'ol', 'li', 'dl', 'dt', 'dd',
+    'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+    'blockquote', 'details', 'summary',
+    'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'colgroup', 'col',
+    'picture', 'source', 'video', 'figcaption', 'figure',
+]);
+
+/** Allowlisted attributes per tag. Only these survive sanitization. */
+const SAFE_ATTRS: Record<string, Set<string>> = {
+    img: new Set(['src', 'alt', 'title', 'width', 'height', 'loading']),
+    a: new Set(['href', 'title', 'target', 'rel']),
+    video: new Set(['src', 'poster', 'controls', 'width', 'height']),
+    source: new Set(['src', 'type', 'media']),
+    td: new Set(['align', 'valign', 'colspan', 'rowspan']),
+    th: new Set(['align', 'valign', 'colspan', 'rowspan', 'scope']),
+    col: new Set(['span']),
+    colgroup: new Set(['span']),
+    details: new Set(['open']),
+};
+
+/**
+ * Strip dangerous HTML tags (script, iframe, object, etc.) while preserving
+ * safe ones like <img>, <details>, <table>, etc. Operates on the final HTML
+ * string produced by markdown-it.
+ */
+function sanitizeHtml(html: string): string {
+    // Remove <script>, <iframe>, <object>, <embed>, <form>, <input>, <style>, <link>, <meta>, <base>
+    // and any on* event handler attributes. Keep safe tags with allowlisted attributes.
+    return html
+        // Strip entire dangerous tags and their content for script/style
+        .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, '')
+        // Strip self-closing or opening dangerous tags
+        .replace(/<\/?(script|iframe|object|embed|form|input|style|link|meta|base|applet)\b[^>]*\/?>/gi, '')
+        // Strip event handler attributes (on*="...")
+        .replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, '')
+        // Strip javascript: URLs in href/src
+        .replace(/(href|src)\s*=\s*(["'])\s*javascript:[^"']*\2/gi, '$1=$2$2');
+}
 
 // Enable GFM task lists
 md.use(taskLists, { enabled: true, label: true, labelAfter: true });
@@ -104,7 +150,7 @@ export const MarkdownBody: React.FC<MarkdownBodyProps> = ({ content, className =
     const customEmojis = useMattermostStore((s) => s.customEmojis);
     const html = useMemo(
         () => highlightMentions(
-            renderEmojiInHtml(md.render(content), customEmojis),
+            renderEmojiInHtml(sanitizeHtml(md.render(content)), customEmojis),
             currentUsername ?? null,
         ),
         [content, customEmojis, currentUsername],
