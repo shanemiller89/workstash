@@ -1,7 +1,8 @@
 import React, { useCallback } from 'react';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, GitPullRequest, CircleDot } from 'lucide-react';
 import type { MattermostLinkPreviewData } from '../mattermostStore';
 import { postMessage } from '../vscode';
+import { parseGitHubPRUrl, parseGitHubIssueUrl } from '../lib/parseGitHubUrl';
 
 interface LinkPreviewProps {
     previews?: MattermostLinkPreviewData[];
@@ -23,9 +24,19 @@ export const LinkPreview: React.FC<LinkPreviewProps> = ({ previews }) => {
 };
 
 const LinkPreviewCard: React.FC<{ preview: MattermostLinkPreviewData }> = ({ preview }) => {
+    const prInfo = parseGitHubPRUrl(preview.url);
+    const issueInfo = parseGitHubIssueUrl(preview.url);
+    const isGitHubLink = prInfo || issueInfo;
+
     const handleClick = useCallback(() => {
-        postMessage('mattermostOpenExternal', { url: preview.url });
-    }, [preview.url]);
+        if (prInfo) {
+            postMessage('navigateToGitHubPR', prInfo);
+        } else if (issueInfo) {
+            postMessage('navigateToGitHubIssue', issueInfo);
+        } else {
+            postMessage('mattermostOpenExternal', { url: preview.url });
+        }
+    }, [preview.url, prInfo, issueInfo]);
 
     const hasContent = preview.title || preview.description;
     if (!hasContent && !preview.imageUrl) {
@@ -57,8 +68,26 @@ const LinkPreviewCard: React.FC<{ preview: MattermostLinkPreviewData }> = ({ pre
                         </div>
                     )}
                     <div className="flex items-center gap-1 mt-1 text-[10px] text-[var(--vscode-descriptionForeground)]">
-                        <ExternalLink size={10} />
-                        <span className="truncate">{new URL(preview.url).hostname}</span>
+                        {prInfo ? (
+                            <>
+                                <GitPullRequest size={10} className="text-[var(--vscode-textLink-foreground)]" />
+                                <span className="truncate text-[var(--vscode-textLink-foreground)]">
+                                    {prInfo.owner}/{prInfo.repo}#{prInfo.prNumber}
+                                </span>
+                            </>
+                        ) : issueInfo ? (
+                            <>
+                                <CircleDot size={10} className="text-[var(--vscode-textLink-foreground)]" />
+                                <span className="truncate text-[var(--vscode-textLink-foreground)]">
+                                    {issueInfo.owner}/{issueInfo.repo}#{issueInfo.issueNumber}
+                                </span>
+                            </>
+                        ) : (
+                            <>
+                                <ExternalLink size={10} />
+                                <span className="truncate">{new URL(preview.url).hostname}</span>
+                            </>
+                        )}
                     </div>
                 </div>
 

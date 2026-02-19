@@ -702,6 +702,72 @@ Bullets for optional improvements or deferred cleanup.`;
             return true;
         }
 
+        // ─── GitHub PR Link Navigation ─────────────────────
+        case 'navigateToGitHubPR': {
+            const linkOwner = msg.owner as string | undefined;
+            const linkRepo = msg.repo as string | undefined;
+            const linkPrNumber = msg.prNumber as number | undefined;
+            if (!linkOwner || !linkRepo || !linkPrNumber || !ctx.prService) {
+                return true;
+            }
+
+            const currentRepo = await ctx.getRepoInfo();
+            const isSameRepo =
+                currentRepo &&
+                currentRepo.owner.toLowerCase() === linkOwner.toLowerCase() &&
+                currentRepo.repo.toLowerCase() === linkRepo.toLowerCase();
+
+            if (isSameRepo) {
+                // Same repo — just deep-link to the PR
+                ctx.postMessage({ type: 'openPR', prNumber: linkPrNumber });
+                return true;
+            }
+
+            // Different repo — check access and prompt to switch
+            try {
+                // Verify the user can access this PR (will throw 404/403 if not)
+                await ctx.prService.getPullRequest(linkOwner, linkRepo, linkPrNumber);
+
+                const switchChoice = await vscode.window.showInformationMessage(
+                    `PR #${linkPrNumber} is from ${linkOwner}/${linkRepo}. Switch to that repo and open it?`,
+                    { modal: false },
+                    'Switch & Open',
+                    'Open in Browser',
+                );
+
+                if (switchChoice === 'Switch & Open') {
+                    // Switch repo
+                    ctx.setRepoOverride({ owner: linkOwner, repo: linkRepo });
+                    await ctx.sendRepoContext();
+                    // Refresh GitHub data for the new repo
+                    await Promise.all([
+                        ctx.refreshPRs(),
+                        ctx.refreshIssues(),
+                        ctx.refreshProjects(),
+                        ctx.refreshWiki(),
+                    ]);
+                    // Deep-link to the PR
+                    ctx.postMessage({ type: 'openPR', prNumber: linkPrNumber });
+                } else if (switchChoice === 'Open in Browser') {
+                    await vscode.env.openExternal(
+                        vscode.Uri.parse(`https://github.com/${linkOwner}/${linkRepo}/pull/${linkPrNumber}`),
+                    );
+                }
+            } catch {
+                // Can't access the repo — open in browser
+                const fallbackChoice = await vscode.window.showWarningMessage(
+                    `You don't appear to have access to ${linkOwner}/${linkRepo}. Open PR #${linkPrNumber} in the browser instead?`,
+                    'Open in Browser',
+                );
+                if (fallbackChoice === 'Open in Browser') {
+                    await vscode.env.openExternal(
+                        vscode.Uri.parse(`https://github.com/${linkOwner}/${linkRepo}/pull/${linkPrNumber}`),
+                    );
+                }
+            }
+            return true;
+        }
+
         default:
             return false;
     }

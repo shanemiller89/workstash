@@ -71,6 +71,29 @@
     bottom: 0;
 }
 
+/* Horizontal resize handle (between vertically stacked panels) */
+.resize-handle-horizontal {
+    height: 4px;
+    background: var(--color-vscode-border);
+    transition: background 0.15s ease;
+    position: relative;
+    cursor: row-resize;
+}
+
+.resize-handle-horizontal:hover,
+.resize-handle-horizontal[data-resize-handle-active] {
+    background: var(--color-vscode-accent);
+}
+
+.resize-handle-horizontal::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: 0;
+    right: 0;
+    bottom: -3px;
+}
+
 html,
 body {
     margin: 0;

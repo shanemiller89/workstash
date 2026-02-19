@@ -41,6 +41,7 @@ import { Checkbox } from './ui/checkbox';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from './ui/tabs';
 
 import { Separator } from './ui/separator';
+import { Group as PanelGroup, Panel as ResizablePanel, Separator as ResizeHandle } from 'react-resizable-panels';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from './ui/collapsible';
 
 import { PRFileTree } from './PRFileTree';
@@ -1400,14 +1401,32 @@ export const PRDetail: React.FC<PRDetailProps> = ({ onClose }) => {
                         <div className="flex-1 flex flex-col min-h-0">
                             {/* AI file change summary */}
                             <PRFilesSummary prNumber={pr.number} />
-                            {/* File tree */}
-                            <div className="shrink-0 max-h-[40%] overflow-y-auto border-b border-border">
-                                <PRFileTree />
-                            </div>
-                            {/* File diff viewer */}
-                            <div className="flex-1 min-h-0">
-                                <PRFileDiff />
-                            </div>
+                            {/* Resizable file tree / diff split */}
+                            <PanelGroup
+                                id="superprompt-forge-pr-files"
+                                orientation="vertical"
+                            >
+                                <ResizablePanel
+                                    id="file-tree"
+                                    defaultSize="30%"
+                                    minSize="10%"
+                                    maxSize="70%"
+                                >
+                                    <div className="h-full overflow-y-auto">
+                                        <PRFileTree />
+                                    </div>
+                                </ResizablePanel>
+                                <ResizeHandle className="resize-handle-horizontal" />
+                                <ResizablePanel
+                                    id="file-diff"
+                                    defaultSize="70%"
+                                    minSize="20%"
+                                >
+                                    <div className="h-full min-h-0">
+                                        <PRFileDiff />
+                                    </div>
+                                </ResizablePanel>
+                            </PanelGroup>
                         </div>
                     )}
                 </TabsContent>

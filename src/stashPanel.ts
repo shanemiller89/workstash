@@ -519,14 +519,33 @@ export class StashPanel {
                     if (!repoInfo) {return null;}
                     let username: string | undefined;
                     try { username = await this._prService!.getAuthenticatedUser(); } catch { /* ok */ }
-                    const prs = await this._prService!.listPullRequests(
+                    const prList = await this._prService!.listPullRequests(
                         repoInfo.owner, repoInfo.repo, 'open', username,
                     );
-                    if (prs.length === 0) {
+                    if (prList.length === 0) {
                         return { key: 'prs', order: 1, text: '## Pull Requests\nNo open PRs.' };
                     }
+
+                    // The list endpoint doesn't return additions/deletions/changed_files/comments.
+                    // Fetch full details + reviews for each PR in parallel for accurate data.
+                    const prDetailResults = await Promise.allSettled(
+                        prList.map(async (listPr) => {
+                            const [fullPr, reviews] = await Promise.all([
+                                this._prService!.getPullRequest(
+                                    repoInfo.owner, repoInfo.repo, listPr.number,
+                                ).catch(() => listPr), // fall back to list data on error
+                                this._prService!.getReviews(
+                                    repoInfo.owner, repoInfo.repo, listPr.number,
+                                ).catch(() => [] as Awaited<ReturnType<PrService['getReviews']>>),
+                            ]);
+                            return { pr: fullPr, reviews };
+                        }),
+                    );
+
                     const prLines: string[] = [];
-                    for (const pr of prs) {
+                    for (const result of prDetailResults) {
+                        if (result.status !== 'fulfilled') { continue; }
+                        const { pr, reviews } = result.value;
                         const data = PrService.toData(pr);
                         const parts: string[] = [
                             `### PR #${data.number}: ${data.title}`,
@@ -550,24 +569,19 @@ export class StashPanel {
                                 : data.body;
                             parts.push(`- **Description**: ${bodyPreview}`);
                         }
-                        // Fetch reviews for each PR (best-effort)
-                        try {
-                            const reviews = await this._prService!.getReviews(
-                                repoInfo.owner, repoInfo.repo, data.number,
+                        // Include review decisions
+                        const meaningful = reviews.filter((r) =>
+                            r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED',
+                        );
+                        if (meaningful.length > 0) {
+                            const reviewStrs = meaningful.map((r) =>
+                                `${r.user}: ${r.state}`,
                             );
-                            const meaningful = reviews.filter((r) =>
-                                r.state === 'APPROVED' || r.state === 'CHANGES_REQUESTED',
-                            );
-                            if (meaningful.length > 0) {
-                                const reviewStrs = meaningful.map((r) =>
-                                    `${r.user}: ${r.state}`,
-                                );
-                                parts.push(`- **Reviews**: ${reviewStrs.join(', ')}`);
-                            }
-                        } catch { /* ok — skip review fetch errors */ }
+                            parts.push(`- **Reviews**: ${reviewStrs.join(', ')}`);
+                        }
                         prLines.push(parts.join('\n'));
                     }
-                    return { key: 'prs', order: 1, text: `## Pull Requests (${prs.length} open)\n${prLines.join('\n\n')}` };
+                    return { key: 'prs', order: 1, text: `## Pull Requests (${prList.length} open)\n${prLines.join('\n\n')}` };
                 } catch {
                     return { key: 'prs', order: 1, text: '## Pull Requests\nUnable to fetch PR data.' };
                 }

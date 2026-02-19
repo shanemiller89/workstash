@@ -1,9 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import MarkdownIt from 'markdown-it';
 import hljs from 'highlight.js';
 import taskLists from 'markdown-it-task-lists';
 import { emojiFromShortcode } from '../emojiMap';
 import { useMattermostStore } from '../mattermostStore';
+import { postMessage } from '../vscode';
+import { parseGitHubPRUrl, parseGitHubIssueUrl } from '../lib/parseGitHubUrl';
 
 // ─── Markdown-it Configuration ────────────────────────────────────
 
@@ -131,6 +133,25 @@ function highlightMentions(
     );
 }
 
+// ─── GitHub Link Interception ─────────────────────────────────────────
+
+/**
+ * VS Code webviews natively intercept <a href="..."> clicks on external URLs
+ * and open them in the browser — this fires BEFORE React's synthetic onClick
+ * reaches our delegated handler.  To prevent that we move the `href` of
+ * recognised GitHub PR/Issue links into `data-href` and blank the real href
+ * so the webview ignores the click.  Our React onClick handler reads
+ * `data-href` instead.
+ */
+const GITHUB_PR_ISSUE_RE =
+    /(<a\b[^>]*?)\bhref=(["'])(https:\/\/github\.com\/[^/]+\/[^/]+\/(?:pull|issues)\/\d+[^"']*?)\2([^>]*?>)/gi;
+
+function neutralizeGitHubLinks(html: string): string {
+    return html.replace(GITHUB_PR_ISSUE_RE, (_match, before, quote, url, after) => {
+        return `${before}href=${quote}#${quote} data-href=${quote}${url}${quote} data-github-link="true"${after}`;
+    });
+}
+
 // ─── Component ────────────────────────────────────────────────────────
 
 interface MarkdownBodyProps {
@@ -149,17 +170,53 @@ interface MarkdownBodyProps {
 export const MarkdownBody: React.FC<MarkdownBodyProps> = ({ content, className = '', currentUsername }) => {
     const customEmojis = useMattermostStore((s) => s.customEmojis);
     const html = useMemo(
-        () => highlightMentions(
-            renderEmojiInHtml(sanitizeHtml(md.render(content)), customEmojis),
-            currentUsername ?? null,
+        () => neutralizeGitHubLinks(
+            highlightMentions(
+                renderEmojiInHtml(sanitizeHtml(md.render(content)), customEmojis),
+                currentUsername ?? null,
+            ),
         ),
         [content, customEmojis, currentUsername],
     );
+
+    /**
+     * Delegated click handler: intercept <a> clicks on GitHub PR/Issue URLs
+     * and navigate within SP Forge instead of opening the browser.
+     *
+     * GitHub links have their real URL in `data-href` (set by
+     * `neutralizeGitHubLinks`) because VS Code webviews natively open
+     * external `href` links in the browser before React's onClick fires.
+     */
+    const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+        const target = (e.target as HTMLElement).closest('a');
+        if (!target) { return; }
+
+        // data-href is set by neutralizeGitHubLinks; fall back to href for
+        // programmatically-created links that bypass the post-processor.
+        const href = target.getAttribute('data-href') || target.getAttribute('href');
+        if (!href) { return; }
+
+        const prInfo = parseGitHubPRUrl(href);
+        if (prInfo) {
+            e.preventDefault();
+            e.stopPropagation();
+            postMessage('navigateToGitHubPR', prInfo);
+            return;
+        }
+
+        const issueInfo = parseGitHubIssueUrl(href);
+        if (issueInfo) {
+            e.preventDefault();
+            e.stopPropagation();
+            postMessage('navigateToGitHubIssue', issueInfo);
+        }
+    }, []);
 
     return (
         <div
             className={`markdown-body text-[12px] leading-relaxed ${className}`}
             dangerouslySetInnerHTML={{ __html: html }}
+            onClick={handleClick}
         />
     );
 };

@@ -119,6 +119,66 @@ export const handleIssueMessage: MessageHandler = async (ctx, msg) => {
             }
             return true;
 
+        // ─── GitHub Issue Link Navigation ─────────────────────
+        case 'navigateToGitHubIssue': {
+            const linkOwner = msg.owner as string | undefined;
+            const linkRepo = msg.repo as string | undefined;
+            const linkIssueNumber = msg.issueNumber as number | undefined;
+            if (!linkOwner || !linkRepo || !linkIssueNumber || !ctx.issueService) {
+                return true;
+            }
+
+            const currentRepo = await ctx.getRepoInfo();
+            const isSameRepo =
+                currentRepo &&
+                currentRepo.owner.toLowerCase() === linkOwner.toLowerCase() &&
+                currentRepo.repo.toLowerCase() === linkRepo.toLowerCase();
+
+            if (isSameRepo) {
+                ctx.postMessage({ type: 'openIssue', issueNumber: linkIssueNumber });
+                return true;
+            }
+
+            // Different repo — check access and prompt to switch
+            try {
+                await ctx.issueService.getIssue(linkOwner, linkRepo, linkIssueNumber);
+
+                const switchChoice = await vscode.window.showInformationMessage(
+                    `Issue #${linkIssueNumber} is from ${linkOwner}/${linkRepo}. Switch to that repo and open it?`,
+                    { modal: false },
+                    'Switch & Open',
+                    'Open in Browser',
+                );
+
+                if (switchChoice === 'Switch & Open') {
+                    ctx.setRepoOverride({ owner: linkOwner, repo: linkRepo });
+                    await ctx.sendRepoContext();
+                    await Promise.all([
+                        ctx.refreshPRs(),
+                        ctx.refreshIssues(),
+                        ctx.refreshProjects(),
+                        ctx.refreshWiki(),
+                    ]);
+                    ctx.postMessage({ type: 'openIssue', issueNumber: linkIssueNumber });
+                } else if (switchChoice === 'Open in Browser') {
+                    await vscode.env.openExternal(
+                        vscode.Uri.parse(`https://github.com/${linkOwner}/${linkRepo}/issues/${linkIssueNumber}`),
+                    );
+                }
+            } catch {
+                const fallbackChoice = await vscode.window.showWarningMessage(
+                    `You don't appear to have access to ${linkOwner}/${linkRepo}. Open issue #${linkIssueNumber} in the browser instead?`,
+                    'Open in Browser',
+                );
+                if (fallbackChoice === 'Open in Browser') {
+                    await vscode.env.openExternal(
+                        vscode.Uri.parse(`https://github.com/${linkOwner}/${linkRepo}/issues/${linkIssueNumber}`),
+                    );
+                }
+            }
+            return true;
+        }
+
         default:
             return false;
     }
