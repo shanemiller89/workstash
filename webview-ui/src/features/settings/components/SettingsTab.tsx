@@ -28,6 +28,8 @@ import {
     EyeOff,
     RefreshCw,
     ExternalLink,
+    Github,
+    Building2,
 } from 'lucide-react';
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -91,6 +93,8 @@ const Kbd: React.FC<{ children: React.ReactNode }> = ({ children }) => (
 export const SettingsTab: React.FC = () => {
     const settings = useSettingsStore((s) => s.settings);
     const storeUpdateSetting = useSettingsStore((s) => s.updateSetting);
+    const orgs = useSettingsStore((s) => s.orgs);
+    const orgsLoading = useSettingsStore((s) => s.orgsLoading);
     const [showApiKey, setShowApiKey] = useState(false);
     const [apiKeyInput, setApiKeyInput] = useState('');
     const [apiKeySaved, setApiKeySaved] = useState(false);
@@ -109,6 +113,7 @@ export const SettingsTab: React.FC = () => {
     // Request settings on mount
     useEffect(() => {
         postMessage('settings.getSettings');
+        postMessage('settings.getOrgs');
         // Also refresh model list
         if (aiAvailable) {
             postMessage('ai.listModels');
@@ -404,6 +409,61 @@ export const SettingsTab: React.FC = () => {
                         <Switch
                             checked={settings.includePrivateMessages}
                             onCheckedChange={(v) => updateSetting('includePrivateMessages', v)}
+                        />
+                    </SettingRow>
+                </SectionCard>
+
+                {/* ═══ GitHub ═══ */}
+                <SectionCard
+                    icon={<Github size={12} />}
+                    title="GitHub"
+                >
+                    <SettingRow
+                        label="Org Login"
+                        description="GitHub organization to use for org-level project boards and issue views."
+                    >
+                        <Select
+                            value={settings.orgLogin || '__none__'}
+                            onValueChange={(v) => updateSetting('orgLogin', v === '__none__' ? '' : v)}
+                            disabled={orgsLoading}
+                        >
+                            <SelectTrigger className="w-44 text-[11px] h-7">
+                                <SelectValue placeholder={orgsLoading ? 'Loading…' : 'Select org…'} />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="__none__">
+                                    <span className="text-fg/50">None</span>
+                                </SelectItem>
+                                {orgs.map((org) => (
+                                    <SelectItem key={org.login} value={org.login}>
+                                        <div className="flex items-center gap-2">
+                                            {org.avatarUrl && (
+                                                <img
+                                                    src={org.avatarUrl}
+                                                    alt={org.login}
+                                                    className="w-4 h-4 rounded-sm object-cover"
+                                                />
+                                            )}
+                                            <span>{org.name ?? org.login}</span>
+                                            <span className="text-fg/40 text-[10px]">({org.login})</span>
+                                        </div>
+                                    </SelectItem>
+                                ))}
+                                {orgs.length === 0 && !orgsLoading && (
+                                    <SelectItem value="__empty__" disabled>
+                                        <span className="text-fg/40">No orgs found</span>
+                                    </SelectItem>
+                                )}
+                            </SelectContent>
+                        </Select>
+                    </SettingRow>
+                    <SettingRow
+                        label="Org-wide Issues"
+                        description="Show issues across the entire org by default in the Issues tab."
+                    >
+                        <Switch
+                            checked={settings.showOrgIssues}
+                            onCheckedChange={(v) => updateSetting('showOrgIssues', v)}
                         />
                     </SettingRow>
                 </SectionCard>

@@ -21,6 +21,9 @@ export function handleProjectMessage(msg: Msg): boolean {
             return true;
         case 'projectsAvailable':
             s.setAvailableProjects(msg.payload as ProjectSummary[]);
+            if (msg.orgLogin !== undefined) {
+                s.setOrgConfig((msg.orgLogin as string | null) ?? null);
+            }
             return true;
         case 'projectData':
             s.setSelectedProject(msg.payload as ProjectData);

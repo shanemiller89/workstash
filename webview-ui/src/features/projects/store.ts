@@ -84,6 +84,7 @@ export interface ProjectSummary {
     title: string;
     closed: boolean;
     url: string;
+    ownerType?: 'repo' | 'org';
 }
 
 export interface ProjectData {
@@ -137,9 +138,15 @@ interface ProjectStore {
     isFieldUpdating: boolean;
     isRepoNotFound: boolean;
     error: string | null;
+    /** Org login from extension config — null means no org configured */
+    orgLogin: string | null;
+    /** Active scope tab: 'repo' or 'org' */
+    activeScope: 'repo' | 'org';
 
     // Actions
     setAvailableProjects: (projects: ProjectSummary[]) => void;
+    setOrgConfig: (orgLogin: string | null) => void;
+    setActiveScope: (scope: 'repo' | 'org') => void;
     setSelectedProject: (project: ProjectData) => void;
     setItems: (items: ProjectItemData[]) => void;
     setFields: (fields: ProjectFieldData[]) => void;
@@ -174,6 +181,7 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     fields: [],
     selectedItemId: null,
     selectedViewId: '__simple__',
+    activeScope: 'repo',
     statusFilter: 'all',
     searchQuery: '',
     myIssuesOnly: false,
@@ -182,8 +190,11 @@ export const useProjectStore = create<ProjectStore>((set, get) => ({
     isFieldUpdating: false,
     isRepoNotFound: false,
     error: null,
+    orgLogin: null,
 
-    setAvailableProjects: (projects) => set({ availableProjects: projects }),
+    setAvailableProjects: (projects) => set({ availableProjects: projects, isRepoNotFound: false }),
+    setOrgConfig: (orgLogin) => set({ orgLogin }),
+    setActiveScope: (scope) => set({ activeScope: scope }),
 
     setSelectedProject: (project) =>
         set({

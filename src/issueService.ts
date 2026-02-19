@@ -21,6 +21,8 @@ export interface Issue {
     assignees: { login: string; avatarUrl: string }[];
     milestone: { title: string; number: number } | null;
     isPullRequest: boolean;
+    /** Repository slug (owner/repo) — populated for org-scoped queries */
+    repoFullName?: string;
 }
 
 export interface IssueComment {
@@ -49,6 +51,8 @@ export interface IssueData {
     labels: { name: string; color: string }[];
     assignees: { login: string; avatarUrl: string }[];
     milestone: { title: string; number: number } | null;
+    /** Repository slug (owner/repo) — present when loaded in org-wide mode */
+    repoFullName?: string;
 }
 
 export interface IssueCommentData {
@@ -87,6 +91,11 @@ interface GitHubComment {
     user: { login: string; avatar_url: string } | null;
     created_at: string;
     updated_at: string;
+}
+
+/** Shape returned by the GitHub Search API for issues */
+interface GitHubSearchIssue extends GitHubIssue {
+    repository_url: string;
 }
 
 // ─── Constants ────────────────────────────────────────────────────
@@ -213,7 +222,7 @@ export class IssueService {
 
     // ─── Parsing ──────────────────────────────────────────────────
 
-    private _parseIssue(issue: GitHubIssue): Issue {
+    private _parseIssue(issue: GitHubIssue, repoFullName?: string): Issue {
         return {
             number: issue.number,
             title: issue.title,
@@ -235,6 +244,7 @@ export class IssueService {
                 ? { title: issue.milestone.title, number: issue.milestone.number }
                 : null,
             isPullRequest: !!issue.pull_request,
+            repoFullName,
         };
     }
 
@@ -272,6 +282,36 @@ export class IssueService {
         return data
             .filter((issue) => !issue.pull_request)
             .map((issue) => this._parseIssue(issue));
+    }
+
+    /**
+     * List issues across all repositories in a GitHub organization.
+     * Uses the GitHub Search API (GET /search/issues) so each returned Issue
+     * has `repoFullName` populated (e.g. "myorg/myrepo").
+     *
+     * @param org         GitHub org login.
+     * @param state       Issue state filter ('open' | 'closed' | 'all').
+     * @param repoFilter  Optional repo name (without owner) to narrow results.
+     */
+    async listOrgIssues(
+        org: string,
+        state: IssueState | 'all' = 'open',
+        repoFilter?: string,
+    ): Promise<Issue[]> {
+        const stateQ = state === 'all' ? '' : `+is:${state}`;
+        const repoQ = repoFilter ? `+repo:${org}/${repoFilter}` : `+org:${org}`;
+        const url = `/search/issues?q=is:issue${stateQ}${repoQ}&sort=updated&order=desc&per_page=50`;
+        const { data } = await this._request<{ items: GitHubSearchIssue[] }>('GET', url);
+        return data.items
+            .filter((issue) => !issue.pull_request)
+            .map((issue) => {
+                // repository_url = "https://api.github.com/repos/{owner}/{repo}"
+                const repoFullName = issue.repository_url.replace(
+                    'https://api.github.com/repos/',
+                    '',
+                );
+                return this._parseIssue(issue, repoFullName);
+            });
     }
 
     /**
@@ -377,6 +417,7 @@ export class IssueService {
             labels: issue.labels,
             assignees: issue.assignees,
             milestone: issue.milestone,
+            repoFullName: issue.repoFullName,
         };
     }
 

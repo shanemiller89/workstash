@@ -23,6 +23,9 @@ export const handleSettingsMessage: MessageHandler = async (ctx, msg) => {
                     defaultVisibility: config.get<string>('notes.defaultVisibility', 'secret'),
                     // Mattermost
                     mattermostServerUrl: config.get<string>('mattermost.serverUrl', ''),
+                    // GitHub
+                    orgLogin: vscode.workspace.getConfiguration('superprompt-forge.github').get<string>('orgLogin', ''),
+                    showOrgIssues: vscode.workspace.getConfiguration('superprompt-forge.github').get<boolean>('showOrgIssues', false),
                     // AI Privacy
                     includeSecretGists: config.get<boolean>('ai.includeSecretGists', false),
                     includePrivateMessages: config.get<boolean>('ai.includePrivateMessages', false),
@@ -53,6 +56,8 @@ export const handleSettingsMessage: MessageHandler = async (ctx, msg) => {
                 autosaveDelay: { section: 'superprompt-forge.notes', key: 'autosaveDelay' },
                 defaultVisibility: { section: 'superprompt-forge.notes', key: 'defaultVisibility' },
                 mattermostServerUrl: { section: 'superprompt-forge.mattermost', key: 'serverUrl' },
+                orgLogin: { section: 'superprompt-forge.github', key: 'orgLogin' },
+                showOrgIssues: { section: 'superprompt-forge.github', key: 'showOrgIssues' },
                 includeSecretGists: { section: 'superprompt-forge.ai', key: 'includeSecretGists' },
                 includePrivateMessages: { section: 'superprompt-forge.ai', key: 'includePrivateMessages' },
                 providerPreference: { section: 'superprompt-forge.ai', key: 'provider' },
@@ -74,6 +79,26 @@ export const handleSettingsMessage: MessageHandler = async (ctx, msg) => {
                         provider: AiService.activeProvider(),
                     });
                 }
+
+                // If org settings changed, re-run projects/issues refresh so new org data loads immediately
+                if (settingKey === 'orgLogin' || settingKey === 'showOrgIssues') {
+                    await ctx.refreshProjects();
+                    await ctx.refreshIssues();
+                }
+            }
+            return true;
+        }
+
+        case 'settings.getOrgs': {
+            if (ctx.projectService) {
+                try {
+                    const orgs = await ctx.projectService.listUserOrgs();
+                    ctx.postMessage({ type: 'settingsOrgs', orgs });
+                } catch (e: unknown) {
+                    ctx.postMessage({ type: 'settingsOrgs', orgs: [] });
+                }
+            } else {
+                ctx.postMessage({ type: 'settingsOrgs', orgs: [] });
             }
             return true;
         }

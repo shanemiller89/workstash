@@ -16,6 +16,9 @@ export interface SettingsData {
     defaultVisibility: 'secret' | 'public';
     // Mattermost
     mattermostServerUrl: string;
+    // GitHub
+    orgLogin: string;
+    showOrgIssues: boolean;
     // AI Privacy
     includeSecretGists: boolean;
     includePrivateMessages: boolean;
@@ -30,14 +33,27 @@ export interface SettingsData {
 
 interface SettingsStore {
     settings: SettingsData | null;
+    orgs: { login: string; avatarUrl: string; name: string | null }[];
+    orgsLoading: boolean;
     setSettings: (settings: SettingsData) => void;
+    setOrgs: (orgs: { login: string; avatarUrl: string; name: string | null }[]) => void;
+    setOrgsLoading: (v: boolean) => void;
     updateSetting: <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => void;
 }
 
 export const useSettingsStore = create<SettingsStore>((set) => ({
     settings: null,
+    orgs: [],
+    orgsLoading: false,
 
-    setSettings: (settings) => set({ settings }),
+    setSettings: (settings) => set({
+        settings: {
+            ...settings,
+            // Ensure fields added in newer builds are never undefined
+            orgLogin: settings.orgLogin ?? '',
+            showOrgIssues: settings.showOrgIssues ?? false,
+        },
+    }),
 
     updateSetting: (key, value) =>
         set((s) =>
@@ -45,4 +61,7 @@ export const useSettingsStore = create<SettingsStore>((set) => ({
                 ? { settings: { ...s.settings, [key]: value } }
                 : s,
         ),
+
+    setOrgs: (orgs) => set({ orgs, orgsLoading: false }),
+    setOrgsLoading: (v) => set({ orgsLoading: v }),
 }));

@@ -56,7 +56,7 @@ export interface HandlerContext {
     refreshNotes(): Promise<void>;
     refreshPRs(state?: 'open' | 'closed' | 'merged' | 'all', authorFilter?: 'all' | 'authored' | 'assigned' | 'review-requested'): Promise<void>;
     sendPRComments(prNumber: number): Promise<void>;
-    refreshIssues(state?: 'open' | 'closed' | 'all'): Promise<void>;
+    refreshIssues(state?: 'open' | 'closed' | 'all', orgMode?: boolean): Promise<void>;
     sendIssueComments(issueNumber: number): Promise<void>;
     refreshProjects(): Promise<void>;
     refreshProjectItems(projectId: string): Promise<void>;

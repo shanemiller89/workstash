@@ -94,11 +94,15 @@ export const handleMattermostMessage: MessageHandler = async (ctx, msg) => {
                         teamId: msg.teamId,
                         page: page + 1,
                     });
-                } else if (page === 0) {
-                    // Fetch custom emoji list on first page load (fire-and-forget)
-                    ctx.mattermostService.getCustomEmojis().then((customEmojis) => {
-                        ctx.postMessage({ type: 'mattermostCustomEmojis', payload: customEmojis });
-                    }).catch(() => { /* non-critical — custom emojis just won't render */ });
+                } else {
+                    // All channel pages loaded — fetch custom emojis (fire-and-forget)
+                    ctx.outputChannel.appendLine('[Mattermost] Fetching custom emojis…');
+                    ctx.mattermostService.getCustomEmojis().then((emojiMap) => {
+                        ctx.postMessage({ type: 'mattermostCustomEmojis', payload: emojiMap });
+                        ctx.outputChannel.appendLine(`[Mattermost] Sent ${Object.keys(emojiMap).length} custom emojis`);
+                    }).catch((err: unknown) => {
+                        ctx.outputChannel.appendLine(`[Mattermost] Failed to fetch custom emojis: ${err instanceof Error ? err.message : String(err)}`);
+                    });
                 }
             } catch (e: unknown) {
                 const m = extractErrorMessage(e);

@@ -16,6 +16,8 @@ export interface IssueData {
     labels: { name: string; color: string }[];
     assignees: { login: string; avatarUrl: string }[];
     milestone: { title: string; number: number } | null;
+    /** Populated in org mode: "owner/repo" slug */
+    repoFullName?: string;
 }
 
 export interface IssueCommentData {
@@ -42,6 +44,12 @@ interface IssueStore {
     isRepoNotFound: boolean;
     error: string | null;
     searchQuery: string;
+    /** Whether the Issues tab is showing org-wide issues (true) or repo issues (false) */
+    isOrgMode: boolean;
+    /** The org login used when isOrgMode is true */
+    orgLogin: string | null;
+    /** Optional repo filter within org mode ("owner/repo" slug or just "repo") */
+    orgRepoFilter: string | null;
 
     // Actions
     setIssues: (issues: IssueData[]) => void;
@@ -58,6 +66,8 @@ interface IssueStore {
     setError: (error: string | null) => void;
     setSearchQuery: (query: string) => void;
     updateIssueState: (issueNumber: number, state: 'open' | 'closed') => void;
+    setOrgMode: (enabled: boolean, orgLogin: string | null) => void;
+    setOrgRepoFilter: (repo: string | null) => void;
 
     // Selectors
     filteredIssues: () => IssueData[];
@@ -76,6 +86,9 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
     isRepoNotFound: false,
     error: null,
     searchQuery: '',
+    isOrgMode: false,
+    orgLogin: null,
+    orgRepoFilter: null,
 
     setIssues: (issues) => {
         const { selectedIssueNumber } = get();
@@ -142,6 +155,21 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
 
     setSearchQuery: (searchQuery) => set({ searchQuery }),
 
+    setOrgMode: (enabled, orgLogin) =>
+        set({
+            isOrgMode: enabled,
+            orgLogin: enabled ? orgLogin : null,
+            orgRepoFilter: null,
+            // Clear issue list when switching modes — a fresh load is coming
+            issues: [],
+            selectedIssueNumber: null,
+            selectedIssueDetail: null,
+            comments: [],
+            isLoading: true,
+        }),
+
+    setOrgRepoFilter: (repo) => set({ orgRepoFilter: repo }),
+
     updateIssueState: (issueNumber, state) => {
         set((s) => ({
             issues: s.issues.map((i) =>
@@ -154,10 +182,20 @@ export const useIssueStore = create<IssueStore>((set, get) => ({
     },
 
     filteredIssues: () => {
-        const { issues, searchQuery } = get();
+        const { issues, searchQuery, orgRepoFilter } = get();
+        let result = issues;
+        // In org mode, optionally narrow to a single repo
+        if (orgRepoFilter) {
+            const filter = orgRepoFilter.toLowerCase();
+            result = result.filter(
+                (issue) =>
+                    issue.repoFullName?.toLowerCase() === filter ||
+                    issue.repoFullName?.toLowerCase().endsWith(`/${filter}`),
+            );
+        }
         const q = searchQuery.trim().toLowerCase();
-        if (!q) {return issues;}
-        return issues.filter(
+        if (!q) {return result;}
+        return result.filter(
             (issue) =>
                 issue.title.toLowerCase().includes(q) ||
                 `#${issue.number}`.includes(q) ||

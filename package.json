@@ -110,6 +110,16 @@
                     "default": "",
                     "description": "Mattermost server URL (e.g. https://mattermost.example.com). Required for Mattermost integration."
                 },
+                "superprompt-forge.github.orgLogin": {
+                    "type": "string",
+                    "default": "",
+                    "description": "GitHub organization login (e.g. 'allhailai'). When set, org-level Projects and Issues become available in addition to repo-scoped data."
+                },
+                "superprompt-forge.github.showOrgIssues": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "When enabled, the Issues tab defaults to org-wide issue view (requires superprompt-forge.github.orgLogin to be set)."
+                },
                 "superprompt-forge.mattermost.exportDirectory": {
                     "type": "string",
                     "default": "",

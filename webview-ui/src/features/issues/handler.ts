@@ -12,6 +12,10 @@ export function handleIssueMessage(msg: Msg): boolean {
 
     switch (msg.type) {
         case 'issuesData':
+            // Extension sends isOrgMode + orgLogin alongside the payload when in org mode
+            if (msg.isOrgMode !== undefined) {
+                s.setOrgMode(msg.isOrgMode as boolean, (msg.orgLogin as string | null) ?? null);
+            }
             s.setIssues(msg.payload as IssueData[]);
             return true;
         case 'issuesLoading':

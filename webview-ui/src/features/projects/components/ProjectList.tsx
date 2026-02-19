@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { useRovingTabIndex } from '@/hooks/useRovingTabIndex';
 import {
+    Building2,
     CircleDot,
     CheckCircle2,
     GitPullRequest,
@@ -12,6 +13,7 @@ import {
     StickyNote,
     Lock,
 } from 'lucide-react';
+import { postMessage } from '@/vscode';
 
 function formatRelative(iso: string): string {
     const date = new Date(iso);
@@ -77,6 +79,7 @@ export const ProjectList: React.FC = () => {
     const selectItem = useProjectStore((s) => s.selectItem);
     const selectedItemId = useProjectStore((s) => s.selectedItemId);
     const selectedProject = useProjectStore((s) => s.selectedProject);
+    const orgLogin = useProjectStore((s) => s.orgLogin);
     const error = useProjectStore((s) => s.error);
     const filteredItemsFn = useProjectStore((s) => s.filteredItems);
 
@@ -111,15 +114,35 @@ export const ProjectList: React.FC = () => {
     }
 
     if (filteredItems.length === 0) {
+        const noProjectsMsg =
+            !selectedProject && orgLogin ? null : !selectedProject ? 'No projects found for this repository' : 'No items in this project';
         return (
-            <div className="flex flex-col items-center justify-center h-full gap-2">
-                <p className="text-fg/40 text-[11px]">
-                    {items.length === 0
-                        ? selectedProject
-                            ? 'No items in this project'
-                            : 'No projects found for this repository'
-                        : `No items matching "${searchQuery}"`}
-                </p>
+            <div className="flex flex-col items-center justify-center h-full gap-2 px-4 text-center">
+                {items.length === 0 ? (
+                    !selectedProject && orgLogin ? (
+                        <>
+                            <p className="text-fg/40 text-[11px]">
+                                No repo projects found.
+                            </p>
+                            <p className="text-fg/40 text-[11px]">
+                                Org <span className="font-mono text-fg/60">{orgLogin}</span> projects are listed in the selector above.
+                            </p>
+                            <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1.5 mt-1"
+                                onClick={() => postMessage('projects.refresh')}
+                            >
+                                <Building2 size={13} />
+                                Reload projects
+                            </Button>
+                        </>
+                    ) : (
+                        <p className="text-fg/40 text-[11px]">{noProjectsMsg}</p>
+                    )
+                ) : (
+                    <p className="text-fg/40 text-[11px]">{`No items matching "${searchQuery}"`}</p>
+                )}
             </div>
         );
     }

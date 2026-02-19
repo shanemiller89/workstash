@@ -10,6 +10,16 @@ export const handleIssueMessage: MessageHandler = async (ctx, msg) => {
             await ctx.refreshIssues(msg.state as 'open' | 'closed' | 'all' | undefined);
             return true;
 
+        case 'issues.setOrgMode':
+            // Toggle org-wide issues view. msg.enabled = boolean.
+            await ctx.refreshIssues(undefined, msg.enabled as boolean);
+            return true;
+
+        case 'issues.orgFilter':
+            // Re-fetch org issues with a specific state filter while in org mode.
+            await ctx.refreshIssues(msg.state as 'open' | 'closed' | 'all' | undefined, true);
+            return true;
+
         case 'issues.signIn':
             await vscode.commands.executeCommand('superprompt-forge.issues.signIn');
             await ctx.sendAuthStatus();

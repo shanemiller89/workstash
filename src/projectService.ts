@@ -324,7 +324,7 @@ export class ProjectService {
         owner: string,
         repo: string,
         first = 20,
-    ): Promise<{ id: string; number: number; title: string; closed: boolean; url: string }[]> {
+    ): Promise<{ id: string; number: number; title: string; closed: boolean; url: string; ownerType: 'repo' | 'org' }[]> {
         const query = `
             query($owner: String!, $repo: String!, $first: Int!) {
                 repository(owner: $owner, name: $repo) {
@@ -350,7 +350,71 @@ export class ProjectService {
         }
 
         const data = await this._graphql<Result>(query, { owner, repo, first });
-        return data.repository.projectsV2.nodes;
+        return data.repository.projectsV2.nodes.map((n) => ({ ...n, ownerType: 'repo' as const }));
+    }
+
+    /**
+     * List projects owned directly by an organization (org-level boards).
+     * These are not necessarily linked to any specific repository.
+     */
+    async listOrgProjects(
+        org: string,
+        first = 20,
+    ): Promise<{ id: string; number: number; title: string; closed: boolean; url: string; ownerType: 'repo' | 'org' }[]> {
+        const query = `
+            query($org: String!, $first: Int!) {
+                organization(login: $org) {
+                    projectsV2(first: $first, orderBy: { field: UPDATED_AT, direction: DESC }) {
+                        nodes {
+                            id
+                            number
+                            title
+                            closed
+                            url
+                        }
+                    }
+                }
+            }
+        `;
+
+        interface Result {
+            organization: {
+                projectsV2: {
+                    nodes: { id: string; number: number; title: string; closed: boolean; url: string }[];
+                };
+            };
+        }
+
+        const data = await this._graphql<Result>(query, { org, first });
+        return data.organization.projectsV2.nodes.map((n) => ({ ...n, ownerType: 'org' as const }));
+    }
+
+    /**
+     * List all GitHub organizations the authenticated user belongs to.
+     */
+    async listUserOrgs(): Promise<{ login: string; avatarUrl: string; name: string | null }[]> {
+        const query = `
+            query {
+                viewer {
+                    organizations(first: 100) {
+                        nodes {
+                            login
+                            name
+                            avatarUrl
+                        }
+                    }
+                }
+            }
+        `;
+        interface Result {
+            viewer: {
+                organizations: {
+                    nodes: { login: string; name: string | null; avatarUrl: string }[];
+                };
+            };
+        }
+        const data = await this._graphql<Result>(query);
+        return data.viewer.organizations.nodes;
     }
 
     /**

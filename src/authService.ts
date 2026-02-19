@@ -11,7 +11,7 @@ import * as vscode from 'vscode';
  */
 export class AuthService implements vscode.Disposable {
     private static readonly _providerId = 'github';
-    private static readonly _scopes = ['gist', 'repo', 'project'];
+    private static readonly _scopes = ['gist', 'repo', 'project', 'read:org'];
 
     private readonly _outputChannel: vscode.OutputChannel;
     private readonly _disposables: vscode.Disposable[] = [];

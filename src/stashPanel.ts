@@ -450,7 +450,7 @@ export class StashPanel {
             refreshNotes: () => this._refreshNotes(),
             refreshPRs: (state, authorFilter) => this._refreshPRs(state, authorFilter),
             sendPRComments: (prNumber) => this._sendPRComments(prNumber),
-            refreshIssues: (state) => this._refreshIssues(state),
+            refreshIssues: (state, orgMode) => this._refreshIssues(state, orgMode),
             sendIssueComments: (issueNumber) => this._sendIssueComments(issueNumber),
             refreshProjects: () => this._refreshProjects(),
             refreshProjectItems: (projectId) => this._refreshProjectItems(projectId),
@@ -1291,7 +1291,7 @@ export class StashPanel {
     }
 
     /** Fetch issues from IssueService and send to webview. */
-    private async _refreshIssues(state?: 'open' | 'closed' | 'all'): Promise<void> {
+    private async _refreshIssues(state?: 'open' | 'closed' | 'all', orgMode?: boolean): Promise<void> {
         if (!this._issueService || !this._authService) {
             this._outputChannel.appendLine('[Issues] Skipped: service not available');
             return;
@@ -1303,6 +1303,31 @@ export class StashPanel {
                 return;
             }
 
+            // TODO: multi-root — pick org per workspace folder
+            const orgLogin = vscode.workspace
+                .getConfiguration('superprompt-forge.github')
+                .get<string>('orgLogin', '');
+
+            // Org mode: use search API across all org repos
+            if (orgMode && orgLogin) {
+                this._outputChannel.appendLine(
+                    `[Issues] Org mode — fetching issues for org "${orgLogin}" (state=${state ?? 'open'})`,
+                );
+                this._panel.webview.postMessage({ type: 'issuesLoading' });
+
+                const issues = await this._issueService.listOrgIssues(orgLogin, state ?? 'open');
+                this._outputChannel.appendLine(`[Issues] Loaded ${issues.length} org issues`);
+                const payload = issues.map((i) => IssueService.toData(i));
+                this._panel.webview.postMessage({
+                    type: 'issuesData',
+                    payload,
+                    isOrgMode: true,
+                    orgLogin,
+                });
+                return;
+            }
+
+            // Repo mode (default)
             const repoInfo = await this._getRepoInfo();
             if (!repoInfo) {
                 this._outputChannel.appendLine('[Issues] No repo info — sending issueRepoNotFound');
@@ -1320,7 +1345,7 @@ export class StashPanel {
             );
             this._outputChannel.appendLine(`[Issues] Loaded ${issues.length} issues`);
             const payload = issues.map((i) => IssueService.toData(i));
-            this._panel.webview.postMessage({ type: 'issuesData', payload });
+            this._panel.webview.postMessage({ type: 'issuesData', payload, isOrgMode: false });
         } catch (e: unknown) {
             const m = extractErrorMessage(e);
             this._outputChannel.appendLine(`[Issues] Error: ${m}`);
@@ -1385,21 +1410,48 @@ export class StashPanel {
                 return;
             }
 
+            // TODO: multi-root — pick org per workspace folder
+            const orgLogin = vscode.workspace
+                .getConfiguration('superprompt-forge.github')
+                .get<string>('orgLogin', '');
+
             const repoInfo = await this._getRepoInfo();
-            if (!repoInfo) {
-                this._outputChannel.appendLine('[Projects] No repo info — sending projectsRepoNotFound');
+            if (!repoInfo && !orgLogin) {
+                this._outputChannel.appendLine('[Projects] No repo info and no orgLogin — sending projectsRepoNotFound');
                 this._panel.webview.postMessage({ type: 'projectsRepoNotFound' });
                 return;
             }
 
             this._panel.webview.postMessage({ type: 'projectsLoading' });
 
-            // Discover projects linked to this repo
-            const projects = await this._projectService.listRepositoryProjects(
-                repoInfo.owner,
-                repoInfo.repo,
-            );
-            this._panel.webview.postMessage({ type: 'projectsAvailable', payload: projects });
+            // Discover projects linked to this repo (if we have repo context)
+            const repoProjects = repoInfo
+                ? await this._projectService.listRepositoryProjects(
+                      repoInfo.owner,
+                      repoInfo.repo,
+                  )
+                : [];
+
+            let projects = repoProjects;
+            if (orgLogin) {
+                try {
+                    const orgProjects = await this._projectService.listOrgProjects(orgLogin);
+                    // Deduplicate by node id — org list may include repo-linked projects
+                    const seen = new Set(repoProjects.map((p) => p.id));
+                    const uniqueOrgProjects = orgProjects.filter((p) => !seen.has(p.id));
+                    projects = [...repoProjects, ...uniqueOrgProjects];
+                    this._outputChannel.appendLine(
+                        `[Projects] Loaded ${repoProjects.length} repo + ${uniqueOrgProjects.length} org projects from "${orgLogin}"`,
+                    );
+                } catch (orgErr: unknown) {
+                    // Non-fatal: org projects failing should not block repo projects
+                    this._outputChannel.appendLine(
+                        `[Projects] Org projects fetch failed (org="${orgLogin}"): ${extractErrorMessage(orgErr)}`,
+                    );
+                }
+            }
+
+            this._panel.webview.postMessage({ type: 'projectsAvailable', payload: projects, orgLogin: orgLogin || null });
 
             if (projects.length === 0) {
                 this._panel.webview.postMessage({ type: 'projectItemsData', payload: [] });
@@ -1497,6 +1549,15 @@ export class StashPanel {
                 ];
                 this._fetchBulkUnreads(allChannelIds).catch(() => { /* ignore */ });
             }
+
+            // Fetch custom emojis (fire-and-forget)
+            this._outputChannel.appendLine('[Mattermost] Fetching custom emojis…');
+            this._mattermostService.getCustomEmojis().then((emojiMap) => {
+                this._panel.webview.postMessage({ type: 'mattermostCustomEmojis', payload: emojiMap });
+                this._outputChannel.appendLine(`[Mattermost] Sent ${Object.keys(emojiMap).length} custom emojis`);
+            }).catch((err: unknown) => {
+                this._outputChannel.appendLine(`[Mattermost] Failed to fetch custom emojis: ${err instanceof Error ? err.message : String(err)}`);
+            });
 
             // Connect WebSocket for real-time events
             await this._connectMattermostWebSocket();

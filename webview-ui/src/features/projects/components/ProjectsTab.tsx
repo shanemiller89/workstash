@@ -19,6 +19,7 @@ import {
     RefreshCw,
     ChevronDown,
     User,
+    Building2,
 } from 'lucide-react';
 
 // Synthetic view id for the built-in simple list view
@@ -43,8 +44,27 @@ export const ProjectsTab: React.FC = () => {
     const searchQuery = useProjectStore((s) => s.searchQuery);
     const setSearchQuery = useProjectStore((s) => s.setSearchQuery);
     const fields = useProjectStore((s) => s.fields);
+    const orgLogin = useProjectStore((s) => s.orgLogin);
+    const activeScope = useProjectStore((s) => s.activeScope);
+    const setActiveScope = useProjectStore((s) => s.setActiveScope);
 
     const views = selectedProject?.views;
+
+    // Split projects by scope
+    const repoProjects = useMemo(
+        () => availableProjects.filter((p) => p.ownerType !== 'org'),
+        [availableProjects],
+    );
+    const orgProjects = useMemo(
+        () => availableProjects.filter((p) => p.ownerType === 'org'),
+        [availableProjects],
+    );
+    const hasOrgScope = orgLogin != null && orgProjects.length > 0;
+    // Projects shown in the selector — restricted to the active scope
+    const scopedProjects = useMemo(
+        () => (activeScope === 'org' ? orgProjects : repoProjects),
+        [activeScope, repoProjects, orgProjects],
+    );
 
     // Derive active view from raw data — must depend on selectedViewId & views
     const currentView = useMemo(() => {
@@ -79,6 +99,18 @@ export const ProjectsTab: React.FC = () => {
         postMessage('projects.selectProject', { projectId });
     }, []);
 
+    const handleScopeSwitch = useCallback(
+        (scope: 'repo' | 'org') => {
+            setActiveScope(scope);
+            // Auto-select first project in the new scope
+            const pool = scope === 'org' ? orgProjects : repoProjects;
+            if (pool.length > 0 && pool[0].id !== selectedProject?.id) {
+                postMessage('projects.selectProject', { projectId: pool[0].id });
+            }
+        },
+        [setActiveScope, orgProjects, repoProjects, selectedProject],
+    );
+
     const hasSelection = selectedItemId !== null;
     const isSimple = selectedViewId === SIMPLE_VIEW_ID;
     const layout = isSimple ? 'SIMPLE' : (currentView?.layout ?? 'TABLE');
@@ -106,6 +138,31 @@ export const ProjectsTab: React.FC = () => {
                 <p className="text-fg/60 text-[12px]">
                     Not a GitHub repository. Projects require a GitHub remote.
                 </p>
+                {orgLogin ? (
+                    <>
+                        <p className="text-fg/50 text-[11px]">
+                            Org login <span className="font-mono text-fg/70">{orgLogin}</span> is configured.
+                        </p>
+                        <Button size="sm" onClick={handleRefresh} className="gap-1.5">
+                            <Building2 size={13} />
+                            Load org projects
+                        </Button>
+                    </>
+                ) : (
+                    <>
+                        <p className="text-fg/50 text-[11px]">
+                            Set an org login in Settings to load org-level project boards.
+                        </p>
+                        <Button
+                            size="sm"
+                            variant="secondary"
+                            className="gap-1.5"
+                            onClick={() => postMessage('settings.openInVSCode')}
+                        >
+                            Open Settings
+                        </Button>
+                    </>
+                )}
             </div>
         );
     }
@@ -144,8 +201,31 @@ export const ProjectsTab: React.FC = () => {
             <div className="h-full flex flex-col">
                 {/* ── Shared header ─────────────────────────────────── */}
             <div className="shrink-0 border-b border-border">
-                {/* Project selector */}
-                {availableProjects.length > 1 && (
+                {/* Scope tabs: Repo / Org */}
+                {(hasOrgScope || orgLogin) && (
+                    <div className="flex items-center gap-0.5 px-3 py-1.5 border-b border-border">
+                        <Button
+                            variant={activeScope === 'repo' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-auto px-2.5 py-1 text-[11px] gap-1 shrink-0"
+                            onClick={() => handleScopeSwitch('repo')}
+                        >
+                            Repo
+                        </Button>
+                        <Button
+                            variant={activeScope === 'org' ? 'default' : 'ghost'}
+                            size="sm"
+                            className="h-auto px-2.5 py-1 text-[11px] gap-1 shrink-0"
+                            onClick={() => handleScopeSwitch('org')}
+                        >
+                            <Building2 size={12} />
+                            {orgLogin}
+                        </Button>
+                    </div>
+                )}
+
+                {/* Project selector — only shown when there are multiple projects in scope */}
+                {scopedProjects.length > 1 && (
                     <div className="flex items-center gap-1 px-3 py-1.5 border-b border-border">
                         <span className="text-[10px] text-fg/40">Project:</span>
                         <select
@@ -153,7 +233,7 @@ export const ProjectsTab: React.FC = () => {
                             value={selectedProject?.id ?? ''}
                             onChange={(e) => handleProjectSwitch(e.target.value)}
                         >
-                            {availableProjects.map((p) => (
+                            {scopedProjects.map((p) => (
                                 <option key={p.id} value={p.id}>
                                     {p.title}
                                 </option>
